@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import DocumentoFormalizacaoDemanda, ItemPCA, PlanoContratacaoAnual
+from .models import ConformidadeItem, DocumentoFormalizacaoDemanda, ItemPCA, PlanoContratacaoAnual
 
 
 class PlanoContratacaoAnualSerializer(serializers.ModelSerializer):
@@ -89,6 +89,47 @@ class DocumentoFormalizacaoDemandaSerializer(serializers.ModelSerializer):
             "itens",
         ]
         read_only_fields = ["criado_em", "status_display", "unidade_sigla", "itens"]
+
+
+class ConformidadeItemSerializer(serializers.ModelSerializer):
+    percentual_conformidade = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = ConformidadeItem
+        fields = [
+            "id",
+            "item",
+            "termo_referencia_aprovado",
+            "pesquisa_mercado",
+            "pareceres_juridicos",
+            "publicacao_edital",
+            "atas_certame",
+            "termo_homologacao",
+            "termo_adjudicacao",
+            "atos_autorizacao",
+            "documentacao_fornecedor",
+            "assinatura_contrato",
+            "publicacao_contrato",
+            "documento_aceite",
+            "justificativa_vantajosidade",
+            "declaracao_conformidade",
+            "pesquisa_precos",
+            "mapa_comparativo",
+            "certidoes_habilitacao",
+            "margem_calculo",
+            "parecer_orcamentario_financeiro",
+            "parecer_juridico_execucao",
+            "parecer_conint",
+            "oficio_autorizacao_empenho",
+            "atualizar_certidoes",
+            "termo_aditivo_apostilamento",
+            "publicacoes_execucao",
+            "observacao",
+            "avaliado_por",
+            "atualizado_em",
+            "percentual_conformidade",
+        ]
+        read_only_fields = ["atualizado_em", "percentual_conformidade"]
 
 
 class PlanoContratacaoAnualDetalhadoSerializer(PlanoContratacaoAnualSerializer):

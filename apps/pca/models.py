@@ -132,3 +132,90 @@ class ItemPCA(models.Model):
 
     def __str__(self):
         return f"Item {self.numero_item} — {self.descricao[:50]}"
+
+
+class ConformidadeItem(models.Model):
+    """
+    Checklist de conformidade da fase de licitação/contratação e de execução
+    contratual de um item do PCA.
+    """
+
+    FASE_LICITACAO_CONTRATACAO = [
+        "termo_referencia_aprovado",
+        "pesquisa_mercado",
+        "pareceres_juridicos",
+        "publicacao_edital",
+        "atas_certame",
+        "termo_homologacao",
+        "termo_adjudicacao",
+        "atos_autorizacao",
+        "documentacao_fornecedor",
+        "assinatura_contrato",
+        "publicacao_contrato",
+    ]
+
+    FASE_EXECUCAO = [
+        "documento_aceite",
+        "justificativa_vantajosidade",
+        "declaracao_conformidade",
+        "pesquisa_precos",
+        "mapa_comparativo",
+        "certidoes_habilitacao",
+        "margem_calculo",
+        "parecer_orcamentario_financeiro",
+        "parecer_juridico_execucao",
+        "parecer_conint",
+        "oficio_autorizacao_empenho",
+        "atualizar_certidoes",
+        "termo_aditivo_apostilamento",
+        "publicacoes_execucao",
+    ]
+
+    item = models.OneToOneField(ItemPCA, on_delete=models.CASCADE, related_name="conformidade")
+
+    # Fase 1 — Licitação e Contratação
+    termo_referencia_aprovado = models.BooleanField(default=False)
+    pesquisa_mercado = models.BooleanField(default=False)
+    pareceres_juridicos = models.BooleanField(default=False)
+    publicacao_edital = models.BooleanField(default=False)
+    atas_certame = models.BooleanField(default=False)
+    termo_homologacao = models.BooleanField(default=False)
+    termo_adjudicacao = models.BooleanField(default=False)
+    atos_autorizacao = models.BooleanField(default=False)
+    documentacao_fornecedor = models.BooleanField(default=False)
+    assinatura_contrato = models.BooleanField(default=False)
+    publicacao_contrato = models.BooleanField(default=False)
+
+    # Fase 2 — Execução Contratual
+    documento_aceite = models.BooleanField(default=False)
+    justificativa_vantajosidade = models.BooleanField(default=False)
+    declaracao_conformidade = models.BooleanField(default=False)
+    pesquisa_precos = models.BooleanField(default=False)
+    mapa_comparativo = models.BooleanField(default=False)
+    certidoes_habilitacao = models.BooleanField(default=False)
+    margem_calculo = models.BooleanField(default=False)
+    parecer_orcamentario_financeiro = models.BooleanField(default=False)
+    parecer_juridico_execucao = models.BooleanField(default=False)
+    parecer_conint = models.BooleanField(default=False)
+    oficio_autorizacao_empenho = models.BooleanField(default=False)
+    atualizar_certidoes = models.BooleanField(default=False)
+    termo_aditivo_apostilamento = models.BooleanField(default=False)
+    publicacoes_execucao = models.BooleanField(default=False)
+
+    observacao = models.TextField(blank=True)
+    avaliado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="conformidades_avaliadas"
+    )
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Conformidade do Item"
+
+    @property
+    def percentual_conformidade(self):
+        campos = self.FASE_LICITACAO_CONTRATACAO + self.FASE_EXECUCAO
+        marcados = sum(1 for c in campos if getattr(self, c))
+        return round((marcados / len(campos)) * 100)
+
+    def __str__(self):
+        return f"Conformidade — Item {self.item_id} ({self.percentual_conformidade}%)"

@@ -3,8 +3,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from .models import DocumentoFormalizacaoDemanda, ItemPCA, PlanoContratacaoAnual
+from .models import ConformidadeItem, DocumentoFormalizacaoDemanda, ItemPCA, PlanoContratacaoAnual
 from .serializers import (
+    ConformidadeItemSerializer,
     DocumentoFormalizacaoDemandaSerializer,
     ItemPCASerializer,
     PlanoContratacaoAnualDetalhadoSerializer,
@@ -97,3 +98,35 @@ class ItemPCAViewSet(ModelViewSet):
         if dfd_id:
             qs = qs.filter(dfd_id=dfd_id)
         return qs
+
+
+class ConformidadeItemViewSet(ModelViewSet):
+    """
+    Checklist de conformidade por item do PCA.
+    GET  /api/pca/conformidade/?item=<id>  → lista (ou filtra por item)
+    POST /api/pca/conformidade/            → cria OU atualiza (upsert por item)
+    """
+
+    serializer_class = ConformidadeItemSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        qs = ConformidadeItem.objects.select_related("item", "avaliado_por")
+        item_id = self.request.query_params.get("item")
+        if item_id:
+            qs = qs.filter(item_id=item_id)
+        return qs
+
+    def create(self, request, *args, **kwargs):
+        item_id = request.data.get("item")
+        existente = ConformidadeItem.objects.filter(item_id=item_id).first()
+        if existente:
+            serializer = self.get_serializer(existente, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(avaliado_por=request.user)
+            return Response(serializer.data)
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(avaliado_por=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
