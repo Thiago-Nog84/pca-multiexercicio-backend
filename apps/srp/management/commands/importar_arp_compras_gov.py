@@ -21,17 +21,19 @@ Modos de uso:
 
 Fluxo:
     1. Busca todas as ARPs do UASG no período (Endpoint 1 — /modulo-arp/1_consultarARP)
-    2. Para cada ARP encontrada, busca seus itens (Endpoint 2 — /modulo-arp/2_consultarARPItem)
+    2. Busca TODOS os itens do UASG de uma vez (Endpoint 2 — /modulo-arp/2_consultarARPItem)
+       e agrupa localmente por numeroAtaRegistroPreco (o filtro da API não funciona).
     3. Importa AtaRegistroPrecos + ItemARP no banco local
 
 Importante:
     Os parâmetros dataVigenciaInicialMin e dataVigenciaInicialMax são OBRIGATÓRIOS na API.
-    O comando usa ANO-INICIO/01/01 até ANO-ATUAL+2/12/31 como intervalo.
+    O comando usa ANO-INICIO/01/01 até ANO-ATUAL/12/31 como intervalo (API rejeita anos futuros).
     O número da ARP (numeroAtaRegistroPreco) é lido diretamente da resposta da API,
     eliminando problemas de formato (002/2026 vs 2/2026 vs 002 etc.).
 """
 
 import re
+from collections import defaultdict
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
@@ -88,43 +90,81 @@ class Command(BaseCommand):
         dry_run = options["dry_run"]
         listar = options["listar"]
 
-        ano_fim = date.today().year + 2  # margem para ARPs com vigência futura
-        data_min = f"{ano_inicio}-01-01"
-        data_max = f"{ano_fim}-12-31"
+        ano_fim = date.today().year  # API rejeita datas futuras além do ano corrente
 
         if dry_run:
             self.stdout.write(self.style.WARNING("MODO DRY-RUN — nenhuma alteração será gravada.\n"))
 
-        self.stdout.write(f"\n{'='*60}")
-        self.stdout.write(f"UASG: {uasg} | Vigência: {data_min} a {data_max}")
-        self.stdout.write(f"{'='*60}")
+        # A API rejeita intervalos que cruzam anos — iteramos ano a ano
+        anos = list(range(ano_inicio, ano_fim + 1))
 
-        # Passo 1 — Busca todas as ARPs do UASG no período
-        self.stdout.write("→ Buscando ARPs disponíveis (/modulo-arp/1_consultarARP)...")
-        arps_api = self._consultar_paginado(
-            "/modulo-arp/1_consultarARP",
-            {
-                "codigoUnidadeGerenciadora": uasg,
-                "dataVigenciaInicialMin": data_min,
-                "dataVigenciaInicialMax": data_max,
-            },
-        )
+        arps_api = []
+        todos_itens_api = []
+
+        for ano in anos:
+            data_min = f"{ano}-01-01"
+            data_max = f"{ano}-12-31"
+
+            self.stdout.write(f"\n{'='*60}")
+            self.stdout.write(f"UASG: {uasg} | Vigência: {data_min} a {data_max}")
+            self.stdout.write(f"{'='*60}")
+
+            # Passo 1 — Busca ARPs do ano
+            self.stdout.write("→ Buscando ARPs disponíveis (/modulo-arp/1_consultarARP)...")
+            arps_ano = self._consultar_paginado(
+                "/modulo-arp/1_consultarARP",
+                {
+                    "codigoUnidadeGerenciadora": uasg,
+                    "dataVigenciaInicialMin": data_min,
+                    "dataVigenciaInicialMax": data_max,
+                },
+            )
+            self.stdout.write(self.style.SUCCESS(f"  {len(arps_ano)} ARP(s) encontrada(s)."))
+            arps_api.extend(arps_ano)
+
+            if arps_ano:
+                # Passo 2 — Busca itens do ano
+                self.stdout.write("→ Buscando itens (/modulo-arp/2_consultarARPItem)...")
+                itens_ano = self._consultar_paginado(
+                    "/modulo-arp/2_consultarARPItem",
+                    {
+                        "codigoUnidadeGerenciadora": uasg,
+                        "dataVigenciaInicialMin": data_min,
+                        "dataVigenciaInicialMax": data_max,
+                    },
+                )
+                self.stdout.write(self.style.SUCCESS(f"  {len(itens_ano)} item(ns) encontrado(s)."))
+                todos_itens_api.extend(itens_ano)
 
         if not arps_api:
             self.stdout.write(self.style.WARNING(
-                f"Nenhuma ARP encontrada para UASG {uasg} com vigência a partir de {data_min}.\n"
+                f"Nenhuma ARP encontrada para UASG {uasg} com vigência a partir de {ano_inicio}.\n"
                 "Verifique o UASG ou tente um --ano-inicio menor."
             ))
             return
 
-        self.stdout.write(self.style.SUCCESS(f"  {len(arps_api)} ARP(s) encontrada(s) na API."))
+        self.stdout.write(f"\n{'='*60}")
+        self.stdout.write(self.style.SUCCESS(
+            f"Total: {len(arps_api)} ARP(s) e {len(todos_itens_api)} item(ns) em {len(anos)} ano(s)."
+        ))
 
         # Modo --listar: exibe tabela e encerra
         if listar:
             self._exibir_lista(arps_api)
             return
 
-        # Passo 2 — Importa cada ARP e seus itens
+        # Agrupa itens por número de ARP
+        itens_por_arp = defaultdict(list)
+        for item in todos_itens_api:
+            num = (
+                item.get("numeroAtaRegistroPreco")
+                or item.get("numeroAta")
+                or item.get("numero")
+                or ""
+            )
+            itens_por_arp[num].append(item)
+
+        # Passo 3 — Importa cada ARP e seus itens
         orgao = Orgao.objects.first()
         if not orgao:
             raise CommandError("Nenhum Órgão cadastrado. Cadastre o MPPI primeiro.")
@@ -137,16 +177,8 @@ class Command(BaseCommand):
             self.stdout.write(f"\n→ ARP {numero_arp_api or '(sem número)'} — "
                               f"{str(dados_arp.get('objeto') or dados_arp.get('descricaoObjeto') or '')[:50]}")
 
-            # Busca itens desta ARP
-            params_itens = {
-                "codigoUnidadeGerenciadora": uasg,
-                "dataVigenciaInicialMin": data_min,
-                "dataVigenciaInicialMax": data_max,
-            }
-            if numero_arp_api:
-                params_itens["numeroAtaRegistroPreco"] = numero_arp_api
-
-            itens_api = self._consultar_paginado("/modulo-arp/2_consultarARPItem", params_itens)
+            # Usa os itens pré-agrupados para esta ARP
+            itens_api = itens_por_arp.get(numero_arp_api, [])
             self.stdout.write(f"  Itens: {len(itens_api)}")
 
             if dry_run:
@@ -154,9 +186,18 @@ class Command(BaseCommand):
                 resumo["itens_criados"] += len(itens_api)
                 continue
 
+            # Extrai fornecedor do primeiro item (endpoint 1 não retorna fornecedor)
+            fornecedor_nome = ""
+            fornecedor_cnpj = ""
+            if itens_api:
+                fornecedor_nome = itens_api[0].get("nomeRazaoSocialFornecedor") or ""
+                fornecedor_cnpj = itens_api[0].get("niFornecedor") or ""
+
             with transaction.atomic():
                 arp_obj, criada, ignorada = self._importar_arp(
-                    dados_arp, orgao, uasg, numero_arp_api, atualizar
+                    dados_arp, orgao, uasg, numero_arp_api, atualizar,
+                    fornecedor_nome=fornecedor_nome,
+                    fornecedor_cnpj=fornecedor_cnpj,
                 )
 
                 if ignorada:
@@ -169,6 +210,20 @@ class Command(BaseCommand):
                 else:
                     resumo["arps_atualizadas"] += 1
                     self.stdout.write(self.style.WARNING("  ATUALIZADA"))
+
+                # Ao atualizar: remove itens que não existem mais na API
+                if atualizar and itens_api:
+                    numeros_api = set()
+                    for item_data in itens_api:
+                        try:
+                            n = int(item_data.get("numeroItem") or item_data.get("numeroItemAta") or item_data.get("item") or 0)
+                            if n:
+                                numeros_api.add(n)
+                        except (TypeError, ValueError):
+                            pass
+                    removidos = arp_obj.itens.exclude(numero_item__in=numeros_api).delete()
+                    if removidos[0]:
+                        self.stdout.write(self.style.WARNING(f"  {removidos[0]} item(ns) obsoleto(s) removido(s)."))
 
                 for item_data in itens_api:
                     r = self._importar_item(item_data, arp_obj, atualizar)
@@ -213,15 +268,21 @@ class Command(BaseCommand):
 
             if isinstance(payload, dict):
                 dados = (
-                    payload.get("data")
+                    payload.get("resultado")
+                    or payload.get("data")
                     or payload.get("itens")
-                    or payload.get("resultado")
                     or payload.get("content")
                     or []
                 )
                 resultados.extend(dados)
-                total = payload.get("totalItens") or payload.get("total") or 0
-                if not dados or len(resultados) >= total or len(dados) < TAMANHO_PAGINA:
+                paginas_restantes = payload.get("paginasRestantes", 0)
+                total = (
+                    payload.get("totalRegistros")
+                    or payload.get("totalItens")
+                    or payload.get("total")
+                    or 0
+                )
+                if not dados or paginas_restantes == 0 or len(dados) < TAMANHO_PAGINA:
                     break
                 pagina += 1
             else:
@@ -260,11 +321,13 @@ class Command(BaseCommand):
     # Persistência
     # ------------------------------------------------------------------
 
-    def _importar_arp(self, dados, orgao, uasg, numero_arp, atualizar):
+    def _importar_arp(self, dados, orgao, uasg, numero_arp, atualizar,
+                      fornecedor_nome="", fornecedor_cnpj=""):
         """Retorna (arp_obj, criada, ignorada)."""
         objeto = dados.get("objeto") or dados.get("descricaoObjeto") or dados.get("objetoAta") or ""
-        fornecedor = (dados.get("nomeRazaoSocial") or dados.get("razaoSocialFornecedor") or dados.get("fornecedor") or "")
-        cnpj = dados.get("niFornecedor") or dados.get("cnpjFornecedor") or dados.get("cnpj") or ""
+        # Endpoint 1 não retorna fornecedor — vem dos itens (endpoint 2)
+        fornecedor = fornecedor_nome or dados.get("nomeRazaoSocial") or dados.get("razaoSocialFornecedor") or ""
+        cnpj = fornecedor_cnpj or dados.get("niFornecedor") or dados.get("cnpjFornecedor") or ""
         data_assinatura = self._parse_data(dados.get("dataAssinatura") or dados.get("dataPublicacao"))
         data_inicio = self._parse_data(dados.get("dataVigenciaInicial") or dados.get("dataInicioVigencia") or dados.get("dataAssinatura"))
         data_fim = self._parse_data(dados.get("dataVigenciaFinal") or dados.get("dataFimVigencia") or dados.get("dataVencimentoAta"))
@@ -319,15 +382,22 @@ class Command(BaseCommand):
         except (TypeError, ValueError):
             return "ignorado"
 
-        descricao = (item_data.get("descricaoItem") or item_data.get("descricao") or item_data.get("nome") or item_data.get("nomeItem") or "")
-        unidade = (item_data.get("unidadeFornecimento") or item_data.get("unidadeMedida") or item_data.get("siglaUnidadeFornecimento") or "")
-        qtd = self._parse_decimal(item_data.get("quantidadeRegistrada") or item_data.get("quantidade") or item_data.get("quantidadeItem"))
-        valor = self._parse_decimal(item_data.get("valorUnitario") or item_data.get("valorUnitarioAjustado") or item_data.get("precoUnitario"))
+        # Campos confirmados pela API (2_consultarARPItem):
+        descricao = (item_data.get("descricaoItem") or item_data.get("descricao") or item_data.get("nomePdm") or "")
+        unidade = (item_data.get("unidadeFornecimento") or item_data.get("siglaUnidadeFornecimento") or item_data.get("unidadeMedida") or "")
+        qtd = self._parse_decimal(
+            item_data.get("quantidadeHomologadaItem")  # campo confirmado
+            or item_data.get("quantidadeRegistrada")
+            or item_data.get("quantidade")
+        )
+        qtd_empenhada = self._parse_decimal(item_data.get("quantidadeEmpenhada"))  # disponível no endpoint 2
+        valor = self._parse_decimal(item_data.get("valorUnitario") or item_data.get("valorUnitarioAjustado"))
         maximo_adesao = self._parse_decimal_nullable(item_data.get("maximoAdesao"))
-        codigo_catmat = str(item_data.get("codigoItem") or item_data.get("codigoCatmat") or item_data.get("codigoPdm") or "")
+        # codigoItem = código do catálogo (ex: 297847); codigoPdm = grupo PDM (ex: 1115)
+        codigo_catmat = str(item_data.get("codigoItem") or item_data.get("codigoCatmat") or "")
         codigo_item_int = None
         try:
-            v = item_data.get("codigoItem") or item_data.get("codigoPdm")
+            v = item_data.get("codigoItem")
             codigo_item_int = int(v) if v else None
         except (TypeError, ValueError):
             pass
@@ -337,6 +407,7 @@ class Command(BaseCommand):
             "descricao": descricao,
             "unidade_fornecimento": unidade,
             "quantidade_registrada": qtd,
+            "quantidade_contratada": qtd_empenhada,  # atualiza saldo empenhado
             "valor_unitario": valor,
             "codigo_catmat_catser": codigo_catmat,
             "codigo_item_compras_gov": codigo_item_int,
@@ -379,7 +450,7 @@ class Command(BaseCommand):
         if valor is None:
             return Decimal("0")
         try:
-            return Decimal(str(valor).replace(",", "."))
+            return Decimal(str(valor).replace(",", ".").strip())
         except InvalidOperation:
             return Decimal("0")
 
@@ -387,6 +458,6 @@ class Command(BaseCommand):
         if valor is None:
             return None
         try:
-            return Decimal(str(valor).replace(",", "."))
+            return Decimal(str(valor).replace(",", ".").strip())
         except InvalidOperation:
             return None

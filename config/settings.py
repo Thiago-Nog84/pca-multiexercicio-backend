@@ -123,3 +123,12 @@ LIMITE_DISPENSA_BENS_SERVICOS = config(
     "LIMITE_DISPENSA_BENS_SERVICOS", default=50_000, cast=int
 )
 LIMITE_DISPENSA_OBRAS = config("LIMITE_DISPENSA_OBRAS", default=100_000, cast=int)
+
+# ------------------------------------------------------------------
+# Comprasnet Contratos API (contratos.comprasnet.gov.br)
+# Credenciais do usuário SISG/Comprasnet com acesso à UG 926092.
+# Necessárias apenas para endpoints v1 autenticados (empenhos, etc.).
+# Deixe em branco para usar somente os endpoints públicos.
+# ------------------------------------------------------------------
+COMPRASNET_CONTRATOS_CPF = config("COMPRASNET_CONTRATOS_CPF", default="")
+COMPRASNET_CONTRATOS_SENHA = config("COMPRASNET_CONTRATOS_SENHA", default="")

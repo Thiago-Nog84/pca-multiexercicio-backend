@@ -14,7 +14,7 @@
     <small class="text-muted">Atas de Registro de Preços do MPPI (UASG 926092)</small>
   </div>
   <a href="{% url 'srp:importar_arp' %}" class="btn btn-primary">
-    <i class="bi bi-cloud-download me-1"></i>Importar ARP do Compras.gov
+    <i class="bi bi-cloud-download me-1"></i>Importar ARPs
   </a>
 </div>
 
@@ -83,42 +83,129 @@
 
 <!-- Tabela de ARPs -->
 <div class="card arp-card">
-  <div class="card-header d-flex align-items-center justify-content-between py-3">
-    <span class="fw-semibold fs-6">
-      <i class="bi bi-table me-2"></i>Atas de Registro de Preços
-    </span>
-    <span class="badge bg-light text-dark">{{ total_arps }} ARP(s)</span>
+  <div class="card-header py-3">
+
+    <!-- Barra de busca e filtros -->
+    <div class="row g-2 align-items-center">
+      <div class="col-12 col-md-5">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-white border-end-0">
+            <i class="bi bi-search text-muted"></i>
+          </span>
+          <input type="text" id="busca-arp" class="form-control border-start-0 ps-0"
+                 placeholder="Buscar por número, fornecedor ou objeto... (atalho: /)"
+                 autocomplete="off">
+          <button class="btn btn-outline-secondary btn-sm" type="button" id="btn-limpar-busca"
+                  style="display:none;" title="Limpar busca">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <select class="form-select form-select-sm" id="filtro-status">
+          <option value="">Todos os status</option>
+          <option value="vigente">Vigente</option>
+          <option value="suspensa">Suspensa</option>
+          <option value="encerrada">Encerrada</option>
+          <option value="cancelada">Cancelada</option>
+        </select>
+      </div>
+
+      <div class="col-6 col-md-2">
+        <select class="form-select form-select-sm" id="filtro-origem">
+          <option value="">Toda origem</option>
+          <option value="api">Importada (API)</option>
+          <option value="manual">Manual</option>
+        </select>
+      </div>
+
+      <div class="col-6 col-md-2">
+        <select class="form-select form-select-sm" id="filtro-vencimento">
+          <option value="">Todos os vencimentos</option>
+          <option value="critica">⛔ Crítico (&lt; 30 dias)</option>
+          <option value="atencao">⚠️ Atenção (&lt; 60 dias)</option>
+          <option value="ok">✅ Normal</option>
+          <option value="expirada">Expirada</option>
+        </select>
+      </div>
+
+      <div class="col-12 col-md-2 text-md-end">
+        <span class="badge bg-light text-dark fs-6" id="contador-visivel">
+          {{ total_arps }} ARP(s)
+        </span>
+        <button class="btn btn-link btn-sm text-muted p-0 ms-2" id="btn-limpar-filtros"
+                style="display:none; font-size:0.75rem;" onclick="limparFiltros()">
+          Limpar filtros
+        </button>
+      </div>
+    </div>
+
   </div>
+
   <div class="card-body p-0">
     {% if arps_lista %}
-    <div class="table-responsive">
-      <table class="table table-hover mb-0 align-middle">
+
+    <div class="table-responsive" id="table-wrapper">
+      <table class="table table-hover mb-0 align-middle" id="tabela-arps">
         <thead class="table-light">
           <tr>
-            <th class="ps-3">Número</th>
-            <th>Fornecedor</th>
+            <th class="ps-3 sortable" data-col="0" style="cursor:pointer; white-space:nowrap; user-select:none;">
+              Número <i class="bi bi-arrow-down-up ms-1 text-muted sort-icon"></i>
+            </th>
+            <th class="sortable" data-col="1" style="cursor:pointer; user-select:none;">
+              Fornecedor <i class="bi bi-arrow-down-up ms-1 text-muted sort-icon"></i>
+            </th>
             <th>Objeto</th>
-            <th class="text-center">Itens</th>
-            <th class="text-center">Status</th>
-            <th>Vigência</th>
-            <th class="text-end">Valor Total</th>
+            <th class="text-center sortable" data-col="3" style="cursor:pointer; white-space:nowrap; user-select:none;">
+              Itens <i class="bi bi-arrow-down-up ms-1 text-muted sort-icon"></i>
+            </th>
+            <th class="text-center sortable" data-col="4" style="cursor:pointer; user-select:none;">
+              Status <i class="bi bi-arrow-down-up ms-1 text-muted sort-icon"></i>
+            </th>
+            <th class="sortable" data-col="5" style="cursor:pointer; white-space:nowrap; user-select:none;">
+              Vigência <i class="bi bi-arrow-down-up ms-1 text-muted sort-icon"></i>
+            </th>
+            <th class="text-center sortable" data-col="7" style="cursor:pointer; white-space:nowrap; user-select:none;">
+              Restante <i class="bi bi-arrow-down-up ms-1 text-muted sort-icon"></i>
+            </th>
+            <th class="text-end sortable" data-col="6" style="cursor:pointer; white-space:nowrap; user-select:none;">
+              Valor Total <i class="bi bi-arrow-down-up ms-1 text-muted sort-icon"></i>
+            </th>
             <th class="text-center">Origem</th>
             <th class="text-center pe-3">Ações</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="tbody-arps">
           {% for entrada in arps_lista %}
           {% with arp=entrada.arp %}
-          <tr>
-            <td class="ps-3 fw-semibold" style="color:var(--mppi-azul);">
+          <tr
+            data-numero="{{ arp.numero_arp|lower }}"
+            data-fornecedor="{{ arp.fornecedor_razao_social|lower }}"
+            data-objeto="{{ arp.objeto|lower }}"
+            data-status="{{ arp.status }}"
+            data-origem="{% if entrada.importada %}api{% else %}manual{% endif %}"
+            data-itens="{{ entrada.total_itens }}"
+            data-valor="{{ entrada.valor_total }}"
+            data-vigencia-fim="{{ arp.data_fim_vigencia|date:'Y-m-d' }}"
+            data-dias="{{ entrada.dias_restantes|default:-9999 }}"
+            data-vencimento="{% if entrada.dias_restantes is None or entrada.dias_restantes < 0 %}expirada{% elif entrada.dias_restantes < 30 %}critica{% elif entrada.dias_restantes < 60 %}atencao{% else %}ok{% endif %}"
+          >
+            <td class="ps-3 fw-semibold" style="color:var(--mppi-azul); white-space:nowrap;">
               {{ arp.numero_arp }}
             </td>
             <td>
-              <div class="fw-medium">{{ arp.fornecedor_razao_social|truncatechars:35 }}</div>
-              <small class="text-muted">{{ arp.fornecedor_cnpj_cpf }}</small>
+              {% if arp.fornecedor_razao_social %}
+                <div class="fw-medium">{{ arp.fornecedor_razao_social|truncatechars:40 }}</div>
+                {% if arp.fornecedor_cnpj_cpf %}
+                  <small class="text-muted">{{ arp.fornecedor_cnpj_cpf }}</small>
+                {% endif %}
+              {% else %}
+                <span class="text-muted small fst-italic">—</span>
+              {% endif %}
             </td>
             <td>
-              <span title="{{ arp.objeto }}">{{ arp.objeto|truncatechars:50 }}</span>
+              <span title="{{ arp.objeto }}">{{ arp.objeto|truncatechars:55 }}</span>
             </td>
             <td class="text-center">
               <span class="badge bg-secondary">{{ entrada.total_itens }}</span>
@@ -134,16 +221,37 @@
                 <span class="badge badge-cancelada">Cancelada</span>
               {% endif %}
             </td>
-            <td>
+            <td style="white-space:nowrap;">
               <div class="small">
                 <i class="bi bi-calendar-check text-success me-1"></i>{{ arp.data_inicio_vigencia|date:"d/m/Y" }}
               </div>
-              <div class="small {% if arp.esta_vigente %}text-success{% else %}text-danger{% %}">
+              <div class="small {% if arp.esta_vigente %}text-success{% else %}text-danger{% endif %}">
                 <i class="bi bi-calendar-x me-1"></i>{{ arp.data_fim_vigencia|date:"d/m/Y" }}
               </div>
             </td>
-            <td class="text-end">
-              <span class="fw-semibold">R$ {{ entrada.valor_total|floatformat:2|intcomma }}</span>
+            <td class="text-center" style="white-space:nowrap;">
+              {% if entrada.dias_restantes is None %}
+                <span class="text-muted small">—</span>
+              {% elif entrada.dias_restantes < 0 %}
+                <span class="vigencia-expirada small">
+                  <i class="bi bi-x-circle me-1"></i>Expirada
+                </span>
+              {% elif entrada.dias_restantes < 30 %}
+                <span class="badge-critica">
+                  <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ entrada.dias_restantes }}d
+                </span>
+              {% elif entrada.dias_restantes < 60 %}
+                <span class="badge-atencao">
+                  <i class="bi bi-exclamation-circle me-1"></i>{{ entrada.dias_restantes }}d
+                </span>
+              {% else %}
+                <span class="vigencia-ok small">
+                  <i class="bi bi-check-circle me-1"></i>{{ entrada.dias_restantes }}d
+                </span>
+              {% endif %}
+            </td>
+            <td class="text-end fw-semibold" style="white-space:nowrap;">
+              R$ {{ entrada.valor_total|floatformat:2|intcomma }}
             </td>
             <td class="text-center">
               {% if entrada.importada %}
@@ -166,6 +274,16 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Mensagem sem resultado -->
+    <div id="sem-resultado" class="text-center py-5" style="display:none;">
+      <i class="bi bi-search display-4 text-muted"></i>
+      <p class="text-muted mt-3">Nenhuma ARP encontrada com os filtros aplicados.</p>
+      <button class="btn btn-outline-secondary btn-sm" onclick="limparFiltros()">
+        <i class="bi bi-x-circle me-1"></i>Limpar filtros
+      </button>
+    </div>
+
     {% else %}
     <div class="text-center py-5">
       <i class="bi bi-inbox display-4 text-muted"></i>
@@ -178,4 +296,124 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const tbody        = document.getElementById('tbody-arps');
+  if (!tbody) return;
+
+  const inputBusca    = document.getElementById('busca-arp');
+  const btnLimpar     = document.getElementById('btn-limpar-busca');
+  const btnLimparAll  = document.getElementById('btn-limpar-filtros');
+  const selStatus     = document.getElementById('filtro-status');
+  const selOrigem     = document.getElementById('filtro-origem');
+  const selVencimento = document.getElementById('filtro-vencimento');
+  const contador      = document.getElementById('contador-visivel');
+  const semResult     = document.getElementById('sem-resultado');
+  const tableWrapper  = document.getElementById('table-wrapper');
+
+  // ── Ordenação ──────────────────────────────────────────────────────────────
+  let sortCol = -1, sortAsc = true;
+
+  document.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = parseInt(th.dataset.col);
+      sortAsc = (sortCol === col) ? !sortAsc : true;
+      sortCol = col;
+
+      // Resetar todos os ícones
+      document.querySelectorAll('th.sortable').forEach(h => {
+        h.querySelector('.sort-icon').className = 'bi bi-arrow-down-up ms-1 text-muted sort-icon';
+        h.classList.remove('text-primary');
+      });
+
+      // Ícone da coluna ativa
+      th.querySelector('.sort-icon').className =
+        `bi ${sortAsc ? 'bi-arrow-up' : 'bi-arrow-down'} ms-1 text-primary sort-icon`;
+
+      ordenar(col, sortAsc);
+    });
+  });
+
+  function getCelula(tr, col) {
+    switch (col) {
+      case 0: return tr.dataset.numero || '';
+      case 1: return tr.dataset.fornecedor || '';
+      case 3: return parseFloat(tr.dataset.itens) || 0;
+      case 4: return tr.dataset.status || '';
+      case 5: return tr.dataset.vigenciaFim || '';
+      case 6: return parseFloat(tr.dataset.valor) || 0;
+      case 7: return parseFloat(tr.dataset.dias) || -9999;
+      default: return '';
+    }
+  }
+
+  function ordenar(col, asc) {
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort((a, b) => {
+      const va = getCelula(a, col), vb = getCelula(b, col);
+      if (typeof va === 'number') return asc ? va - vb : vb - va;
+      return asc
+        ? String(va).localeCompare(String(vb), 'pt-BR', {sensitivity:'base'})
+        : String(vb).localeCompare(String(va), 'pt-BR', {sensitivity:'base'});
+    });
+    rows.forEach(r => tbody.appendChild(r));
+    filtrar();
+  }
+
+  // ── Filtro / Busca ─────────────────────────────────────────────────────────
+  function filtrar() {
+    const termo      = (inputBusca.value || '').toLowerCase().trim();
+    const status     = selStatus.value;
+    const origem     = selOrigem.value;
+    const vencimento = selVencimento.value;
+    const ativo      = !!(termo || status || origem || vencimento);
+
+    let n = 0;
+    tbody.querySelectorAll('tr').forEach(tr => {
+      const ok =
+        (!termo      || tr.dataset.numero.includes(termo) ||
+                        tr.dataset.fornecedor.includes(termo) ||
+                        tr.dataset.objeto.includes(termo)) &&
+        (!status     || tr.dataset.status === status) &&
+        (!origem     || tr.dataset.origem === origem) &&
+        (!vencimento || tr.dataset.vencimento === vencimento);
+
+      tr.style.display = ok ? '' : 'none';
+      if (ok) n++;
+    });
+
+    contador.textContent = n + ' ARP(s)';
+    btnLimpar.style.display    = inputBusca.value ? '' : 'none';
+    btnLimparAll.style.display = ativo ? '' : 'none';
+
+    tableWrapper.style.display = n ? '' : 'none';
+    semResult.style.display    = n ? 'none' : '';
+  }
+
+  inputBusca.addEventListener('input', filtrar);
+  selStatus.addEventListener('change', filtrar);
+  selOrigem.addEventListener('change', filtrar);
+  selVencimento.addEventListener('change', filtrar);
+  btnLimpar.addEventListener('click', () => { inputBusca.value = ''; filtrar(); inputBusca.focus(); });
+
+  window.limparFiltros = function () {
+    inputBusca.value    = '';
+    selStatus.value     = '';
+    selOrigem.value     = '';
+    selVencimento.value = '';
+    filtrar();
+  };
+
+  // Atalho "/" para focar na busca
+  document.addEventListener('keydown', e => {
+    if (e.key === '/' && !['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)) {
+      e.preventDefault();
+      inputBusca.focus();
+    }
+  });
+})();
+</script>
 {% endblock %}

@@ -9,6 +9,7 @@ Rotas:
 """
 
 import io
+from datetime import date
 
 from django.contrib.auth.decorators import login_required
 from django.core.management import call_command
@@ -54,16 +55,19 @@ class DashboardSRPView(View):
 
         total_itens = ItemARP.objects.count()
 
+        hoje = date.today()
         arps_lista = []
         for arp in arps:
             itens = arp.itens.all()
             valor_arp = sum(i.quantidade_registrada * i.valor_unitario for i in itens)
+            dias_restantes = (arp.data_fim_vigencia - hoje).days if arp.data_fim_vigencia else None
             arps_lista.append(
                 {
                     "arp": arp,
                     "total_itens": itens.count(),
                     "valor_total": valor_arp,
                     "importada": arp.importada_da_api,
+                    "dias_restantes": dias_restantes,
                 }
             )
 
@@ -147,19 +151,8 @@ class ImportarARPView(View):
 
     def post(self, request):
         uasg = request.POST.get("uasg", "926092").strip()
-        numero_arp = request.POST.get("numero_arp", "").strip()
+        ano_inicio = request.POST.get("ano_inicio", "2026").strip()
         atualizar = request.POST.get("atualizar") == "on"
-
-        erros = []
-        if not numero_arp:
-            erros.append("Informe o número da ARP (ex: 2/2026).")
-
-        if erros:
-            return render(
-                request,
-                self.template_name,
-                {"uasg_padrao": uasg, "erros": erros, "numero_arp": numero_arp},
-            )
 
         saida = io.StringIO()
         erro_cmd = None
@@ -167,7 +160,7 @@ class ImportarARPView(View):
             call_command(
                 "importar_arp_compras_gov",
                 uasg=uasg,
-                arp=numero_arp,
+                ano_inicio=int(ano_inicio) if ano_inicio.isdigit() else 2026,
                 atualizar=atualizar,
                 stdout=saida,
                 stderr=saida,
@@ -180,7 +173,7 @@ class ImportarARPView(View):
 
         context = {
             "uasg_padrao": uasg,
-            "numero_arp": numero_arp,
+            "ano_inicio": ano_inicio,
             "log": log,
             "erro_cmd": erro_cmd,
             "sucesso": erro_cmd is None,

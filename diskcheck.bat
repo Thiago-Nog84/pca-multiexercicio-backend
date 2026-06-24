@@ -1,0 +1,3 @@
+@echo off
+powershell -NoProfile -Command "$out = @(); $drive = Get-PSDrive C; $out += 'C: Livre: ' + [math]::Round($drive.Free/1GB,1) + ' GB   Usado: ' + [math]::Round($drive.Used/1GB,1) + ' GB'; $out += ''; $out += 'TOP 15 PASTAS EM C:\:'; Get-ChildItem C:\ -Directory -ErrorAction SilentlyContinue | ForEach-Object { $s = (Get-ChildItem $_.FullName -Recurse -File -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum; [PSCustomObject]@{Pasta=$_.Name; GB=[math]::Round($s/1GB,2)} } | Sort-Object GB -Desc | Select-Object -First 15 | ForEach-Object { $out += ($_.GB.ToString('F2') + ' GB   ' + $_.Pasta) }; $out | Out-File -FilePath 'C:\Dev\pca-multiexercicio-backend\diskcheck_result.txt' -Encoding UTF8"
+echo Concluido.

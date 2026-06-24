@@ -1,6 +1,6 @@
 {% extends "srp/base_srp.html" %}
 
-{% block title %}Importar ARP — Compras.gov.br{% endblock %}
+{% block title %}Importar ARPs — Compras.gov.br{% endblock %}
 
 {% block content %}
 
@@ -8,7 +8,7 @@
 <nav aria-label="breadcrumb" class="mb-3">
   <ol class="breadcrumb">
     <li class="breadcrumb-item"><a href="{% url 'srp:dashboard' %}">Dashboard SRP</a></li>
-    <li class="breadcrumb-item active">Importar ARP</li>
+    <li class="breadcrumb-item active">Importar ARPs</li>
   </ol>
 </nav>
 
@@ -18,14 +18,14 @@
     <div class="card arp-card">
       <div class="card-header py-3">
         <h5 class="mb-0 fw-bold">
-          <i class="bi bi-cloud-download me-2"></i>Importar ARP do Compras.gov.br
+          <i class="bi bi-cloud-download me-2"></i>Importar ARPs do Compras.gov.br
         </h5>
       </div>
       <div class="card-body p-4">
 
         <p class="text-muted mb-4">
-          Consulta a API pública do Compras.gov.br e importa os dados cadastrais e itens
-          de uma Ata de Registro de Preços para o sistema PCA Multiexercício.
+          Consulta a API pública do Compras.gov.br e importa <strong>todas</strong> as
+          Atas de Registro de Preços do órgão no período selecionado.
         </p>
 
         <!-- Resultado anterior -->
@@ -33,7 +33,7 @@
           {% if sucesso %}
           <div class="alert alert-success">
             <i class="bi bi-check-circle-fill me-2"></i>
-            <strong>Importação concluída!</strong> ARP <strong>{{ numero_arp }}</strong> processada.
+            <strong>Importação concluída!</strong>
           </div>
           {% else %}
           <div class="alert alert-danger">
@@ -55,22 +55,13 @@
               <i class="bi bi-bar-chart-line me-1"></i>Ver Dashboard
             </a>
             <a href="{% url 'srp:importar_arp' %}" class="btn btn-outline-primary">
-              <i class="bi bi-plus me-1"></i>Importar outra ARP
+              <i class="bi bi-arrow-repeat me-1"></i>Nova importação
             </a>
           </div>
           {% endif %}
 
           <hr class="my-4">
-          <h6 class="fw-semibold mb-3">Importar outra ARP</h6>
-        {% endif %}
-
-        <!-- Erros de validação -->
-        {% if erros %}
-        <div class="alert alert-warning">
-          <ul class="mb-0">
-            {% for e in erros %}<li>{{ e }}</li>{% endfor %}
-          </ul>
-        </div>
+          <h6 class="fw-semibold mb-3">Nova importação</h6>
         {% endif %}
 
         <!-- Formulário -->
@@ -82,7 +73,7 @@
               UASG do Órgão Gerenciador
               <i class="bi bi-info-circle text-muted ms-1"
                  data-bs-toggle="tooltip"
-                 title="Código UASG do órgão gerenciador da ARP. Para ARPs do MPPI, use 926092."></i>
+                 title="Código UASG do órgão gerenciador. Para o MPPI, use 926092."></i>
             </label>
             <input type="text" name="uasg" class="form-control"
                    value="{{ uasg_padrao }}" required
@@ -91,15 +82,12 @@
           </div>
 
           <div class="mb-3">
-            <label class="form-label fw-semibold">
-              Número da ARP
-              <span class="text-danger">*</span>
-            </label>
-            <input type="text" name="numero_arp" class="form-control"
-                   value="{{ numero_arp|default:'' }}" required
-                   placeholder="Ex: 2/2026 ou 12/2026">
+            <label class="form-label fw-semibold">Ano inicial de vigência</label>
+            <input type="number" name="ano_inicio" class="form-control"
+                   value="{{ ano_inicio|default:'2026' }}" min="2020" max="2030"
+                   placeholder="2026">
             <div class="form-text">
-              Formato: <code>NUMERO/ANO</code> — ex: <code>2/2026</code>, <code>12/2026</code>
+              Importa ARPs com vigência iniciada a partir deste ano.
             </div>
           </div>
 
@@ -107,11 +95,11 @@
             <div class="form-check">
               <input class="form-check-input" type="checkbox" name="atualizar" id="atualizar">
               <label class="form-check-label" for="atualizar">
-                Atualizar registro se já existir no banco
+                Atualizar registros já existentes no banco
               </label>
             </div>
             <div class="form-text">
-              Se marcado, sobrescreve dados da ARP e seus itens caso já tenham sido importados.
+              Se marcado, sobrescreve dados de ARPs e itens que já foram importados anteriormente.
             </div>
           </div>
 
@@ -127,7 +115,7 @@
           </div>
 
           <button type="submit" class="btn btn-primary w-100">
-            <i class="bi bi-cloud-download me-2"></i>Importar ARP
+            <i class="bi bi-cloud-download me-2"></i>Importar todas as ARPs
           </button>
         </form>
 
@@ -143,7 +131,7 @@
            target="_blank" class="text-decoration-none">
           dadosabertos.compras.gov.br
         </a>
-        &nbsp;— Endpoints: <code>/ata</code> (dados cadastrais) e <code>/item</code> (itens)
+        &nbsp;— Endpoints: <code>/modulo-arp/1_consultarARP</code> e <code>/modulo-arp/2_consultarARPItem</code>
       </div>
     </div>
 

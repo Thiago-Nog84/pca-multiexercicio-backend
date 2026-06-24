@@ -1,0 +1,15 @@
+﻿C: Livre: 4 GB   Usado: 114.3 GB
+
+TOP 15 PASTAS EM C:\:
+29,88 GB   Windows
+22,01 GB   Users
+13,48 GB   Program Files
+5,67 GB   Program Files (x86)
+0,15 GB   Python314
+0,06 GB   Dev
+0,02 GB   robocode
+0,00 GB   inetpub
+0,00 GB   PerfLogs
+0,00 GB   tmp
+0,00 GB   Intel
+0,00 GB   Temp
