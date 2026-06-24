@@ -1,7 +1,5 @@
 """
-Django settings — PCA Multiexercício (MPPI)
-Sistema de Gestão do Plano de Contratações Anuais — multiexercício
-Órgão: Ministério Público do Estado do Piauí — CLC / Assessoria de Compras
+Django settings for the PCA-MPPI backend.
 """
 
 from datetime import timedelta
@@ -69,6 +67,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
+# Banco de dados: instância Postgres do projeto Supabase pca-multiexercicio,
+# acessada via connection pooler (modo transaction, porta 6543) — a conexão
+# direta (porta 5432) só resolve via IPv6, indisponível neste ambiente de dev.
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -107,16 +108,14 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
 }
 
-# Em desenvolvimento libera todas as origens; em produção usa a lista do .env
-if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
-else:
-    CORS_ALLOWED_ORIGINS = config(
-        "CORS_ALLOWED_ORIGINS",
-        default="http://localhost:8081,http://localhost:5173",
-        cast=Csv(),
-    )
+CORS_ALLOWED_ORIGINS = config(
+    "CORS_ALLOWED_ORIGINS",
+    default="http://localhost:8081,http://localhost:5173",
+    cast=Csv(),
+)
 
+# Limites de dispensa de manifestação jurídica (Ato PGJ 1383/2024).
+# Atualizar conforme novos decretos federais (ex.: Decreto 12.807/2025).
 LIMITE_DISPENSA_BENS_SERVICOS = config(
     "LIMITE_DISPENSA_BENS_SERVICOS", default=50_000, cast=int
 )
