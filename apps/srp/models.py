@@ -50,6 +50,27 @@ class AtaRegistroPrecos(models.Model):
         max_length=30,
         help_text="Número sequencial da ARP no exercício (ex: 001/2027)",
     )
+    # Integração API Compras.gov.br
+    codigo_uasg_gerenciadora = models.CharField(
+        max_length=10,
+        blank=True,
+        help_text="Código UASG do órgão gerenciador (MPPI = 926092). "
+                  "Necessário para consultar e sincronizar dados via API Compras.gov.br.",
+    )
+    numero_controle_pncp_ata = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Número de controle da ata no PNCP (retornado pela API Compras.gov.br)",
+    )
+    id_compra_compras_gov = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Identificador único da compra no Compras.gov.br (campo idCompra da API)",
+    )
+    importada_da_api = models.BooleanField(
+        default=False,
+        help_text="Indica se a ARP foi importada automaticamente via API Compras.gov.br",
+    )
     numero_sei = models.CharField(
         max_length=30,
         blank=True,
@@ -107,17 +128,60 @@ class ItemARP(models.Model):
     O saldo é debitado automaticamente a cada ContratacaoDecorrente ou AdesaoARP.
     """
 
+    BANCO_REFERENCIA = [
+        ("catmat", "CATMAT (Catálogo de Materiais)"),
+        ("catser", "CATSER (Catálogo de Serviços)"),
+        ("sinapi", "SINAPI (Sistema Nacional de Pesquisa de Custos)"),
+        ("orse", "ORSE (Orçamento de Obras e Serviços de Engenharia)"),
+        ("outro", "Outro"),
+    ]
+
     arp = models.ForeignKey(
         AtaRegistroPrecos,
         on_delete=models.CASCADE,
         related_name="itens",
     )
+    numero_lote = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="Número do lote ao qual o item pertence (ex: Lote 1, Lote 2)",
+    )
     numero_item = models.PositiveIntegerField()
+    # Catálogo e referência
     codigo_catmat_catser = models.CharField(max_length=20, blank=True)
+    codigo_referencia_banco = models.CharField(
+        max_length=30,
+        blank=True,
+        help_text="Código de referência em banco de custos (ex: código SINAPI 91871, ORSE 9718)",
+    )
+    banco_referencia = models.CharField(
+        max_length=10,
+        choices=BANCO_REFERENCIA,
+        blank=True,
+        help_text="Banco de preços de referência utilizado (SINAPI, ORSE, CATMAT, etc.)",
+    )
     descricao = models.TextField()
     unidade_fornecimento = models.CharField(max_length=30)
     quantidade_registrada = models.DecimalField(max_digits=14, decimal_places=4)
     valor_unitario = models.DecimalField(max_digits=14, decimal_places=2)
+    # Integração API Compras.gov.br
+    codigo_item_compras_gov = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="codigoItem retornado pela API Compras.gov.br (código PDM/CATMAT numérico)",
+    )
+    maximo_adesao_api = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Quantidade máxima para adesão (carona) conforme API Compras.gov.br. "
+                  "Se zero, carona não está liberada no sistema — exige SEI de autorização.",
+    )
+    importado_da_api = models.BooleanField(
+        default=False,
+        help_text="Indica se o item foi importado via API Compras.gov.br",
+    )
 
     # Saldo calculado — atualizado a cada contratação/adesão
     quantidade_contratada = models.DecimalField(
@@ -250,9 +314,26 @@ class VinculoPCAItemARP(models.Model):
 
     def clean(self):
         """
-        Valida que a soma das quantidades comprometidas não excede
-        a quantidade registrada na ARP.
+        Valida:
+        1. Que a ARP está vigente (status='vigente' e dentro do prazo).
+        2. Que a soma das quantidades comprometidas não excede a quantidade registrada.
         """
+        from datetime import date
+
+        # Regra 1 — Vigência da ARP
+        arp = self.item_arp.arp
+        if arp.status != "vigente":
+            raise ValidationError(
+                f"A ARP {arp.numero_arp} está com status '{arp.get_status_display()}'. "
+                f"Só é possível vincular demandas a ARPs vigentes."
+            )
+        if arp.data_fim_vigencia < date.today():
+            raise ValidationError(
+                f"A ARP {arp.numero_arp} venceu em {arp.data_fim_vigencia:%d/%m/%Y}. "
+                f"Não é possível vincular demandas a ARPs com vigência expirada."
+            )
+
+        # Regra 2 — Não exceder quantidade registrada
         total_ja_comprometido = (
             VinculoPCAItemARP.objects.filter(item_arp=self.item_arp)
             .exclude(pk=self.pk)
@@ -391,12 +472,14 @@ class AdesaoARP(models.Model):
 
     def clean(self):
         """
-        Valida o limite de 50% por item por órgão aderente.
-        Decreto 11.462/2023, art. 9º.
+        Valida:
+        1. Limite de 50% por item por órgão aderente (Decreto 11.462/2023, art. 9º).
+        2. Se maximo_adesao_api == 0 (carona bloqueada no Compras.gov), exige SEI
+           de autorização — o MPPI pode liberar via SEI mesmo quando o sistema
+           central indica bloqueio por questão cadastral.
         """
+        # Regra 1 — Limite de 50%
         limite = self.item_arp.limite_carona_por_aderente
-
-        # Total já cedido a ESTE órgão neste item (excluindo o registro atual)
         total_ja_cedido = (
             AdesaoARP.objects.filter(
                 item_arp=self.item_arp,
@@ -407,13 +490,25 @@ class AdesaoARP(models.Model):
             .aggregate(total=models.Sum("quantidade_solicitada"))["total"]
             or Decimal("0")
         )
-
         if total_ja_cedido + self.quantidade_solicitada > limite:
             raise ValidationError(
                 f"Limite de 50% por item por aderente excedido "
                 f"(Decreto 11.462/2023, art. 9º). "
                 f"Limite: {limite} | Já cedido: {total_ja_cedido} | "
                 f"Solicitado: {self.quantidade_solicitada}."
+            )
+
+        # Regra 2 — Carona bloqueada no Compras.gov (maximoAdesao = 0)
+        # Não bloqueia o cadastro, mas exige SEI de autorização do MPPI
+        if (
+            self.item_arp.maximo_adesao_api is not None
+            and self.item_arp.maximo_adesao_api == Decimal("0")
+            and not self.numero_sei_autorizacao
+        ):
+            raise ValidationError(
+                "Esta ARP está com carona desabilitada no Compras.gov.br "
+                "(maximoAdesao = 0). Para prosseguir, informe o número do "
+                "processo SEI/MPPI que autoriza a adesão."
             )
 
     def save(self, *args, **kwargs):
