@@ -1,3 +1,7 @@
+import random
+import string
+from datetime import timedelta
+
 from django.conf import settings
 from django.db import models
 
@@ -57,6 +61,7 @@ class DocumentoFormalizacaoDemanda(models.Model):
         ("enviado", "Enviado ao setor de licitações"),
         ("aprovado", "Aprovado"),
         ("devolvido", "Devolvido para adequação"),
+        ("suspensa", "Suspensa"),
     ]
 
     pca = models.ForeignKey(PlanoContratacaoAnual, on_delete=models.CASCADE, related_name="dfds")
@@ -85,6 +90,9 @@ class DocumentoFormalizacaoDemanda(models.Model):
 class ItemPCA(models.Model):
     """
     Item individual do PCA (Ato PGJ 1381/2024, art. 7º).
+
+    Cada item representa uma demanda de contratação de uma unidade requisitante.
+    O código PCA é gerado automaticamente no formato PCA-XXXX-AAAA ao salvar.
     """
 
     CATEGORIAS = [
@@ -95,33 +103,132 @@ class ItemPCA(models.Model):
         ("publicidade", "Publicidade (Dec. 21.813/2023)"),
     ]
 
-    TIPO_CONTRATACAO = [
-        ("licitacao", "Licitação"),
-        ("dispensa", "Contratação Direta — Dispensa"),
-        ("inexigibilidade", "Contratação Direta — Inexigibilidade"),
-        ("adesao_arp", "Adesão a ARP (Carona)"),
-        ("renovacao_contrato", "Renovação de Contrato"),
-        ("renovacao_arp", "Prorrogação de ARP"),
+    # Tipo da demanda: o QUE é (natureza da contratação)
+    TIPO_DEMANDA = [
+        ("nova", "Nova Contratação"),
+        ("renovacao", "Renovação de Contrato"),
+        ("aditivo", "Termo Aditivo"),
+        ("apostilamento", "Apostilamento"),
+        ("repactuacao", "Repactuação"),
+        ("indeterminado", "Indeterminado"),
     ]
 
+    # Modalidade: COMO será feita (instrumento legal)
+    MODALIDADE = [
+        ("pregao_eletronico", "Pregão Eletrônico"),
+        ("concorrencia", "Concorrência"),
+        ("concurso", "Concurso"),
+        ("dispensa", "Contratação Direta — Dispensa (art. 75 NLLC)"),
+        ("inexigibilidade", "Contratação Direta — Inexigibilidade (art. 74 NLLC)"),
+        ("arp_propria", "ARP Própria (MPPI como gerenciador)"),
+        ("arp_carona", "ARP Carona (adesão a ARP de outro órgão)"),
+    ]
+
+    NORMATIVO = [
+        ("14133_2021", "Lei 14.133/2021 (NLLC)"),
+        ("8666_1993", "Lei 8.666/1993 (transitório)"),
+    ]
+
+    # Unidade Orçamentária — diferente do setor requisitante
+    # PGJ = órgão central; FMMP = Fundo de Modernização do MP;
+    # FEPDC = Fundo Estadual de Proteção e Defesa do Consumidor (PROCON)
+    UNIDADE_ORCAMENTARIA = [
+        ("pgj", "PGJ — Procuradoria-Geral de Justiça"),
+        ("fmmp", "FMMP — Fundo de Modernização do Ministério Público"),
+        ("fepdc", "FEPDC — Fundo Estadual de Proteção e Defesa do Consumidor"),
+    ]
+
+    STATUS = [
+        ("nao_iniciado", "Não Iniciado"),
+        ("iniciado", "Iniciado"),
+        ("em_diligencia", "Em Diligência"),
+        ("em_andamento", "Em Andamento"),
+        ("concluido", "Concluído"),
+        ("suspenso", "Suspenso"),
+    ]
+
+    # Identificação
+    codigo_pca = models.CharField(
+        max_length=20,
+        blank=True,
+        unique=True,
+        help_text="Gerado automaticamente no formato PCA-XXXX-AAAA",
+    )
     dfd = models.ForeignKey(DocumentoFormalizacaoDemanda, on_delete=models.CASCADE, related_name="itens")
     numero_item = models.PositiveIntegerField()
+
+    # Suspensão parcial (Pai/Filha)
+    # Quando um item é suspenso parcialmente, cria-se um item "filho"
+    # com os quantitativos paralisados. O pai continua ativo normalmente.
+    item_pai = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="itens_filhos",
+        help_text="Preenchido apenas em suspensões parciais — aponta para o item original (pai)",
+    )
+
+    # Objeto
     categoria = models.CharField(max_length=20, choices=CATEGORIAS)
     codigo_catmat_catser = models.CharField(max_length=20, blank=True)
+    descricao = models.TextField()
     unidade_fornecimento = models.CharField(max_length=30)
     quantidade_estimada = models.DecimalField(max_digits=14, decimal_places=4)
-    descricao = models.TextField()
-    tipo_contratacao = models.CharField(max_length=25, choices=TIPO_CONTRATACAO)
     valor_unitario_estimado = models.DecimalField(max_digits=14, decimal_places=2)
     valor_total_estimado = models.DecimalField(max_digits=16, decimal_places=2)
+
+    # Execução financeira
+    valor_empenhado = models.DecimalField(
+        max_digits=16,
+        decimal_places=2,
+        default=0,
+        help_text="Valor efetivamente empenhado — atualizado conforme execução orçamentária",
+    )
+
+    # Tipo e modalidade (separados — natureza vs. instrumento legal)
+    tipo_demanda = models.CharField(max_length=20, choices=TIPO_DEMANDA, default="nova")
+    modalidade = models.CharField(max_length=20, choices=MODALIDADE, default="pregao_eletronico")
+    normativo = models.CharField(
+        max_length=15,
+        choices=NORMATIVO,
+        default="14133_2021",
+        help_text="Normativo regente da contratação",
+    )
+    unidade_orcamentaria = models.CharField(
+        max_length=10,
+        choices=UNIDADE_ORCAMENTARIA,
+        default="pgj",
+        help_text="Unidade orçamentária responsável pelo recurso (PGJ, FMMP ou FEPDC)",
+    )
+
+    # Prazos
     data_vencimento_contrato_anterior = models.DateField(null=True, blank=True)
     data_pretendida_conclusao = models.DateField(null=True, blank=True)
-    item_dependente = models.ForeignKey(
-        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="dependentes"
+
+    # Datas de acompanhamento do processo
+    data_envio_pgea = models.DateField(
+        null=True, blank=True,
+        help_text="Data de encaminhamento ao fluxo administrativo (PGEA)",
     )
+    data_finalizacao_licitacao = models.DateField(
+        null=True, blank=True,
+        help_text="Data efetiva de finalização do certame licitatório",
+    )
+    data_conclusao_efetiva = models.DateField(
+        null=True, blank=True,
+        help_text="Data de conclusão com contrato assinado",
+    )
+
+    # Status e rastreabilidade
+    status = models.CharField(max_length=20, choices=STATUS, default="nao_iniciado")
     observacoes = models.TextField(blank=True)
+
+    # SRP
     is_srp = models.BooleanField(default=False)
     justificativa_srp = models.TextField(blank=True)
+
+    # Planejamento
     etp = models.ForeignKey(
         "planejamento.ETP", null=True, blank=True, on_delete=models.SET_NULL, related_name="itens_pca"
     )
@@ -131,7 +238,58 @@ class ItemPCA(models.Model):
         ordering = ["numero_item"]
 
     def __str__(self):
-        return f"Item {self.numero_item} — {self.descricao[:50]}"
+        codigo = self.codigo_pca or f"Item {self.numero_item}"
+        return f"{codigo} — {self.descricao[:50]}"
+
+    @property
+    def data_inicio_prevista(self):
+        """
+        Calcula automaticamente a data de início prevista com base no tipo
+        de demanda, modalidade e data de conclusão.
+
+        Regras (Tutorial PCA-MPPI, pág. 14):
+          - Nova + Pregão/Concorrência/Concurso → conclusão − 150 dias
+          - Nova + Dispensa/Inexigibilidade      → conclusão − 90 dias
+          - Demais (Renovação, Aditivo, etc.)    → conclusão − 120 dias
+        """
+        if not self.data_pretendida_conclusao:
+            return None
+
+        modalidades_licitacao = {"pregao_eletronico", "concorrencia", "concurso"}
+        modalidades_diretas = {"dispensa", "inexigibilidade"}
+
+        if self.tipo_demanda == "nova" and self.modalidade in modalidades_licitacao:
+            return self.data_pretendida_conclusao - timedelta(days=150)
+        elif self.tipo_demanda == "nova" and self.modalidade in modalidades_diretas:
+            return self.data_pretendida_conclusao - timedelta(days=90)
+        else:
+            return self.data_pretendida_conclusao - timedelta(days=120)
+
+    @property
+    def percentual_executado(self):
+        """Percentual do valor empenhado em relação ao valor total estimado."""
+        if not self.valor_total_estimado:
+            return 0
+        return round((self.valor_empenhado / self.valor_total_estimado) * 100, 1)
+
+    @property
+    def is_filho(self):
+        """Indica se este item é resultado de uma suspensão parcial."""
+        return self.item_pai_id is not None
+
+    def _gerar_codigo_pca(self):
+        """Gera código único no formato PCA-XXXX-AAAA."""
+        exercicio = self.dfd.pca.exercicio
+        while True:
+            sufixo = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+            codigo = f"PCA-{sufixo}-{exercicio}"
+            if not ItemPCA.objects.filter(codigo_pca=codigo).exists():
+                return codigo
+
+    def save(self, *args, **kwargs):
+        if not self.codigo_pca:
+            self.codigo_pca = self._gerar_codigo_pca()
+        super().save(*args, **kwargs)
 
 
 class ConformidadeItem(models.Model):

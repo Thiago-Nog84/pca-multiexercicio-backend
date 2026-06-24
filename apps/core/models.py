@@ -29,7 +29,7 @@ class UnidadeRequisitante(models.Model):
     """
 
     UNIDADES_FIXAS = [
-        ("CPPT", "CPPT — Coordenadoria de Patrimônio e Prestação de Contas"),
+        ("CPPT", "CPPT — Coordenadoria de Perícias e Pareceres Técnicos"),
         ("CTI", "CTI — Coordenadoria de Tecnologia da Informação"),
         ("CAA", "CAA — Coordenadoria de Apoio Administrativo"),
         ("CRH", "CRH — Coordenadoria de Recursos Humanos"),
@@ -39,6 +39,7 @@ class UnidadeRequisitante(models.Model):
         ("CLC", "CLC — Coordenadoria de Licitações e Contratos"),
         ("CCF", "CCF — Coordenadoria de Contabilidade e Finanças"),
         ("APG", "APG — Assessoria de Planejamento e Gestão"),
+        ("CONINT", "CONINT — Controle Interno"),
         ("GAECO", "GAECO — Grupo de Atuação Especial Contra o Crime Organizado"),
         ("FPROCON", "FPROCON — Fundo de Proteção ao Consumidor"),
         ("CCS", "CCS — Coordenadoria de Comunicação Social"),

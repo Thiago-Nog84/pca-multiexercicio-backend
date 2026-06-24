@@ -154,6 +154,124 @@ class ItemARP(models.Model):
         """
         return self.quantidade_registrada * Decimal("0.5")
 
+    @property
+    def quantidade_comprometida_pca(self):
+        """
+        Soma das quantidades vinculadas a demandas aprovadas no PCA (aquisição certa).
+        NÃO deve ser somada com quantidade_disponivel — são naturezas distintas:
+        uma é dotação comprometida, a outra é registro em ata.
+
+        Exemplo: ARP com 5 veículos → PCA comprometeu 1 → quantidade_comprometida_pca = 1.
+        """
+        result = self.vinculos_pca.aggregate(
+            total=models.Sum("quantidade_comprometida")
+        )["total"]
+        return result or Decimal("0")
+
+    @property
+    def quantidade_disponivel_eventual(self):
+        """
+        Saldo da ARP não comprometido com demanda do PCA e ainda não contratado.
+        Representa itens que podem ser eventualmente adquiridos ou cedidos via carona.
+
+        Fórmula: registrada − comprometida_pca − contratada − cedida_carona.
+
+        Exemplo: 5 registrados − 1 PCA − 0 contratados − 0 caronas = 4 eventuais.
+        """
+        return (
+            self.quantidade_registrada
+            - self.quantidade_comprometida_pca
+            - self.quantidade_contratada
+            - self.quantidade_cedida_carona
+        )
+
+
+class VinculoPCAItemARP(models.Model):
+    """
+    Vínculo entre uma demanda aprovada no PCA e um item da ARP.
+
+    Representa a quantidade "comprometida" pela demanda do PCA,
+    em contraste com o saldo disponível na ARP para eventual aquisição.
+
+    Exemplo:
+        ItemARP: 5 veículos sedan registrados
+        ItemPCA (CAA): demanda de 1 veículo sedan aprovada no PCA 2027
+        VinculoPCAItemARP.quantidade_comprometida = 1
+        → 1 veículo é aquisição certa (dotação comprometida)
+        → 4 veículos são eventuais (disponíveis na ARP sem compromisso orçamentário)
+
+    Um ItemARP pode ter vários vínculos (demandas de unidades diferentes
+    ou exercícios diferentes — multiexercício). A soma nunca pode exceder
+    a quantidade_registrada na ARP.
+
+    Também resolve o cenário de lotes: múltiplos ItemPCAs (detergente, sabão,
+    saco de lixo) podem ser vinculados ao mesmo ItemARP quando agrupados em lote.
+    """
+
+    item_pca = models.ForeignKey(
+        "pca.ItemPCA",
+        on_delete=models.CASCADE,
+        related_name="vinculos_arp",
+        limit_choices_to={"is_srp": True},
+        help_text="Apenas itens marcados como SRP podem ser vinculados a uma ARP",
+    )
+    item_arp = models.ForeignKey(
+        ItemARP,
+        on_delete=models.CASCADE,
+        related_name="vinculos_pca",
+    )
+    quantidade_comprometida = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        help_text=(
+            "Quantidade do PCA vinculada a este item da ARP. "
+            "É a demanda certa — não pode ser somada ao saldo disponível."
+        ),
+    )
+    observacoes = models.TextField(blank=True)
+    criado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="vinculos_pca_arp_criados",
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Vínculo PCA × ARP"
+        verbose_name_plural = "Vínculos PCA × ARP"
+        unique_together = ("item_pca", "item_arp")
+
+    def __str__(self):
+        return (
+            f"PCA Item {self.item_pca_id} → ARP Item {self.item_arp_id} "
+            f"({self.quantidade_comprometida})"
+        )
+
+    def clean(self):
+        """
+        Valida que a soma das quantidades comprometidas não excede
+        a quantidade registrada na ARP.
+        """
+        total_ja_comprometido = (
+            VinculoPCAItemARP.objects.filter(item_arp=self.item_arp)
+            .exclude(pk=self.pk)
+            .aggregate(total=models.Sum("quantidade_comprometida"))["total"]
+            or Decimal("0")
+        )
+        novo_total = total_ja_comprometido + self.quantidade_comprometida
+        if novo_total > self.item_arp.quantidade_registrada:
+            raise ValidationError(
+                f"Total comprometido ({novo_total}) excede a quantidade registrada "
+                f"na ARP ({self.item_arp.quantidade_registrada}). "
+                f"Já comprometido: {total_ja_comprometido} | "
+                f"Tentativa: {self.quantidade_comprometida}."
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
 
 class ContratacaoDecorrente(models.Model):
     """
