@@ -9,7 +9,10 @@ urlpatterns = [
     path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 
-    # Apps
+    # Apps — API REST
     path("api/core/", include("apps.core.urls")),
     path("api/pca/", include("apps.pca.urls")),
+
+    # Dashboard SRP (Django Templates)
+    path("srp/", include("apps.srp.urls")),
 ]

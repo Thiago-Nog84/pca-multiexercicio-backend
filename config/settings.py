@@ -26,6 +26,8 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",
+    # Django extras
+    "django.contrib.humanize",
     # Apps MPPI
     "apps.core",
     "apps.pca",

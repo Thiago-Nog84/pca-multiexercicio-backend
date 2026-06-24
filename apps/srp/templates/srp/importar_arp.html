@@ -1,0 +1,161 @@
+{% extends "srp/base_srp.html" %}
+
+{% block title %}Importar ARP — Compras.gov.br{% endblock %}
+
+{% block content %}
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'srp:dashboard' %}">Dashboard SRP</a></li>
+    <li class="breadcrumb-item active">Importar ARP</li>
+  </ol>
+</nav>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+
+    <div class="card arp-card">
+      <div class="card-header py-3">
+        <h5 class="mb-0 fw-bold">
+          <i class="bi bi-cloud-download me-2"></i>Importar ARP do Compras.gov.br
+        </h5>
+      </div>
+      <div class="card-body p-4">
+
+        <p class="text-muted mb-4">
+          Consulta a API pública do Compras.gov.br e importa os dados cadastrais e itens
+          de uma Ata de Registro de Preços para o sistema PCA Multiexercício.
+        </p>
+
+        <!-- Resultado anterior -->
+        {% if log %}
+          {% if sucesso %}
+          <div class="alert alert-success">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <strong>Importação concluída!</strong> ARP <strong>{{ numero_arp }}</strong> processada.
+          </div>
+          {% else %}
+          <div class="alert alert-danger">
+            <i class="bi bi-x-circle-fill me-2"></i>
+            <strong>Erro na importação:</strong> {{ erro_cmd }}
+          </div>
+          {% endif %}
+
+          <div class="mb-4">
+            <label class="form-label fw-semibold">
+              <i class="bi bi-terminal me-1"></i>Log do processo
+            </label>
+            <div class="log-box">{{ log }}</div>
+          </div>
+
+          {% if sucesso %}
+          <div class="d-flex gap-2 mb-4">
+            <a href="{% url 'srp:dashboard' %}" class="btn btn-success">
+              <i class="bi bi-bar-chart-line me-1"></i>Ver Dashboard
+            </a>
+            <a href="{% url 'srp:importar_arp' %}" class="btn btn-outline-primary">
+              <i class="bi bi-plus me-1"></i>Importar outra ARP
+            </a>
+          </div>
+          {% endif %}
+
+          <hr class="my-4">
+          <h6 class="fw-semibold mb-3">Importar outra ARP</h6>
+        {% endif %}
+
+        <!-- Erros de validação -->
+        {% if erros %}
+        <div class="alert alert-warning">
+          <ul class="mb-0">
+            {% for e in erros %}<li>{{ e }}</li>{% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        <!-- Formulário -->
+        <form method="post" novalidate>
+          {% csrf_token %}
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">
+              UASG do Órgão Gerenciador
+              <i class="bi bi-info-circle text-muted ms-1"
+                 data-bs-toggle="tooltip"
+                 title="Código UASG do órgão gerenciador da ARP. Para ARPs do MPPI, use 926092."></i>
+            </label>
+            <input type="text" name="uasg" class="form-control"
+                   value="{{ uasg_padrao }}" required
+                   placeholder="926092">
+            <div class="form-text">MPPI = 926092</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-semibold">
+              Número da ARP
+              <span class="text-danger">*</span>
+            </label>
+            <input type="text" name="numero_arp" class="form-control"
+                   value="{{ numero_arp|default:'' }}" required
+                   placeholder="Ex: 2/2026 ou 12/2026">
+            <div class="form-text">
+              Formato: <code>NUMERO/ANO</code> — ex: <code>2/2026</code>, <code>12/2026</code>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="atualizar" id="atualizar">
+              <label class="form-check-label" for="atualizar">
+                Atualizar registro se já existir no banco
+              </label>
+            </div>
+            <div class="form-text">
+              Se marcado, sobrescreve dados da ARP e seus itens caso já tenham sido importados.
+            </div>
+          </div>
+
+          <!-- Aviso sobre carona -->
+          <div class="alert alert-info d-flex gap-2 align-items-start mb-4" style="font-size:0.85rem;">
+            <i class="bi bi-info-circle-fill mt-1"></i>
+            <div>
+              <strong>Carona desabilitada (maximoAdesao = 0):</strong>
+              Quando a API indica que a ARP não permite carona, o sistema registra o aviso
+              mas <strong>não bloqueia</strong> a importação. A adesão via carona poderá
+              ser autorizada por processo SEI/MPPI no momento do cadastro.
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-cloud-download me-2"></i>Importar ARP
+          </button>
+        </form>
+
+      </div>
+    </div>
+
+    <!-- Info sobre endpoints usados -->
+    <div class="card mt-3" style="font-size:0.82rem;">
+      <div class="card-body py-2 px-3 text-muted">
+        <i class="bi bi-link-45deg me-1"></i>
+        <strong>API utilizada:</strong>
+        <a href="https://dadosabertos.compras.gov.br/swagger-ui/index.html"
+           target="_blank" class="text-decoration-none">
+          dadosabertos.compras.gov.br
+        </a>
+        &nbsp;— Endpoints: <code>/ata</code> (dados cadastrais) e <code>/item</code> (itens)
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+    new bootstrap.Tooltip(el);
+  });
+</script>
+{% endblock %}
