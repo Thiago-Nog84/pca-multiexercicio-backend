@@ -1,7 +1,4 @@
 from django.contrib import admin
 
-from .models import FontePreco, ItemCotacao, PesquisaPrecos
-
-admin.site.register(PesquisaPrecos)
-admin.site.register(FontePreco)
-admin.site.register(ItemCotacao)
+# Models ainda nao implementados - registrar apos implementacao de cotacao/models.py
+# from .models import FontePreco, ItemCotacao, PesquisaPrecos

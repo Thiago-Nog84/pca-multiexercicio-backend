@@ -1,6 +1,4 @@
 from django.contrib import admin
 
-from .models import ControleJuridico, ManifestacaoJuridicoReferencial
-
-admin.site.register(ControleJuridico)
-admin.site.register(ManifestacaoJuridicoReferencial)
+# Models ainda nao implementados - registrar apos implementacao de juridico/models.py
+# from .models import ControleJuridico, ManifestacaoJuridicoReferencial

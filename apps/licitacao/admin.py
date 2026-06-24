@@ -1,5 +1,4 @@
 from django.contrib import admin
 
-from .models import ProcessoLicitatorio
-
-admin.site.register(ProcessoLicitatorio)
+# Model ainda nao implementado - registrar apos implementacao de licitacao/models.py
+# from .models import ProcessoLicitatorio
