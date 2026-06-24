@@ -31,3 +31,9 @@ media/
 # OS
 .DS_Store
 Thumbs.db
+
+# Conflitos OneDrive (arquivos gerados quando o mesmo arquivo é editado
+# em duas máquinas simultaneamente via OneDrive)
+*-CLC2432*
+*-CLC2432/
+.env-CLC2432*
