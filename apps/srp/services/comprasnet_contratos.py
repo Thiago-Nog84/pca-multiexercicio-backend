@@ -26,6 +26,10 @@ Autenticação:
     SISG/Comprasnet. As credenciais são configuradas em settings.py via variáveis
     de ambiente COMPRASNET_CONTRATOS_CPF e COMPRASNET_CONTRATOS_SENHA.
 
+    Payload correto (confirmado via OpenAPI spec):
+        {"cpf": "111.111.111-11", "password": "senha"}
+    O campo é "cpf" (não "username") e o CPF deve ser formatado com pontos e traço.
+
     O token é armazenado em memória e reutilizado enquanto válido. Em caso de
     erro 401, o cliente reautentica automaticamente (uma tentativa).
 
@@ -73,6 +77,17 @@ class ComprasnetContratosClient:
         client = ComprasnetContratosClient(cpf="...", senha="...")
     """
 
+    @staticmethod
+    def _format_cpf(cpf: str) -> str:
+        """
+        Garante que o CPF está no formato 111.111.111-11 exigido pela API.
+        Aceita CPF com ou sem formatação.
+        """
+        digits = "".join(c for c in (cpf or "") if c.isdigit())
+        if len(digits) == 11:
+            return f"{digits[:3]}.{digits[3:6]}.{digits[6:9]}-{digits[9:]}"
+        return cpf  # devolve como veio se não conseguir formatar
+
     def __init__(self, cpf: str = None, senha: str = None):
         self.cpf = cpf or getattr(settings, "COMPRASNET_CONTRATOS_CPF", "")
         self.senha = senha or getattr(settings, "COMPRASNET_CONTRATOS_SENHA", "")
@@ -101,10 +116,11 @@ class ComprasnetContratosClient:
             )
 
         url = f"{BASE_URL}/api/v1/auth/login"
+        cpf_formatado = self._format_cpf(self.cpf)
         try:
             resp = self._session.post(
                 url,
-                json={"username": self.cpf, "password": self.senha},
+                json={"cpf": cpf_formatado, "password": self.senha},
                 timeout=TIMEOUT,
             )
             resp.raise_for_status()

@@ -94,6 +94,12 @@ TIME_ZONE = "America/Fortaleza"
 USE_I18N = True
 USE_TZ = True
 
+# Autenticação via templates Django
+# Usa o login do admin enquanto não existe página de login própria
+LOGIN_URL = "/admin/login/"
+LOGIN_REDIRECT_URL = "/pca/"
+LOGOUT_REDIRECT_URL = "/admin/login/"
+
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
