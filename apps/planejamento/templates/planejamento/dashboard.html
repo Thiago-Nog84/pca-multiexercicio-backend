@@ -142,7 +142,7 @@
                   </span>
                 </td>
                 <td class="text-end" style="font-size:.8rem;">
-                  {% if etp.estimativa_custo %}R$ {{ etp.estimativa_custo|floatformat:2|intcomma }}{% else %}—{% endif %}
+                  {% if etp.estimativa_custo %}R$ {{ etp.estimativa_custo|floatformat:"2g" }}{% else %}—{% endif %}
                 </td>
               </tr>
               {% empty %}

@@ -173,7 +173,16 @@ class Command(BaseCommand):
                 resp.raise_for_status()
                 payload = resp.json()
             except requests.HTTPError as exc:
-                raise CommandError(f"Erro HTTP ao consultar empenhos: {exc}")
+                status = exc.response.status_code if exc.response is not None else "?"
+                if status == 404:
+                    raise CommandError(
+                        f"HTTP 404 — o endpoint /modulo-arp/4_consultarEmpenhosSaldoItem "
+                        f"não foi encontrado em dadosabertos.compras.gov.br. "
+                        f"Este endpoint pode não existir ou ter mudado de nome. "
+                        f"Valide manualmente antes de usar este comando: "
+                        f"GET {url}?numeroAta={numero_arp}&unidadeGerenciadora={uasg}"
+                    )
+                raise CommandError(f"Erro HTTP {status} ao consultar empenhos: {exc}")
             except requests.RequestException as exc:
                 raise CommandError(f"Erro de conexão ao consultar empenhos: {exc}")
 
@@ -199,9 +208,27 @@ class Command(BaseCommand):
         return resultados
 
     def _parse_decimal(self, valor):
+        """
+        Converte valor para Decimal com suporte a int/float nativos do JSON e
+        formatos BR ("1.234,56") e US ("1234.56"). Mesma lógica de
+        ComprasnetContratosClient.parse_decimal — não usa replace cego de "."
+        pois corromperia valores US (ex: "1234.56" → "123456").
+        """
         if valor is None:
             return Decimal("0")
+        if isinstance(valor, (int, float)):
+            try:
+                return Decimal(str(valor))
+            except InvalidOperation:
+                return Decimal("0")
+        s = str(valor).strip()
+        if "," in s and "." in s and s.index(".") < s.rindex(","):
+            # Formato BR com milhar: "1.234,56"
+            s = s.replace(".", "").replace(",", ".")
+        elif "," in s:
+            # Vírgula como decimal sem milhar: "1234,56"
+            s = s.replace(",", ".")
         try:
-            return Decimal(str(valor).replace(",", "."))
+            return Decimal(s)
         except InvalidOperation:
             return Decimal("0")

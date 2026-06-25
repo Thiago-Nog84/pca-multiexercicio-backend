@@ -66,22 +66,22 @@
       </div>
       <div class="card-body text-center">
         <div class="kpi-label">Quantidade</div>
-        <div class="kpi-value">{{ item.quantidade_estimada|floatformat:0|intcomma }} {{ item.unidade_fornecimento }}</div>
+        <div class="kpi-value">{{ item.quantidade_estimada|floatformat:"0g" }} {{ item.unidade_fornecimento }}</div>
 
         <hr class="my-3">
 
         <div class="kpi-label">Valor Unit. Estimado</div>
-        <div class="fs-5 fw-bold">R$ {{ item.valor_unitario_estimado|floatformat:2|intcomma }}</div>
+        <div class="fs-5 fw-bold">R$ {{ item.valor_unitario_estimado|floatformat:"2g" }}</div>
 
         <hr class="my-3">
 
         <div class="kpi-label">Valor Total Estimado</div>
-        <div class="fs-4 fw-bold text-primary">R$ {{ item.valor_total_estimado|floatformat:2|intcomma }}</div>
+        <div class="fs-4 fw-bold text-primary">R$ {{ item.valor_total_estimado|floatformat:"2g" }}</div>
 
         <hr class="my-3">
 
         <div class="kpi-label">Valor Empenhado</div>
-        <div class="fs-5 fw-bold text-success">R$ {{ item.valor_empenhado|floatformat:2|intcomma }}</div>
+        <div class="fs-5 fw-bold text-success">R$ {{ item.valor_empenhado|floatformat:"2g" }}</div>
         {% if item.valor_total_estimado %}
         <div class="progress prog-bar-sm mt-2">
           <div class="progress-bar bg-success"

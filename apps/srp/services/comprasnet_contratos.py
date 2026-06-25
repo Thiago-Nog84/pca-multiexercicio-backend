@@ -312,10 +312,36 @@ class ComprasnetContratosClient:
 
     @staticmethod
     def parse_decimal(valor) -> Decimal:
-        """Converte string monetária brasileira (ex: '1.234,56') para Decimal."""
+        """
+        Converte valor numérico ou string para Decimal.
+
+        Suporta:
+          - int / float nativos do JSON  → Decimal direto, sem reformatação de string
+          - Formato BR com milhar: "1.234,56" → Decimal("1234.56")
+          - Formato BR sem milhar: "1234,56"  → Decimal("1234.56")
+          - Formato US / ponto decimal: "1234.56" → Decimal("1234.56")
+
+        Atenção: a lógica anterior fazia replace(".", "") antes de replace(",", "."),
+        o que corrompia valores US (ex: "1234.56" → "123456"). Corrigido com detecção
+        de formato pelo posicionamento relativo de ponto e vírgula.
+        """
         if valor is None:
             return Decimal("0")
-        s = str(valor).replace(".", "").replace(",", ".").strip()
+        # int/float nativos do JSON: converter direto, sem reformatar string
+        if isinstance(valor, (int, float)):
+            try:
+                return Decimal(str(valor))
+            except InvalidOperation:
+                return Decimal("0")
+        s = str(valor).strip()
+        # Formato BR: ponto como separador de milhar, vírgula como decimal
+        # Identificado quando "." aparece antes de "," na string
+        if "," in s and "." in s and s.index(".") < s.rindex(","):
+            s = s.replace(".", "").replace(",", ".")
+        elif "," in s:
+            # Vírgula como decimal sem separador de milhar (ex: "1234,56")
+            s = s.replace(",", ".")
+        # Caso restante: ponto como decimal (formato US) ou número sem separadores — usa s diretamente
         try:
             return Decimal(s)
         except InvalidOperation:

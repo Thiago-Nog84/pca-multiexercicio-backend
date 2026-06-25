@@ -40,6 +40,7 @@ Usos:
 """
 
 from datetime import date
+from decimal import Decimal
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -142,10 +143,19 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"  {len(inativos)} contrato(s) inativo(s) encontrado(s)."))
             contratos_api.extend(inativos)
 
-        # Monta índice de ARPs por licitacao_numero para linkagem
+        # Monta índice de ARPs para linkagem com contratos.
+        # Estratégia dupla:
+        #   1. Por numero_arp (ex: "00036/2025") — campo licitacao_numero dos contratos
+        #      frequentemente contém o número da ARP diretamente.
+        #   2. Por processo_licitatorio (quando preenchido) — fallback para contratos
+        #      cujo licitacao_numero é o número do pregão, não da ARP.
+        # A chave 1 tem prioridade; a chave 2 pode sobrescrever se houver colisão
+        # (improvável — formatos diferentes).
         arps_por_licitacao = {}
-        for arp in AtaRegistroPrecos.objects.exclude(processo_licitatorio=""):
-            arps_por_licitacao[arp.processo_licitatorio.strip().upper()] = arp
+        for arp in AtaRegistroPrecos.objects.all():
+            arps_por_licitacao[arp.numero_arp.strip().upper()] = arp
+            if arp.processo_licitatorio:
+                arps_por_licitacao[arp.processo_licitatorio.strip().upper()] = arp
 
         for dados in contratos_api:
             contrato_id = dados.get("id")
@@ -285,12 +295,13 @@ class Command(BaseCommand):
             # Atualiza saldo do item com base nos empenhos importados
             if atualizar_saldo and not dry_run and qtd_total is not None:
                 if item.quantidade_contratada != qtd_total:
+                    saldo_anterior = item.quantidade_contratada   # captura antes de sobrescrever
                     item.quantidade_contratada = qtd_total
                     item.save(update_fields=["quantidade_contratada"])
                     resumo["itens_saldo_atualizados"] += 1
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f"  Saldo atualizado: {qtd_total} (era {item.quantidade_contratada})"
+                            f"  Saldo atualizado: {qtd_total} (era {saldo_anterior})"
                         )
                     )
 
@@ -306,10 +317,8 @@ class Command(BaseCommand):
     ):
         """
         Salva empenhos no banco e retorna a quantidade total empenhada.
-        Retorna None se empenhos vazios.
+        Retorna None se a lista de empenhos estiver vazia.
         """
-        from decimal import Decimal
-
         qtd_total = Decimal("0")
 
         for emp in empenhos:
@@ -322,22 +331,19 @@ class Command(BaseCommand):
             descricao = str(emp.get("descricao") or emp.get("descricao_item") or "")
             unidade = str(emp.get("unidade") or emp.get("unidade_medida") or "")
 
-            qtd_raw = emp.get("quantidade") or emp.get("qtd") or 0
-            try:
-                from decimal import Decimal as D
-                qtd = D(str(qtd_raw).replace(",", "."))
-            except Exception:
-                qtd = Decimal("0")
-
-            valor_unit_raw = emp.get("valor_unitario") or emp.get("valorunitario") or "0"
-            valor_total_raw = emp.get("valor_total") or emp.get("valortotal") or "0"
-
-            from apps.srp.services.comprasnet_contratos import ComprasnetContratosClient as C
-            valor_unit = C.parse_decimal(valor_unit_raw)
-            valor_total = C.parse_decimal(valor_total_raw)
-
-            from apps.srp.services.comprasnet_contratos import ComprasnetContratosClient as CC
-            data_emissao = CC.parse_date(emp.get("data_emissao") or emp.get("data"))
+            # Usa parse_decimal do cliente (já importado no topo) para consistência
+            qtd = ComprasnetContratosClient.parse_decimal(
+                emp.get("quantidade") or emp.get("qtd") or 0
+            )
+            valor_unit = ComprasnetContratosClient.parse_decimal(
+                emp.get("valor_unitario") or emp.get("valorunitario") or "0"
+            )
+            valor_total_emp = ComprasnetContratosClient.parse_decimal(
+                emp.get("valor_total") or emp.get("valortotal") or "0"
+            )
+            data_emissao = ComprasnetContratosClient.parse_date(
+                emp.get("data_emissao") or emp.get("data")
+            )
 
             qtd_total += qtd
 
@@ -357,7 +363,7 @@ class Command(BaseCommand):
                         "unidade": unidade[:30],
                         "quantidade": qtd,
                         "valor_unitario": valor_unit,
-                        "valor_total": valor_total,
+                        "valor_total": valor_total_emp,
                         "data_emissao": data_emissao,
                         "ano": ano,
                         "uasg": uasg,

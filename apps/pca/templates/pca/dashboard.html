@@ -50,7 +50,7 @@
       <div class="d-flex align-items-start justify-content-between">
         <div>
           <div class="kpi-label">Valor PCA Estimado</div>
-          <div class="kpi-value mt-1" style="font-size:1.1rem;">R$ {{ valor_total|floatformat:2|intcomma }}</div>
+          <div class="kpi-value mt-1" style="font-size:1.1rem;">R$ {{ valor_total|floatformat:"2g" }}</div>
           <div class="kpi-sub">Total estimado</div>
         </div>
         <div class="kpi-icon" style="background:#dcfce7;">
@@ -64,7 +64,7 @@
       <div class="d-flex align-items-start justify-content-between">
         <div>
           <div class="kpi-label">Valor Empenhado</div>
-          <div class="kpi-value mt-1" style="font-size:1.1rem;">R$ {{ valor_empenhado|floatformat:2|intcomma }}</div>
+          <div class="kpi-value mt-1" style="font-size:1.1rem;">R$ {{ valor_empenhado|floatformat:"2g" }}</div>
           <div class="kpi-sub">{{ pct_executado }}% do estimado</div>
         </div>
         <div class="kpi-icon" style="background:#fef9c3;">
@@ -119,7 +119,7 @@
                   {% elif s.status == 'em_diligencia' %}bg-secondary
                   {% else %}bg-light text-dark border{% endif %}
                   " style="font-size:.7rem;">
-                  {{ s.status|capfirst|replace:"_":" " }}
+                  {{ s.status|cut:"_"|capfirst }}
                 </span>
               </td>
               <td class="text-end fw-bold">{{ s.qtd }}</td>
@@ -154,7 +154,7 @@
               <td style="font-size:.8rem;">{{ c.categoria|capfirst }}</td>
               <td class="text-end">{{ c.qtd }}</td>
               <td class="text-end text-muted" style="font-size:.75rem;">
-                R$ {{ c.valor|floatformat:0|intcomma }}
+                R$ {{ c.valor|floatformat:"0g" }}
               </td>
             </tr>
             {% empty %}
@@ -183,7 +183,7 @@
           <tbody>
             {% for m in por_modalidade %}
             <tr>
-              <td style="font-size:.8rem;">{{ m.modalidade|capfirst|replace:"_":" " }}</td>
+              <td style="font-size:.8rem;">{{ m.modalidade|cut:"_"|capfirst }}</td>
               <td class="text-end fw-bold">{{ m.qtd }}</td>
             </tr>
             {% empty %}

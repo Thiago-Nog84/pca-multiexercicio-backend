@@ -100,27 +100,27 @@
             </thead>
             <tbody>
               {% for c in alertas %}
-              {% with dias=c.vigencia_fim|timeuntil %}
+              {% with dias=c.data_fim_vigencia|timeuntil %}
               <tr>
                 <td class="fw-bold font-monospace" style="font-size:.8rem;">
                   {{ c.numero_contrato }}
                 </td>
                 <td style="font-size:.8rem; max-width:140px;">
-                  <span class="text-truncate d-block" title="{{ c.fornecedor_nome|default:'' }}">
-                    {{ c.fornecedor_nome|default:"—"|truncatechars:25 }}
+                  <span class="text-truncate d-block" title="{{ c.contratado_razao_social|default:'' }}">
+                    {{ c.contratado_razao_social|default:"—"|truncatechars:25 }}
                   </span>
                 </td>
                 <td class="text-center" style="font-size:.8rem;">
-                  {{ c.vigencia_fim|date:"d/m/Y" }}
+                  {{ c.data_fim_vigencia|date:"d/m/Y" }}
                 </td>
                 <td class="text-center">
-                  {% with d=c.vigencia_fim|timeuntil:hoje %}
+                  {% with d=c.data_fim_vigencia|timeuntil:hoje %}
                   <span class="badge rounded-pill
-                    {% if c.vigencia_fim <= hoje %}bg-danger
-                    {% elif c.vigencia_fim|date:"U"|add:0 <= hoje|date:"U"|add:2592000 %}bg-danger
+                    {% if c.data_fim_vigencia <= hoje %}bg-danger
+                    {% elif c.data_fim_vigencia|date:"U"|add:0 <= hoje|date:"U"|add:2592000 %}bg-danger
                     {% else %}bg-warning text-dark{% endif %}
                     " style="font-size:.68rem;">
-                    {{ c.vigencia_fim|timeuntil }}
+                    {{ c.data_fim_vigencia|timeuntil }}
                   </span>
                   {% endwith %}
                 </td>
@@ -149,7 +149,7 @@
           <tbody>
             {% for t in por_tipo %}
             <tr>
-              <td style="font-size:.82rem;">{{ t.tipo|capfirst|replace:"_":" " }}</td>
+              <td style="font-size:.82rem;">{{ t.tipo|cut:"_"|capfirst }}</td>
               <td class="text-end fw-bold">{{ t.qtd }}</td>
             </tr>
             {% empty %}

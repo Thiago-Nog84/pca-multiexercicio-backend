@@ -71,7 +71,7 @@
         </div>
         <div>
           <div class="fs-5 fw-bold" style="color:#856404;">
-            R$ {{ valor_total|floatformat:2|intcomma }}
+            R$ {{ valor_total|floatformat:"2g" }}
           </div>
           <div class="text-muted small">Valor total registrado</div>
         </div>
@@ -183,7 +183,7 @@
             data-numero="{{ arp.numero_arp|lower }}"
             data-fornecedor="{{ arp.fornecedor_razao_social|lower }}"
             data-objeto="{{ arp.objeto|lower }}"
-            data-status="{{ arp.status }}"
+            data-status="{{ entrada.status_efetivo }}"
             data-origem="{% if entrada.importada %}api{% else %}manual{% endif %}"
             data-itens="{{ entrada.total_itens }}"
             data-valor="{{ entrada.valor_total }}"
@@ -211,11 +211,16 @@
               <span class="badge bg-secondary">{{ entrada.total_itens }}</span>
             </td>
             <td class="text-center">
-              {% if arp.status == 'vigente' %}
+              {% if entrada.status_efetivo == 'vigente' %}
                 <span class="badge badge-vigente">Vigente</span>
-              {% elif arp.status == 'suspensa' %}
+                {% if arp.prorrogada %}
+                  <br><span class="badge-prorrogada mt-1">
+                    <i class="bi bi-arrow-repeat me-1"></i>Prorrogada
+                  </span>
+                {% endif %}
+              {% elif entrada.status_efetivo == 'suspensa' %}
                 <span class="badge badge-suspensa">Suspensa</span>
-              {% elif arp.status == 'encerrada' %}
+              {% elif entrada.status_efetivo == 'encerrada' %}
                 <span class="badge badge-encerrada">Encerrada</span>
               {% else %}
                 <span class="badge badge-cancelada">Cancelada</span>
@@ -227,6 +232,11 @@
               </div>
               <div class="small {% if arp.esta_vigente %}text-success{% else %}text-danger{% endif %}">
                 <i class="bi bi-calendar-x me-1"></i>{{ arp.data_fim_vigencia|date:"d/m/Y" }}
+                {% if arp.prorrogada and arp.data_fim_vigencia_original %}
+                  <span class="text-muted" title="Vigência original antes da prorrogação">
+                    <i class="bi bi-info-circle ms-1"></i>orig. {{ arp.data_fim_vigencia_original|date:"d/m/Y" }}
+                  </span>
+                {% endif %}
               </div>
             </td>
             <td class="text-center" style="white-space:nowrap;">
@@ -251,7 +261,7 @@
               {% endif %}
             </td>
             <td class="text-end fw-semibold" style="white-space:nowrap;">
-              R$ {{ entrada.valor_total|floatformat:2|intcomma }}
+              R$ {{ entrada.valor_total|floatformat:"2g" }}
             </td>
             <td class="text-center">
               {% if entrada.importada %}
@@ -413,7 +423,7 @@
       e.preventDefault();
       inputBusca.focus();
     }
-  });
+   });
 })();
 </script>
 {% endblock %}

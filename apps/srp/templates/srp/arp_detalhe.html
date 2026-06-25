@@ -25,14 +25,20 @@
           </span>
         {% endif %}
       </h5>
-      {% if arp.status == 'vigente' %}
+      {% if arp.esta_vigente %}
         <span class="badge badge-vigente fs-6">Vigente</span>
+        {% if arp.prorrogada %}
+          <span class="badge-prorrogada ms-2">
+            <i class="bi bi-arrow-repeat me-1"></i>Prorrogada
+            {% if not arp.quantitativos_renovados %}s/ renov. quantitativos{% endif %}
+          </span>
+        {% endif %}
       {% elif arp.status == 'suspensa' %}
         <span class="badge badge-suspensa fs-6">Suspensa</span>
-      {% elif arp.status == 'encerrada' %}
-        <span class="badge badge-encerrada fs-6">Encerrada</span>
-      {% else %}
+      {% elif arp.status == 'cancelada' %}
         <span class="badge badge-cancelada fs-6">Cancelada</span>
+      {% else %}
+        <span class="badge badge-encerrada fs-6">Encerrada</span>
       {% endif %}
     </div>
   </div>
@@ -80,6 +86,22 @@
               {{ arp.data_fim_vigencia|date:"d/m/Y" }}
             </td>
           </tr>
+          {% if arp.prorrogada %}
+          <tr>
+            <th class="text-muted fw-normal">Vigência original</th>
+            <td class="text-muted">{{ arp.data_fim_vigencia_original|date:"d/m/Y"|default:"—" }}</td>
+          </tr>
+          <tr>
+            <th class="text-muted fw-normal">Prorrogada em</th>
+            <td>{{ arp.data_prorrogacao|date:"d/m/Y"|default:"—" }}
+              {% if arp.quantitativos_renovados %}
+                <span class="badge bg-success ms-1">com renovação</span>
+              {% else %}
+                <span class="badge bg-secondary ms-1">sem renovação de quantitativos</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endif %}
           <tr>
             <th class="text-muted fw-normal">UASG gerenc.</th>
             <td>{{ arp.codigo_uasg_gerenciadora|default:"—" }}</td>
@@ -108,7 +130,7 @@
       </div>
       <div class="col-6 col-md-3 text-center">
         <div class="fs-5 fw-bold text-success">
-          R$ {{ valor_total_arp|floatformat:2|intcomma }}
+          R$ {{ valor_total_arp|floatformat:"2g" }}
         </div>
         <div class="text-muted small">Valor total da ARP</div>
       </div>
@@ -192,8 +214,8 @@
                 <span class="saldo-zero">{{ d.disponivel_eventual|floatformat:2 }}</span>
               {% endif %}
             </td>
-            <td class="text-end">R$ {{ item.valor_unitario|floatformat:2|intcomma }}</td>
-            <td class="text-end fw-semibold">R$ {{ d.valor_total|floatformat:2|intcomma }}</td>
+            <td class="text-end">R$ {{ item.valor_unitario|floatformat:"2g" }}</td>
+            <td class="text-end fw-semibold">R$ {{ d.valor_total|floatformat:"2g" }}</td>
             <td class="text-center">
               {% if item.banco_referencia %}
                 <span class="badge bg-light text-dark border" title="{{ item.get_banco_referencia_display }}: {{ item.codigo_referencia_banco }}">
@@ -269,6 +291,139 @@
   </div>
 </div>
 
+<!-- Contratos decorrentes -->
+<div class="card arp-card mt-4">
+  <div class="card-header py-3 d-flex align-items-center justify-content-between">
+    <span class="fw-semibold"><i class="bi bi-file-earmark-check me-2"></i>Contratos decorrentes desta ARP</span>
+    {% if total_contratos %}
+    <span class="badge bg-secondary">{{ total_contratos }} contrato{{ total_contratos|pluralize }}</span>
+    {% endif %}
+  </div>
+  <div class="card-body p-0">
+    {% if contratos %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th class="ps-3">Nº Contrato</th>
+            <th>Contratado</th>
+            <th>UASG Contratante</th>
+            <th class="text-center">Assinatura</th>
+            <th class="text-center">Vigência</th>
+            <th class="text-end">Valor Total</th>
+            <th class="text-center">Itens</th>
+            <th class="text-center pe-3">Tipo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for contrato in contratos %}
+          <tr>
+            <td class="ps-3 fw-semibold">{{ contrato.numero_contrato }}</td>
+            <td>
+              <div class="fw-medium">{{ contrato.contratado_nome|default:"—"|truncatechars:40 }}</div>
+              {% if contrato.contratado_cnpj %}<small class="text-muted">{{ contrato.contratado_cnpj }}</small>{% endif %}
+            </td>
+            <td>
+              <div>{{ contrato.nome_uasg_contratante|default:contrato.uasg_contratante|truncatechars:35 }}</div>
+              {% if contrato.uasg_contratante %}<small class="text-muted">UASG {{ contrato.uasg_contratante }}</small>{% endif %}
+            </td>
+            <td class="text-center text-muted small">{{ contrato.data_assinatura|date:"d/m/Y"|default:"—" }}</td>
+            <td class="text-center small">
+              {% if contrato.data_fim_vigencia %}
+                <span class="{% if contrato.esta_vigente %}text-success fw-semibold{% else %}text-muted{% endif %}">
+                  {{ contrato.data_inicio_vigencia|date:"d/m/Y"|default:"?" }} → {{ contrato.data_fim_vigencia|date:"d/m/Y" }}
+                </span>
+              {% else %}—{% endif %}
+            </td>
+            <td class="text-end fw-semibold">R$ {{ contrato.valor_total|floatformat:"2g" }}</td>
+            <td class="text-center">
+              {% with n=contrato.itens.count %}
+              {% if n > 0 %}
+              <button class="btn btn-sm btn-outline-secondary"
+                      data-bs-toggle="collapse"
+                      data-bs-target="#itens-contrato-{{ contrato.pk }}"
+                      title="{{ n }} item(ns)">
+                <i class="bi bi-list-ul"></i> {{ n }}
+              </button>
+              {% else %}<span class="text-muted small">—</span>{% endif %}
+              {% endwith %}
+            </td>
+            <td class="text-center pe-3">
+              {% if contrato.is_carona %}
+              <span class="badge bg-warning text-dark" title="Adesão de outro órgão (carona)">
+                <i class="bi bi-arrow-right-circle me-1"></i>Carona
+              </span>
+              {% else %}
+              <span class="badge bg-primary">
+                <i class="bi bi-building me-1"></i>Própria
+              </span>
+              {% endif %}
+            </td>
+          </tr>
+          {% if contrato.itens.count > 0 %}
+          <tr>
+            <td colspan="8" class="p-0 border-0">
+              <div class="collapse" id="itens-contrato-{{ contrato.pk }}">
+                <div class="bg-light border-start border-4 border-secondary ps-4 py-3 pe-3">
+                  <h6 class="fw-bold mb-2 text-secondary">
+                    <i class="bi bi-list-check me-2"></i>Itens contratados
+                  </h6>
+                  <table class="table table-sm table-bordered bg-white mb-0">
+                    <thead class="table-secondary">
+                      <tr>
+                        <th style="width:60px">Item ARP</th>
+                        <th>Descrição</th>
+                        <th class="text-center">Un.</th>
+                        <th class="text-end">Qtd.</th>
+                        <th class="text-end">Vl. Unit.</th>
+                        <th class="text-end">Vl. Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for item_c in contrato.itens.all %}
+                      <tr>
+                        <td class="fw-semibold text-center">
+                          {% if item_c.item_arp %}
+                            <a href="#item-{{ item_c.item_arp.pk }}" class="text-decoration-none">{{ item_c.numero_item }}</a>
+                          {% else %}{{ item_c.numero_item }}{% endif %}
+                        </td>
+                        <td>{{ item_c.descricao|default:item_c.item_arp.descricao|default:"—"|truncatechars:60 }}</td>
+                        <td class="text-center text-muted">{{ item_c.unidade|default:item_c.item_arp.unidade_fornecimento|default:"—" }}</td>
+                        <td class="text-end">{{ item_c.quantidade_contratada|floatformat:2 }}</td>
+                        <td class="text-end">R$ {{ item_c.valor_unitario|floatformat:"2g" }}</td>
+                        <td class="text-end fw-semibold">R$ {{ item_c.valor_total|floatformat:"2g" }}</td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+        {% if total_contratos > 1 %}
+        <tfoot class="table-light">
+          <tr>
+            <td colspan="5" class="ps-3 fw-semibold text-end">Total contratado:</td>
+            <td class="text-end fw-bold" style="color:var(--mppi-azul);">R$ {{ total_valor_contratos|floatformat:"2g" }}</td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-4">
+      <i class="bi bi-inbox text-muted" style="font-size:2rem;"></i>
+      <p class="text-muted mt-2 mb-0">Nenhum contrato importado para esta ARP.</p>
+      <small class="text-muted">Execute: <code>python manage.py importar_contratos_arp --uasg 926092 --atualizar</code></small>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
 <!-- Botão voltar -->
 <div class="mt-3">
   <a href="{% url 'srp:dashboard' %}" class="btn btn-outline-secondary">
@@ -286,3 +441,4 @@
   });
 </script>
 {% endblock %}
+                         

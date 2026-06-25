@@ -13,12 +13,13 @@ from datetime import date
 
 from django.contrib.auth.decorators import login_required
 from django.core.management import call_command
-from django.db.models import DecimalField, ExpressionWrapper, F, Sum
+from django.db import models
+from django.db.models import DecimalField, ExpressionWrapper, F, Q, Sum
 from django.shortcuts import get_object_or_404, render
 from django.utils.decorators import method_decorator
 from django.views import View
 
-from .models import AtaRegistroPrecos, ItemARP
+from .models import AtaRegistroPrecos, ContratoARP, ItemARP
 
 
 @method_decorator(login_required, name="dispatch")
@@ -31,6 +32,7 @@ class DashboardSRPView(View):
     template_name = "srp/dashboard.html"
 
     def get(self, request):
+        hoje = date.today()
         arps = (
             AtaRegistroPrecos.objects.select_related("orgao_gerenciador")
             .prefetch_related("itens")
@@ -38,8 +40,11 @@ class DashboardSRPView(View):
         )
 
         total_arps = arps.count()
-        arps_vigentes = arps.filter(status="vigente").count()
-        arps_encerradas = arps.filter(status__in=["encerrada", "cancelada"]).count()
+        # Conta vigentes pela data real, não pelo campo armazenado
+        arps_vigentes = arps.filter(data_fim_vigencia__gte=hoje).exclude(status__in=["cancelada", "suspensa"]).count()
+        arps_encerradas = arps.filter(
+            Q(data_fim_vigencia__lt=hoje) | Q(status__in=["encerrada", "cancelada"])
+        ).count()
 
         valor_total = (
             ItemARP.objects.aggregate(
@@ -55,12 +60,20 @@ class DashboardSRPView(View):
 
         total_itens = ItemARP.objects.count()
 
-        hoje = date.today()
         arps_lista = []
         for arp in arps:
             itens = arp.itens.all()
             valor_arp = sum(i.quantidade_registrada * i.valor_unitario for i in itens)
             dias_restantes = (arp.data_fim_vigencia - hoje).days if arp.data_fim_vigencia else None
+
+            # Deriva status efetivo das datas (ignora valor armazenado para exibição)
+            if arp.status in ("cancelada", "suspensa"):
+                status_efetivo = arp.status
+            elif arp.data_fim_vigencia and arp.data_fim_vigencia < hoje:
+                status_efetivo = "encerrada"
+            else:
+                status_efetivo = "vigente"
+
             arps_lista.append(
                 {
                     "arp": arp,
@@ -68,6 +81,7 @@ class DashboardSRPView(View):
                     "valor_total": valor_arp,
                     "importada": arp.importada_da_api,
                     "dias_restantes": dias_restantes,
+                    "status_efetivo": status_efetivo,
                 }
             )
 
@@ -127,6 +141,14 @@ class ARPDetalheView(View):
         qtd_total_registrada = sum(i.quantidade_registrada for i in itens)
         qtd_total_contratada = sum(i.quantidade_contratada for i in itens)
 
+        # Contratos decorrentes desta ARP (com itens pré-carregados)
+        contratos = (
+            ContratoARP.objects.filter(arp=arp)
+            .prefetch_related("itens__item_arp")
+            .order_by("-data_assinatura", "uasg_contratante")
+        )
+        total_valor_contratos = sum(c.valor_total for c in contratos)
+
         context = {
             "arp": arp,
             "itens_detalhados": itens_detalhados,
@@ -134,6 +156,9 @@ class ARPDetalheView(View):
             "qtd_total_registrada": qtd_total_registrada,
             "qtd_total_contratada": qtd_total_contratada,
             "total_itens": len(itens_detalhados),
+            "contratos": contratos,
+            "total_valor_contratos": total_valor_contratos,
+            "total_contratos": contratos.count(),
         }
         return render(request, self.template_name, context)
 

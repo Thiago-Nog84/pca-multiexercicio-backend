@@ -24,10 +24,10 @@ class DashboardContratosView(View):
         total = contratos.count()
         vigentes = contratos.filter(status="vigente").count()
         vencendo_90 = contratos.filter(
-            status="vigente", vigencia_fim__lte=d90, vigencia_fim__gte=hoje
+            status="vigente", data_fim_vigencia__lte=d90, data_fim_vigencia__gte=hoje
         ).count()
         vencendo_30 = contratos.filter(
-            status="vigente", vigencia_fim__lte=d30, vigencia_fim__gte=hoje
+            status="vigente", data_fim_vigencia__lte=d30, data_fim_vigencia__gte=hoje
         ).count()
 
         por_tipo = (
@@ -39,8 +39,8 @@ class DashboardContratosView(View):
 
         # Últimos contratos + alertas
         alertas = contratos.filter(
-            status="vigente", vigencia_fim__lte=d90, vigencia_fim__gte=hoje
-        ).order_by("vigencia_fim")[:10]
+            status="vigente", data_fim_vigencia__lte=d90, data_fim_vigencia__gte=hoje
+        ).order_by("data_fim_vigencia")[:10]
 
         recentes = contratos.order_by("-criado_em")[:10]
 

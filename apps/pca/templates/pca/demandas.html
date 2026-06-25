@@ -104,8 +104,8 @@
             <td class="text-center" style="font-size:.78rem;">
               {{ item.get_modalidade_display|truncatechars:30 }}
             </td>
-            <td class="text-end">{{ item.quantidade_estimada|floatformat:0|intcomma }}</td>
-            <td class="text-end fw-bold">R$ {{ item.valor_total_estimado|floatformat:2|intcomma }}</td>
+            <td class="text-end">{{ item.quantidade_estimada|floatformat:"0g" }}</td>
+            <td class="text-end fw-bold">R$ {{ item.valor_total_estimado|floatformat:"2g" }}</td>
             <td class="text-center">
               <span class="badge rounded-pill
                 {% if item.status == 'concluido' %}bg-success
