@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Planejamento — ETPs e TRs{% endblock %}
+{% block nav_planejamento %}active{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <h1><i class="bi bi-file-earmark-text text-primary me-2"></i>ETPs e Termos de Referência</h1>
+  <p>Gestão dos Estudos Técnicos Preliminares e Termos de Referência do MPPI.</p>
+</div>
+
+<!-- KPIs -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">Total de ETPs</div>
+          <div class="kpi-value mt-1">{{ total_etps }}</div>
+          <div class="kpi-sub">{{ etps_aprovados }} aprovado{{ etps_aprovados|pluralize:"s" }}</div>
+        </div>
+        <div class="kpi-icon" style="background:#e8f0fb;">
+          <i class="bi bi-file-earmark-bar-graph text-primary"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">Termos de Referência</div>
+          <div class="kpi-value mt-1">{{ total_trs }}</div>
+          <div class="kpi-sub">Associados a ETPs aprovados</div>
+        </div>
+        <div class="kpi-icon" style="background:#fef9c3;">
+          <i class="bi bi-file-earmark-ruled text-warning"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">Em Rascunho</div>
+          <div class="kpi-value mt-1">{{ etps_rascunho }}</div>
+          <div class="kpi-sub">Aguardando revisão</div>
+        </div>
+        <div class="kpi-icon" style="background:#f3f4f6;">
+          <i class="bi bi-pencil-square text-secondary"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3 d-flex align-items-center justify-content-center text-center">
+      <a href="/admin/planejamento/etp/add/" class="btn btn-primary btn-sm w-100 mb-2">
+        <i class="bi bi-plus-lg me-1"></i>Novo ETP
+      </a>
+      <a href="/admin/planejamento/termorreferencia/add/" class="btn btn-outline-primary btn-sm w-100">
+        <i class="bi bi-plus-lg me-1"></i>Novo TR
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Status ETPs -->
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-bar-chart me-2 text-primary"></i>ETPs por Status
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr><th>Status</th><th class="text-end">Qtd</th></tr>
+          </thead>
+          <tbody>
+            {% for s in etps_por_status %}
+            <tr>
+              <td>
+                <span class="badge rounded-pill
+                  {% if s.status == 'aprovado' %}bg-success
+                  {% elif s.status == 'em_revisao' %}bg-warning text-dark
+                  {% else %}bg-light text-dark border{% endif %}
+                  " style="font-size:.7rem;">
+                  {{ s.status|capfirst }}
+                </span>
+              </td>
+              <td class="text-end fw-bold">{{ s.qtd }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="2" class="text-muted text-center py-3">Sem ETPs cadastrados</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Últimos ETPs -->
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-clock-history me-2 text-primary"></i>Últimos ETPs</span>
+        <a href="/admin/planejamento/etp/" class="btn btn-sm btn-outline-secondary">Ver todos</a>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover table-sm mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Nº ETP</th>
+                <th>Item PCA</th>
+                <th class="text-center">TI?</th>
+                <th class="text-center">Status</th>
+                <th class="text-end">Custo Est.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for etp in ultimos_etps %}
+              <tr>
+                <td class="fw-bold font-monospace text-primary" style="font-size:.8rem;">
+                  {{ etp.numero_etp }}
+                </td>
+                <td style="font-size:.82rem;">
+                  {% if etp.item_pca %}{{ etp.item_pca.codigo_pca }}{% else %}—{% endif %}
+                </td>
+                <td class="text-center">
+                  {% if etp.is_ti %}<i class="bi bi-check-circle-fill text-info"></i>{% else %}—{% endif %}
+                </td>
+                <td class="text-center">
+                  <span class="badge rounded-pill
+                    {% if etp.status == 'aprovado' %}bg-success
+                    {% elif etp.status == 'em_revisao' %}bg-warning text-dark
+                    {% else %}bg-light text-dark border{% endif %}
+                    " style="font-size:.68rem;">
+                    {{ etp.get_status_display }}
+                  </span>
+                </td>
+                <td class="text-end" style="font-size:.8rem;">
+                  {% if etp.estimativa_custo %}R$ {{ etp.estimativa_custo|floatformat:2|intcomma }}{% else %}—{% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="5" class="text-center text-muted py-4">
+                  <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                  Nenhum ETP cadastrado.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

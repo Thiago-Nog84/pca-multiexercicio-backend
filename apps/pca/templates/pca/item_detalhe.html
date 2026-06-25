@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}PCA — {{ item.codigo_pca }}{% endblock %}
+{% block nav_demandas %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{% url 'pca:demandas' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div class="page-header">
+    <h1><span class="text-primary font-monospace">{{ item.codigo_pca }}</span></h1>
+    <p>{{ item.descricao|truncatechars:100 }}</p>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Dados gerais -->
+  <div class="col-md-8">
+    <div class="card mb-3">
+      <div class="card-header bg-white fw-bold border-bottom py-3">
+        <i class="bi bi-info-circle me-2 text-primary"></i>Dados do Item
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0" style="font-size:.88rem;">
+          <dt class="col-sm-4 text-muted">Código PCA</dt>
+          <dd class="col-sm-8 font-monospace">{{ item.codigo_pca }}</dd>
+
+          <dt class="col-sm-4 text-muted">DFD</dt>
+          <dd class="col-sm-8">{{ item.dfd.numero_dfd|default:"—" }} — {{ item.dfd.unidade|default:"" }}</dd>
+
+          <dt class="col-sm-4 text-muted">Descrição</dt>
+          <dd class="col-sm-8">{{ item.descricao }}</dd>
+
+          <dt class="col-sm-4 text-muted">Categoria</dt>
+          <dd class="col-sm-8">{{ item.get_categoria_display }}</dd>
+
+          <dt class="col-sm-4 text-muted">Modalidade</dt>
+          <dd class="col-sm-8">{{ item.get_modalidade_display }}</dd>
+
+          <dt class="col-sm-4 text-muted">Tipo de Demanda</dt>
+          <dd class="col-sm-8">{{ item.get_tipo_demanda_display }}</dd>
+
+          <dt class="col-sm-4 text-muted">Normativo</dt>
+          <dd class="col-sm-8">{{ item.get_normativo_display }}</dd>
+
+          <dt class="col-sm-4 text-muted">CATMAT/CATSER</dt>
+          <dd class="col-sm-8">{{ item.codigo_catmat_catser|default:"—" }}</dd>
+
+          <dt class="col-sm-4 text-muted">Unidade Orçamentária</dt>
+          <dd class="col-sm-8">{{ item.get_unidade_orcamentaria_display|default:"—" }}</dd>
+
+          <dt class="col-sm-4 text-muted">Prazo de Necessidade</dt>
+          <dd class="col-sm-8">{{ item.dfd.prazo_necessidade|date:"d/m/Y"|default:"—" }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <!-- Financeiro / Status -->
+  <div class="col-md-4">
+    <div class="card mb-3">
+      <div class="card-header bg-white fw-bold border-bottom py-3">
+        <i class="bi bi-cash-stack me-2 text-success"></i>Financeiro
+      </div>
+      <div class="card-body text-center">
+        <div class="kpi-label">Quantidade</div>
+        <div class="kpi-value">{{ item.quantidade_estimada|floatformat:0|intcomma }} {{ item.unidade_fornecimento }}</div>
+
+        <hr class="my-3">
+
+        <div class="kpi-label">Valor Unit. Estimado</div>
+        <div class="fs-5 fw-bold">R$ {{ item.valor_unitario_estimado|floatformat:2|intcomma }}</div>
+
+        <hr class="my-3">
+
+        <div class="kpi-label">Valor Total Estimado</div>
+        <div class="fs-4 fw-bold text-primary">R$ {{ item.valor_total_estimado|floatformat:2|intcomma }}</div>
+
+        <hr class="my-3">
+
+        <div class="kpi-label">Valor Empenhado</div>
+        <div class="fs-5 fw-bold text-success">R$ {{ item.valor_empenhado|floatformat:2|intcomma }}</div>
+        {% if item.valor_total_estimado %}
+        <div class="progress prog-bar-sm mt-2">
+          <div class="progress-bar bg-success"
+               style="width:{% widthratio item.valor_empenhado item.valor_total_estimado 100 %}%">
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body text-center">
+        <div class="kpi-label mb-2">Status Atual</div>
+        <span class="badge rounded-pill fs-6 px-3 py-2
+          {% if item.status == 'concluido' %}bg-success
+          {% elif item.status == 'suspenso' %}bg-warning text-dark
+          {% elif item.status == 'em_andamento' %}bg-primary
+          {% elif item.status == 'iniciado' %}bg-info text-dark
+          {% elif item.status == 'em_diligencia' %}bg-secondary
+          {% else %}bg-light text-dark border{% endif %}">
+          {{ item.get_status_display }}
+        </span>
+
+        {% if item.item_pai %}
+        <div class="alert alert-warning mt-3 py-2 text-start" style="font-size:.8rem;">
+          <i class="bi bi-share me-1"></i>
+          Suspensão parcial de <a href="{% url 'pca:item_detalhe' item.item_pai.pk %}">{{ item.item_pai.codigo_pca }}</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

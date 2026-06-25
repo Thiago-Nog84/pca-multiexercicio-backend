@@ -9,10 +9,15 @@ urlpatterns = [
     path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 
-    # Apps — API REST
+    # API REST
     path("api/core/", include("apps.core.urls")),
-    path("api/pca/", include("apps.pca.urls")),
 
-    # Dashboard SRP (Django Templates)
-    path("srp/", include("apps.srp.urls")),
+    # Django Templates - modulos PCA
+    path("pca/",          include(("apps.pca.urls",          "pca"))),
+    path("planejamento/", include(("apps.planejamento.urls", "planejamento"))),
+    path("cotacao/",      include(("apps.cotacao.urls",      "cotacao"))),
+    path("licitacao/",    include(("apps.licitacao.urls",    "licitacao"))),
+    path("srp/",          include(("apps.srp.urls",          "srp"))),
+    path("contratos/",    include(("apps.contratos.urls",    "contratos"))),
+    path("juridico/",     include(("apps.juridico.urls",     "juridico"))),
 ]

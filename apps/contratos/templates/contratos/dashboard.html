@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Contratos — MPPI{% endblock %}
+{% block nav_contratos %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div class="page-header">
+    <h1><i class="bi bi-file-earmark-ruled text-primary me-2"></i>Contratos Administrativos</h1>
+    <p>Gestão dos contratos celebrados pelo MPPI (Lei 14.133/2021).</p>
+  </div>
+  <a href="/admin/contratos/contrato/add/" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg me-1"></i>Novo Contrato
+  </a>
+</div>
+
+<!-- KPIs -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">Total de Contratos</div>
+          <div class="kpi-value mt-1">{{ total }}</div>
+          <div class="kpi-sub">{{ vigentes }} vigente{{ vigentes|pluralize:"s" }}</div>
+        </div>
+        <div class="kpi-icon" style="background:#e8f0fb;">
+          <i class="bi bi-file-earmark-ruled text-primary"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">Vencendo em 90 dias</div>
+          <div class="kpi-value mt-1 {% if vencendo_90 > 0 %}text-warning{% endif %}">
+            {{ vencendo_90 }}
+          </div>
+          <div class="kpi-sub">{{ vencendo_30 }} nos próximos 30 dias</div>
+        </div>
+        <div class="kpi-icon" style="background:#fef9c3;">
+          <i class="bi bi-clock-history text-warning"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">Alerta Crítico</div>
+          <div class="kpi-value mt-1 {% if vencendo_30 > 0 %}text-danger{% endif %}">
+            {{ vencendo_30 }}
+          </div>
+          <div class="kpi-sub">Vencendo em ≤ 30 dias</div>
+        </div>
+        <div class="kpi-icon" style="background:#fee2e2;">
+          <i class="bi bi-exclamation-triangle text-danger"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">Tipos</div>
+          <div class="kpi-value mt-1">{{ por_tipo|length }}</div>
+          <div class="kpi-sub">categorias distintas</div>
+        </div>
+        <div class="kpi-icon" style="background:#dcfce7;">
+          <i class="bi bi-tags text-success"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Alertas de vencimento -->
+  {% if alertas %}
+  <div class="col-md-5">
+    <div class="card h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-alarm text-danger me-2"></i>Contratos a Vencer (90 dias)
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover table-sm mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Contrato</th>
+                <th>Fornecedor</th>
+                <th class="text-center">Vencimento</th>
+                <th class="text-center">Dias</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in alertas %}
+              {% with dias=c.vigencia_fim|timeuntil %}
+              <tr>
+                <td class="fw-bold font-monospace" style="font-size:.8rem;">
+                  {{ c.numero_contrato }}
+                </td>
+                <td style="font-size:.8rem; max-width:140px;">
+                  <span class="text-truncate d-block" title="{{ c.fornecedor_nome|default:'' }}">
+                    {{ c.fornecedor_nome|default:"—"|truncatechars:25 }}
+                  </span>
+                </td>
+                <td class="text-center" style="font-size:.8rem;">
+                  {{ c.vigencia_fim|date:"d/m/Y" }}
+                </td>
+                <td class="text-center">
+                  {% with d=c.vigencia_fim|timeuntil:hoje %}
+                  <span class="badge rounded-pill
+                    {% if c.vigencia_fim <= hoje %}bg-danger
+                    {% elif c.vigencia_fim|date:"U"|add:0 <= hoje|date:"U"|add:2592000 %}bg-danger
+                    {% else %}bg-warning text-dark{% endif %}
+                    " style="font-size:.68rem;">
+                    {{ c.vigencia_fim|timeuntil }}
+                  </span>
+                  {% endwith %}
+                </td>
+              </tr>
+              {% endwith %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Distribuição por tipo -->
+  <div class="col-md-{% if alertas %}4{% else %}5{% endif %}">
+    <div class="card h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-pie-chart me-2 text-primary"></i>Vigentes por Tipo
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr><th>Tipo</th><th class="text-end">Qtd</th></tr>
+          </thead>
+          <tbody>
+            {% for t in por_tipo %}
+            <tr>
+              <td style="font-size:.82rem;">{{ t.tipo|capfirst|replace:"_":" " }}</td>
+              <td class="text-end fw-bold">{{ t.qtd }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="2" class="text-muted text-center py-3">Sem contratos cadastrados</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recentes -->
+  <div class="col-md-{% if alertas %}3{% else %}7{% endif %}">
+    <div class="card h-100">
+      <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-clock-history me-2 text-primary"></i>Recentes</span>
+        <a href="/admin/contratos/contrato/" class="btn btn-sm btn-outline-secondary">Ver todos</a>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-hover table-sm mb-0">
+          <thead class="table-light">
+            <tr><th>Nº Contrato</th><th>Tipo</th><th class="text-center">Status</th></tr>
+          </thead>
+          <tbody>
+            {% for c in recentes %}
+            <tr>
+              <td class="fw-bold font-monospace text-primary" style="font-size:.8rem;">
+                {{ c.numero_contrato }}
+              </td>
+              <td style="font-size:.78rem;">{{ c.get_tipo_display|truncatechars:28 }}</td>
+              <td class="text-center">
+                <span class="badge rounded-pill
+                  {% if c.status == 'vigente' %}bg-success
+                  {% elif c.status == 'suspenso' %}bg-warning text-dark
+                  {% elif c.status == 'rescindido' %}bg-danger
+                  {% else %}bg-light text-dark border{% endif %}
+                  " style="font-size:.68rem;">
+                  {{ c.get_status_display }}
+                </span>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="text-muted text-center py-4">
+              <i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum contrato cadastrado.
+            </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

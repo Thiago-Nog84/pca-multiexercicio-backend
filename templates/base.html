@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}PCA — MPPI{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    /* ── Variáveis de cor ─────────────────────────────────── */
+    :root {
+      --mppi-azul:       #003366;
+      --mppi-azul-claro: #0055a4;
+      --mppi-verde:      #198754;
+      --sidebar-w:       240px;
+      --sidebar-w-col:    64px;
+      --topbar-h:         52px;
+    }
+
+    /* ── Layout ───────────────────────────────────────────── */
+    body {
+      background: #f4f6fa;
+      font-size: 0.9rem;
+      margin: 0;
+      overflow-x: hidden;
+    }
+
+    /* ── Topbar ───────────────────────────────────────────── */
+    .topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: var(--topbar-h);
+      background: linear-gradient(135deg, var(--mppi-azul) 0%, var(--mppi-azul-claro) 100%);
+      box-shadow: 0 2px 8px rgba(0,0,0,.28);
+      display: flex;
+      align-items: center;
+      padding: 0 1rem;
+      z-index: 1040;
+      gap: 1rem;
+    }
+    .topbar-brand {
+      font-weight: 700;
+      font-size: 1rem;
+      color: #fff;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .topbar-brand small {
+      display: block;
+      font-size: 0.6rem;
+      font-weight: 600;
+      color: rgba(255,255,255,.6);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .topbar-toggle {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,.85);
+      font-size: 1.25rem;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 6px;
+      line-height: 1;
+    }
+    .topbar-toggle:hover { background: rgba(255,255,255,.12); }
+    .topbar-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+    }
+    .topbar-user {
+      font-size: .78rem;
+      color: rgba(255,255,255,.75);
+    }
+
+    /* ── Sidebar ──────────────────────────────────────────── */
+    .sidebar {
+      position: fixed;
+      top: var(--topbar-h);
+      left: 0;
+      bottom: 0;
+      width: var(--sidebar-w);
+      background: #fff;
+      border-right: 1px solid #e2e8f0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      transition: width .2s ease;
+      z-index: 1030;
+      display: flex;
+      flex-direction: column;
+    }
+    body.sidebar-collapsed .sidebar { width: var(--sidebar-w-col); }
+
+    .sidebar-nav { flex: 1; padding: .5rem 0; }
+
+    .sidebar-section-label {
+      font-size: .65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: #94a3b8;
+      padding: .75rem 1.1rem .35rem;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    body.sidebar-collapsed .sidebar-section-label { opacity: 0; }
+
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: .65rem;
+      padding: .5rem 1.1rem;
+      color: #374151;
+      text-decoration: none;
+      border-radius: 0;
+      font-size: .85rem;
+      white-space: nowrap;
+      overflow: hidden;
+      position: relative;
+      transition: background .12s, color .12s;
+    }
+    .sidebar-link i { font-size: 1rem; flex-shrink: 0; min-width: 1.1rem; text-align: center; }
+    .sidebar-link .link-text { opacity: 1; transition: opacity .15s; }
+    body.sidebar-collapsed .sidebar-link .link-text { opacity: 0; }
+
+    .sidebar-link:hover {
+      background: #f1f5f9;
+      color: var(--mppi-azul-claro);
+    }
+    .sidebar-link.active {
+      background: #e8f0fb;
+      color: var(--mppi-azul);
+      font-weight: 600;
+      border-right: 3px solid var(--mppi-azul-claro);
+    }
+    .sidebar-link .badge-count {
+      margin-left: auto;
+      font-size: .65rem;
+      background: #fee2e2;
+      color: #dc2626;
+      border-radius: 20px;
+      padding: 1px 7px;
+      font-weight: 700;
+    }
+    body.sidebar-collapsed .sidebar-link .badge-count { display: none; }
+
+    .sidebar-divider {
+      height: 1px;
+      background: #e8edf3;
+      margin: .4rem .8rem;
+    }
+
+    .sidebar-footer {
+      padding: .6rem .8rem;
+      border-top: 1px solid #e2e8f0;
+      font-size: .72rem;
+      color: #94a3b8;
+    }
+    .sidebar-footer a {
+      color: inherit;
+      text-decoration: none;
+    }
+    .sidebar-footer a:hover { color: var(--mppi-azul-claro); }
+
+    /* ── Main content ─────────────────────────────────────── */
+    .main-wrap {
+      margin-top: var(--topbar-h);
+      margin-left: var(--sidebar-w);
+      min-height: calc(100vh - var(--topbar-h));
+      transition: margin-left .2s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    body.sidebar-collapsed .main-wrap { margin-left: var(--sidebar-w-col); }
+
+    .main-content {
+      flex: 1;
+      padding: 1.75rem 1.75rem 2rem;
+    }
+
+    /* ── KPI cards ────────────────────────────────────────── */
+    .kpi-card {
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.07);
+      transition: transform .15s, box-shadow .15s;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.1); }
+    .kpi-card .kpi-icon {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem;
+    }
+    .kpi-card .kpi-value { font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
+    .kpi-card .kpi-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #64748b; }
+    .kpi-card .kpi-sub   { font-size: .75rem; color: #94a3b8; }
+
+    /* ── Alert pills ──────────────────────────────────────── */
+    .alert-pill {
+      display: flex; align-items: flex-start; gap: .6rem;
+      padding: .65rem .85rem;
+      border-radius: 10px;
+      background: #fff4f4;
+      border: 1px solid #fee2e2;
+    }
+    .alert-pill.info  { background: #eff6ff; border-color: #dbeafe; }
+    .alert-pill.warn  { background: #fffbeb; border-color: #fde68a; }
+
+    /* ── Tables ───────────────────────────────────────────── */
+    .table-hover tbody tr:hover { background-color: #eef3fb; }
+    .table th { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: #64748b; font-weight: 700; }
+
+    /* ── Status badges ────────────────────────────────────── */
+    .badge-vigente    { background: #d1fae5; color: #065f46; }
+    .badge-suspensa,
+    .badge-suspenso   { background: #fef3c7; color: #92400e; }
+    .badge-encerrada,
+    .badge-encerrado  { background: #e2e8f0; color: #475569; }
+    .badge-cancelada,
+    .badge-cancelado  { background: #fee2e2; color: #991b1b; }
+    .badge-vigente, .badge-suspensa, .badge-encerrada, .badge-cancelada,
+    .badge-suspenso, .badge-encerrado, .badge-cancelado {
+      font-size: .7rem; font-weight: 700; padding: 3px 9px; border-radius: 20px;
+    }
+
+    /* ── Page header ──────────────────────────────────────── */
+    .page-header h1 { font-size: 1.45rem; font-weight: 700; margin-bottom: .1rem; color: #1e293b; }
+    .page-header p  { font-size: .82rem; color: #64748b; margin: 0; }
+
+    /* ── Progress bar ─────────────────────────────────────── */
+    .prog-bar-sm { height: 6px; border-radius: 4px; }
+
+    /* ── Card generic ─────────────────────────────────────── */
+    .card { border: none; border-radius: 12px; box-shadow: 0 1px 6px rgba(0,0,0,.07); }
+    .card-header { font-size: .85rem; font-weight: 700; }
+
+    /* ── Footer ───────────────────────────────────────────── */
+    footer { font-size: .76rem; color: #94a3b8; }
+
+    /* ── Responsive: mobile ───────────────────────────────── */
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(-100%); transition: transform .2s ease; }
+      body.sidebar-open .sidebar { transform: translateX(0); }
+      .main-wrap { margin-left: 0 !important; }
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════ TOPBAR ═══════════ -->
+<header class="topbar">
+  <button class="topbar-toggle" id="sidebarToggle" title="Expandir/Recolher menu">
+    <i class="bi bi-list"></i>
+  </button>
+  <a class="topbar-brand" href="{% url 'srp:dashboard' %}">
+    PCA 2026
+    <small>Ministério Público do Estado do Piauí</small>
+  </a>
+  <div class="topbar-right">
+    {% if messages %}
+      {% for msg in messages %}
+        <div class="alert alert-{{ msg.tags }} alert-dismissible fade show py-1 px-2 mb-0 small" role="alert">
+          {{ msg }}<button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+    <a href="/admin/" class="btn btn-sm btn-outline-light py-0">
+      <i class="bi bi-shield-lock me-1"></i>Admin
+    </a>
+    <span class="topbar-user">
+      <i class="bi bi-person-circle me-1"></i>{{ request.user.username }}
+    </span>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════ SIDEBAR ══════════ -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-nav">
+
+    <!-- PCA / Planejamento -->
+    <div class="sidebar-section-label">Planejamento</div>
+    <a href="{% url 'pca:dashboard' %}" class="sidebar-link {% block nav_pca %}{% endblock %}">
+      <i class="bi bi-clipboard2-check"></i>
+      <span class="link-text">Visão Geral PCA</span>
+    </a>
+    <a href="{% url 'pca:demandas' %}" class="sidebar-link {% block nav_demandas %}{% endblock %}">
+      <i class="bi bi-list-task"></i>
+      <span class="link-text">Demandas (DFDs)</span>
+    </a>
+    <a href="{% url 'planejamento:dashboard' %}" class="sidebar-link {% block nav_planejamento %}{% endblock %}">
+      <i class="bi bi-file-earmark-text"></i>
+      <span class="link-text">ETPs e TRs</span>
+    </a>
+    <a href="{% url 'cotacao:dashboard' %}" class="sidebar-link {% block nav_cotacao %}{% endblock %}">
+      <i class="bi bi-calculator"></i>
+      <span class="link-text">Cotação de Preços</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+
+    <!-- Licitação / SRP -->
+    <div class="sidebar-section-label">Licitação</div>
+    <a href="{% url 'licitacao:dashboard' %}" class="sidebar-link {% block nav_licitacao %}{% endblock %}">
+      <i class="bi bi-hammer"></i>
+      <span class="link-text">Processos Licitatórios</span>
+    </a>
+    <a href="{% url 'srp:dashboard' %}" class="sidebar-link {% block nav_srp %}{% endblock %}">
+      <i class="bi bi-card-list"></i>
+      <span class="link-text">ARPs — Registro de Preços</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+
+    <!-- Contratos / Jurídico -->
+    <div class="sidebar-section-label">Execução</div>
+    <a href="{% url 'contratos:dashboard' %}" class="sidebar-link {% block nav_contratos %}{% endblock %}">
+      <i class="bi bi-file-earmark-ruled"></i>
+      <span class="link-text">Contratos</span>
+    </a>
+    <a href="{% url 'juridico:dashboard' %}" class="sidebar-link {% block nav_juridico %}{% endblock %}">
+      <i class="bi bi-briefcase"></i>
+      <span class="link-text">Pareceres Jurídicos</span>
+    </a>
+
+  </div>
+
+  <div class="sidebar-footer">
+    <span class="link-text">PCA Multiexercício v1.0</span>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════ MAIN ═════════════ -->
+<div class="main-wrap">
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="text-center py-3 border-top mt-auto">
+    MPPI — CLC / Assessoria de Compras &nbsp;|&nbsp;
+    PCA Multiexercício &nbsp;|&nbsp;
+    <a href="{% url 'srp:dashboard' %}" class="text-decoration-none text-secondary">SRP</a>
+    &nbsp;|&nbsp;
+    <a href="{% url 'pca:dashboard' %}" class="text-decoration-none text-secondary">PCA</a>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+(function () {
+  const body = document.body;
+  const toggle = document.getElementById('sidebarToggle');
+
+  // Restaura estado salvo
+  if (localStorage.getItem('sidebarCollapsed') === '1') {
+    body.classList.add('sidebar-collapsed');
+  }
+
+  toggle.addEventListener('click', function () {
+    body.classList.toggle('sidebar-collapsed');
+    body.classList.toggle('sidebar-open'); // mobile
+    localStorage.setItem('sidebarCollapsed', body.classList.contains('sidebar-collapsed') ? '1' : '0');
+  });
+})();
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

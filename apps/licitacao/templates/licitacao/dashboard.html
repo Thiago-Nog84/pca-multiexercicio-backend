@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Licitação — MPPI{% endblock %}
+{% block nav_licitacao %}active{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <h1><i class="bi bi-hammer text-primary me-2"></i>Processos Licitatórios</h1>
+  <p>Acompanhamento dos processos de licitação — Pregão Eletrônico, Concorrência, Dispensas e Inexigibilidades.</p>
+</div>
+
+<div class="row g-4">
+  <div class="col-md-6">
+    <div class="card p-4 text-center" style="border: 2px dashed #cbd5e1; background: #f8fafc;">
+      <i class="bi bi-hourglass-split fs-1 text-muted mb-3"></i>
+      <h5 class="fw-bold text-muted">Módulo em desenvolvimento</h5>
+      <p class="text-muted mb-3" style="font-size:.88rem;">
+        Este módulo rastreará processos licitatórios desde a publicação do edital até a homologação,
+        integrando com o <strong>PNCP</strong> e <strong>ComprasNet</strong>.
+      </p>
+      <div class="d-flex gap-2 justify-content-center flex-wrap">
+        <a href="{% url 'srp:dashboard' %}" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-card-list me-1"></i>Ver ARPs
+        </a>
+        <a href="{% url 'pca:demandas' %}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-list-task me-1"></i>Ver Demandas PCA
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card p-4">
+      <h6 class="fw-bold mb-3"><i class="bi bi-lightbulb me-2 text-warning"></i>O que será implementado</h6>
+      <ul class="list-unstyled mb-0" style="font-size:.88rem;">
+        <li class="mb-2"><i class="bi bi-check2-circle text-success me-2"></i>Painel de acompanhamento de editais</li>
+        <li class="mb-2"><i class="bi bi-check2-circle text-success me-2"></i>Kanban de fases: publicação → proposta → julgamento → homologação</li>
+        <li class="mb-2"><i class="bi bi-check2-circle text-success me-2"></i>Integração com PNCP (publicação automática)</li>
+        <li class="mb-2"><i class="bi bi-check2-circle text-success me-2"></i>Controle de prazos e impugnações</li>
+        <li class="mb-2"><i class="bi bi-check2-circle text-success me-2"></i>Contratações diretas (dispensas e inexigibilidades)</li>
+        <li class="mb-0"><i class="bi bi-check2-circle text-success me-2"></i>Vinculação automática com ARPs (SRP)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

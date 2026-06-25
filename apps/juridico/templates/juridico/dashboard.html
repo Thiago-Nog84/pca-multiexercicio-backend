@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Jurídico — MPPI{% endblock %}
+{% block nav_juridico %}active{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <h1><i class="bi bi-briefcase text-primary me-2"></i>Pareceres Jurídicos</h1>
+  <p>Controle de pareceres jurídicos vinculados a contratações, contratos e recursos administrativos.</p>
+</div>
+
+<div class="row g-4">
+  <div class="col-md-6">
+    <div class="card p-4 text-center" style="border: 2px dashed #cbd5e1; background: #f8fafc;">
+      <i class="bi bi-hourglass-split fs-1 text-muted mb-3"></i>
+      <h5 class="fw-bold text-muted">Módulo em desenvolvimento</h5>
+      <p class="text-muted mb-3" style="font-size:.88rem;">
+        Este módulo gerenciará os pareceres jurídicos emitidos pela Assessoria Jurídica da CLC,
+        vinculados a contratos e licitações.
+      </p>
+      <div class="d-flex gap-2 justify-content-center flex-wrap">
+        <a href="{% url 'contratos:dashboard' %}" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-file-earmark-ruled me-1"></i>Ver Contratos
+        </a>
+        <a href="{% url 'licitacao:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-hammer me-1"></i>Ver Licitações
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card p-4">
+      <h6 class="fw-bold mb-3"><i class="bi bi-lightbulb me-2 text-warning"></i>O que será implementado</h6>
+      <ul class="list-unstyled mb-0" style="font-size:.88rem;">
+        <li class="mb-2"><i class="bi bi-check2-circle text-success me-2"></i>Cadastro de pareceres com número SEI</li>
+        <li class="mb-2"><i class="bi bi-check2-circle text-success me-2"></i>Vinculação a contratos, licitações e ARPs</li>
+        <li class="mb-2"><i class="bi bi-check2-circle text-success me-2"></i>Controle de prazos de manifestação</li>
+        <li class="mb-2"><i class="bi bi-check2-circle text-success me-2"></i>Fluxo de aprovação e ciência</li>
+        <li class="mb-0"><i class="bi bi-check2-circle text-success me-2"></i>Histórico de impugnações e recursos</li>
+      </ul>
+    </div>
+  </div>
+</div>
+{% endblock %}

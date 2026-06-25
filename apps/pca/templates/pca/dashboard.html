@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}PCA — Visão Geral{% endblock %}
+{% block nav_pca %}active{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <h1><i class="bi bi-clipboard2-check text-primary me-2"></i>Visão Geral — PCA
+    {% if pca %}<span class="fs-4 text-muted ms-2">{{ pca.exercicio }}</span>{% endif %}
+  </h1>
+  <p>Panorama do Plano de Contratações Anuais do MPPI.</p>
+</div>
+
+<!-- Status PCA -->
+{% if pca %}
+<div class="alert alert-info d-flex align-items-center gap-2 py-2 mb-4" style="border-radius:10px;">
+  <i class="bi bi-info-circle-fill fs-5"></i>
+  <div>
+    <strong>Status do PCA {{ pca.exercicio }}:</strong>
+    {{ pca.get_status_display }}
+    {% if pca.data_aprovacao_pgj %}
+      — Aprovado em {{ pca.data_aprovacao_pgj|date:"d/m/Y" }}
+    {% endif %}
+  </div>
+  <a href="{% url 'pca:demandas' %}" class="btn btn-sm btn-primary ms-auto">
+    <i class="bi bi-list-task me-1"></i>Ver todas as demandas
+  </a>
+</div>
+{% endif %}
+
+<!-- KPIs -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">Total de Demandas</div>
+          <div class="kpi-value mt-1">{{ total_itens|intcomma }}</div>
+          <div class="kpi-sub">{{ total_dfds }} DFD{{ total_dfds|pluralize:"s" }}</div>
+        </div>
+        <div class="kpi-icon" style="background:#e8f0fb;">
+          <i class="bi bi-file-text text-primary"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">Valor PCA Estimado</div>
+          <div class="kpi-value mt-1" style="font-size:1.1rem;">R$ {{ valor_total|floatformat:2|intcomma }}</div>
+          <div class="kpi-sub">Total estimado</div>
+        </div>
+        <div class="kpi-icon" style="background:#dcfce7;">
+          <i class="bi bi-cash-coin text-success"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">Valor Empenhado</div>
+          <div class="kpi-value mt-1" style="font-size:1.1rem;">R$ {{ valor_empenhado|floatformat:2|intcomma }}</div>
+          <div class="kpi-sub">{{ pct_executado }}% do estimado</div>
+        </div>
+        <div class="kpi-icon" style="background:#fef9c3;">
+          <i class="bi bi-graph-up-arrow text-warning"></i>
+        </div>
+      </div>
+      <div class="progress prog-bar-sm mt-2">
+        <div class="progress-bar bg-warning" style="width:{{ pct_executado }}%"></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">Concluídas</div>
+          <div class="kpi-value mt-1">{{ concluidos }}</div>
+          <div class="kpi-sub">{{ em_andamento }} em andamento · {{ suspensos }} suspensos</div>
+        </div>
+        <div class="kpi-icon" style="background:#dcfce7;">
+          <i class="bi bi-check-circle text-success"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Distribuição por status -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-pie-chart me-2 text-primary"></i>Demandas por Status
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Status</th>
+              <th class="text-end">Qtd</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in por_status %}
+            <tr>
+              <td>
+                <span class="badge rounded-pill
+                  {% if s.status == 'concluido' %}bg-success
+                  {% elif s.status == 'suspenso' %}bg-warning text-dark
+                  {% elif s.status == 'em_andamento' %}bg-primary
+                  {% elif s.status == 'iniciado' %}bg-info text-dark
+                  {% elif s.status == 'em_diligencia' %}bg-secondary
+                  {% else %}bg-light text-dark border{% endif %}
+                  " style="font-size:.7rem;">
+                  {{ s.status|capfirst|replace:"_":" " }}
+                </span>
+              </td>
+              <td class="text-end fw-bold">{{ s.qtd }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="2" class="text-muted text-center py-3">Sem dados</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Distribuição por categoria -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-tags me-2 text-primary"></i>Por Categoria
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Categoria</th>
+              <th class="text-end">Qtd</th>
+              <th class="text-end">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in por_categoria %}
+            <tr>
+              <td style="font-size:.8rem;">{{ c.categoria|capfirst }}</td>
+              <td class="text-end">{{ c.qtd }}</td>
+              <td class="text-end text-muted" style="font-size:.75rem;">
+                R$ {{ c.valor|floatformat:0|intcomma }}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="text-muted text-center py-3">Sem dados</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Distribuição por modalidade -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-hammer me-2 text-primary"></i>Por Modalidade
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Modalidade</th>
+              <th class="text-end">Qtd</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in por_modalidade %}
+            <tr>
+              <td style="font-size:.8rem;">{{ m.modalidade|capfirst|replace:"_":" " }}</td>
+              <td class="text-end fw-bold">{{ m.qtd }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="2" class="text-muted text-center py-3">Sem dados</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if not pca %}
+<div class="alert alert-warning mt-4">
+  <i class="bi bi-exclamation-triangle me-2"></i>
+  Nenhum Plano de Contratações Anual cadastrado ainda. Acesse o
+  <a href="/admin/pca/planocontratacaoanual/add/" class="alert-link">Admin</a> para criar o primeiro PCA.
+</div>
+{% endif %}
+{% endblock %}
