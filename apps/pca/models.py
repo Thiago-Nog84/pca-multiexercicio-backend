@@ -5,20 +5,31 @@ from datetime import timedelta
 from django.conf import settings
 from django.db import models
 
+# ---------------------------------------------------------------------------
+# Classificação de continuidade — Ato PGJ 1.415/2024
+# Compartilhada por ItemCatalogo e ItemPCA.
+# ---------------------------------------------------------------------------
+CLASSIFICACAO_CONTINUIDADE = [
+    ("continuo_fornecimento", "Fornecimento contínuo (Art. 3º — Ato PGJ 1.415/2024)"),
+    ("continuo_servico",      "Serviço contínuo (Art. 4º — Ato PGJ 1.415/2024)"),
+    ("continuo_servico_mdo",  "Serviço contínuo c/ ded. exclusiva de MO (Art. 4º §1º — Ato PGJ 1.415/2024)"),
+    ("eventual",              "Eventual / pontual"),
+]
+
 
 class PlanoContratacaoAnual(models.Model):
     """
     PCA do MPPI para um exercício fiscal.
-    Fluxo de status baseado no Ato PGJ 1381/2024, arts. 10–12.
+    Fluxo de status baseado no Ato PGJ 1381/2024, arts. 10-12.
     """
 
     STATUS = [
-        ("coleta", "Coleta de demandas (10–30 jul)"),
-        ("consolidacao", "Consolidação CLC + APG (1–20 ago)"),
+        ("coleta", "Coleta de demandas (10-30 jul)"),
+        ("consolidacao", "Consolidação CLC + APG (1-20 ago)"),
         ("aprovacao", "Aguardando aprovação PGJ"),
         ("aprovado", "Aprovado pelo PGJ"),
         ("publicado_pncp", "Publicado no PNCP"),
-        ("revisao_out", "Em revisão (1–30 out)"),
+        ("revisao_out", "Em revisão (1-30 out)"),
         ("revisao_loa", "Em revisão pós-LOA"),
     ]
 
@@ -130,8 +141,6 @@ class ItemPCA(models.Model):
     ]
 
     # Unidade Orçamentária — diferente do setor requisitante
-    # PGJ = órgão central; FMMP = Fundo de Modernização do MP;
-    # FEPDC = Fundo Estadual de Proteção e Defesa do Consumidor (PROCON)
     UNIDADE_ORCAMENTARIA = [
         ("pgj", "PGJ — Procuradoria-Geral de Justiça"),
         ("fmmp", "FMMP — Fundo de Modernização do Ministério Público"),
@@ -158,8 +167,6 @@ class ItemPCA(models.Model):
     numero_item = models.PositiveIntegerField()
 
     # Suspensão parcial (Pai/Filha)
-    # Quando um item é suspenso parcialmente, cria-se um item "filho"
-    # com os quantitativos paralisados. O pai continua ativo normalmente.
     item_pai = models.ForeignKey(
         "self",
         null=True,
@@ -238,6 +245,38 @@ class ItemPCA(models.Model):
         ),
     )
 
+    # Catálogo e continuidade (Ato PGJ 1.415/2024)
+    item_catalogo = models.ForeignKey(
+        "ItemCatalogo",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="itens_pca",
+        help_text=(
+            "Item do catálogo institucional que originou esta demanda. "
+            "Pré-preenche descrição, categoria e classificação de continuidade."
+        ),
+    )
+    classificacao_continuidade = models.CharField(
+        max_length=30,
+        choices=CLASSIFICACAO_CONTINUIDADE,
+        default="eventual",
+        help_text="Classificação conforme Ato PGJ 1.415/2024",
+    )
+
+    # Linhagem multiexercício
+    origem_item = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="renovacoes",
+        help_text=(
+            "Item do exercício anterior que originou esta renovação/continuidade. "
+            "Permite rastrear a evolução da despesa ao longo dos anos."
+        ),
+    )
+
     # Planejamento
     etp = models.ForeignKey(
         "planejamento.ETP", null=True, blank=True, on_delete=models.SET_NULL, related_name="itens_pca"
@@ -300,6 +339,75 @@ class ItemPCA(models.Model):
         if not self.codigo_pca:
             self.codigo_pca = self._gerar_codigo_pca()
         super().save(*args, **kwargs)
+
+
+class ItemCatalogo(models.Model):
+    """
+    Catálogo institucional de itens de contratação do MPPI.
+
+    Serve como biblioteca de referência para agilizar o cadastro de DFDs,
+    pré-preenchendo campos e sinalizando a classificação de continuidade
+    conforme o Ato PGJ 1.415/2024.
+
+    Itens com classificação 'continuo_*' são automaticamente propostos para
+    renovação no planejamento do exercício seguinte.
+    """
+
+    CATEGORIAS = [
+        ("material",    "Material (CATMAT)"),
+        ("servico",     "Serviço (CATSER)"),
+        ("obras",       "Obras e Serviços de Engenharia"),
+        ("solucao_ti",  "Solução de TIC (Res. CNMP 283/2024)"),
+        ("publicidade", "Publicidade (Dec. 21.813/2023)"),
+    ]
+
+    MODALIDADES_SUGERIDAS = [
+        ("pregao_eletronico", "Pregão Eletrônico"),
+        ("concorrencia",      "Concorrência"),
+        ("dispensa",          "Contratação Direta — Dispensa"),
+        ("inexigibilidade",   "Contratação Direta — Inexigibilidade"),
+    ]
+
+    codigo_catalogo = models.CharField(
+        max_length=20,
+        unique=True,
+        help_text="Código no formato CONT-FORN-001, CONT-SERV-001, CONT-MDO-001",
+    )
+    descricao_padrao = models.CharField(max_length=300)
+    categoria = models.CharField(max_length=20, choices=CATEGORIAS)
+    classificacao = models.CharField(
+        max_length=30,
+        choices=CLASSIFICACAO_CONTINUIDADE,
+        default="eventual",
+        db_index=True,
+    )
+    base_normativa = models.CharField(
+        max_length=150,
+        blank=True,
+        help_text="Ex: Art. 3, I — Ato PGJ 1.415/2024",
+    )
+    codigo_catmat_catser = models.CharField(max_length=20, blank=True)
+    unidade_medida_padrao = models.CharField(max_length=30, blank=True)
+    modalidade_sugerida = models.CharField(
+        max_length=20,
+        choices=MODALIDADES_SUGERIDAS,
+        blank=True,
+    )
+    ativo = models.BooleanField(default=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Item do Catálogo"
+        verbose_name_plural = "Catálogo de Itens"
+        ordering = ["classificacao", "descricao_padrao"]
+
+    def __str__(self):
+        return f"{self.codigo_catalogo} — {self.descricao_padrao}"
+
+    @property
+    def is_continuo(self):
+        return self.classificacao.startswith("continuo_")
 
 
 class ConformidadeItem(models.Model):
