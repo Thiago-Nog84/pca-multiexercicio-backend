@@ -24,11 +24,11 @@
   <div class="col-6 col-md-3">
     <div class="card stat-card p-3">
       <div class="d-flex align-items-center gap-3">
-        <div class="stat-icon" style="background:#e8f0fe;">
-          <i class="bi bi-file-earmark-text" style="color:#0055a4;"></i>
+        <div class="stat-icon" style="background:#f9e5e7;">
+          <i class="bi bi-file-earmark-text" style="color:var(--mppi-vermelho);"></i>
         </div>
         <div>
-          <div class="fs-4 fw-bold" style="color:#0055a4;">{{ total_arps }}</div>
+          <div class="fs-4 fw-bold" style="color:var(--mppi-vermelho);">{{ total_arps }}</div>
           <div class="text-muted small">Total de ARPs</div>
         </div>
       </div>
@@ -113,6 +113,15 @@
       </div>
 
       <div class="col-6 col-md-2">
+        <select class="form-select form-select-sm" id="filtro-ano">
+          <option value="">Todos os anos</option>
+          {% for ano in anos_disponiveis %}
+            <option value="{{ ano }}">{{ ano }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-6 col-md-2">
         <select class="form-select form-select-sm" id="filtro-origem">
           <option value="">Toda origem</option>
           <option value="api">Importada (API)</option>
@@ -176,8 +185,22 @@
             <th class="text-center pe-3">Ações</th>
           </tr>
         </thead>
+        {% regroup arps_lista by arp.data_inicio_vigencia.year as grupos_ano %}
         <tbody id="tbody-arps">
-          {% for entrada in arps_lista %}
+          {% for grupo in grupos_ano %}
+          {# ── Separador de ano ── #}
+          <tr class="separador-ano" data-ano="{{ grupo.grouper }}">
+            <td colspan="10" class="py-1 px-3"
+                style="background:var(--bs-gray-100); border-top:2px solid var(--mppi-azul);">
+              <span class="fw-bold" style="color:var(--mppi-azul); font-size:.85rem;">
+                <i class="bi bi-calendar3 me-1"></i>{{ grupo.grouper }}
+              </span>
+              <span class="text-muted ms-2" style="font-size:.75rem;">
+                {{ grupo.list|length }} ARP{{ grupo.list|length|pluralize:"s" }}
+              </span>
+            </td>
+          </tr>
+          {% for entrada in grupo.list %}
           {% with arp=entrada.arp %}
           <tr
             data-numero="{{ arp.numero_arp|lower }}"
@@ -190,6 +213,7 @@
             data-vigencia-fim="{{ arp.data_fim_vigencia|date:'Y-m-d' }}"
             data-dias="{{ entrada.dias_restantes|default:-9999 }}"
             data-vencimento="{% if entrada.dias_restantes is None or entrada.dias_restantes < 0 %}expirada{% elif entrada.dias_restantes < 30 %}critica{% elif entrada.dias_restantes < 60 %}atencao{% else %}ok{% endif %}"
+            data-ano="{{ arp.data_inicio_vigencia.year }}"
           >
             <td class="ps-3 fw-semibold" style="color:var(--mppi-azul); white-space:nowrap;">
               {{ arp.numero_arp }}
@@ -281,6 +305,7 @@
           </tr>
           {% endwith %}
           {% endfor %}
+          {% endfor %}
         </tbody>
       </table>
     </div>
@@ -318,6 +343,7 @@
   const btnLimpar     = document.getElementById('btn-limpar-busca');
   const btnLimparAll  = document.getElementById('btn-limpar-filtros');
   const selStatus     = document.getElementById('filtro-status');
+  const selAno        = document.getElementById('filtro-ano');
   const selOrigem     = document.getElementById('filtro-origem');
   const selVencimento = document.getElementById('filtro-vencimento');
   const contador      = document.getElementById('contador-visivel');
@@ -377,22 +403,34 @@
   function filtrar() {
     const termo      = (inputBusca.value || '').toLowerCase().trim();
     const status     = selStatus.value;
+    const ano        = selAno.value;
     const origem     = selOrigem.value;
     const vencimento = selVencimento.value;
-    const ativo      = !!(termo || status || origem || vencimento);
+    const ativo      = !!(termo || status || ano || origem || vencimento);
 
+    // Controla visibilidade das linhas de dados
     let n = 0;
-    tbody.querySelectorAll('tr').forEach(tr => {
+    tbody.querySelectorAll('tr:not(.separador-ano)').forEach(tr => {
       const ok =
         (!termo      || tr.dataset.numero.includes(termo) ||
                         tr.dataset.fornecedor.includes(termo) ||
                         tr.dataset.objeto.includes(termo)) &&
         (!status     || tr.dataset.status === status) &&
+        (!ano        || tr.dataset.ano === ano) &&
         (!origem     || tr.dataset.origem === origem) &&
         (!vencimento || tr.dataset.vencimento === vencimento);
 
       tr.style.display = ok ? '' : 'none';
       if (ok) n++;
+    });
+
+    // Mostra separador de ano somente se há pelo menos uma linha visível no grupo
+    tbody.querySelectorAll('tr.separador-ano').forEach(sep => {
+      const anoSep = sep.dataset.ano;
+      // Conta linhas visíveis com esse ano
+      const temVisivel = [...tbody.querySelectorAll(`tr:not(.separador-ano)[data-ano="${anoSep}"]`)]
+        .some(tr => tr.style.display !== 'none');
+      sep.style.display = temVisivel ? '' : 'none';
     });
 
     contador.textContent = n + ' ARP(s)';
@@ -405,6 +443,7 @@
 
   inputBusca.addEventListener('input', filtrar);
   selStatus.addEventListener('change', filtrar);
+  selAno.addEventListener('change', filtrar);
   selOrigem.addEventListener('change', filtrar);
   selVencimento.addEventListener('change', filtrar);
   btnLimpar.addEventListener('click', () => { inputBusca.value = ''; filtrar(); inputBusca.focus(); });
@@ -412,6 +451,7 @@
   window.limparFiltros = function () {
     inputBusca.value    = '';
     selStatus.value     = '';
+    selAno.value        = '';
     selOrigem.value     = '';
     selVencimento.value = '';
     filtrar();

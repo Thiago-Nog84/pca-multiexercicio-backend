@@ -97,10 +97,10 @@
           {% for grupo in grupos_lote %}
             {% if grupo.grouper %}
             {# ── Cabeçalho de lote ── #}
-            <tr class="table-primary">
-              <td colspan="9" class="py-1 px-3">
-                <i class="bi bi-collection me-1"></i>
-                <strong>Lote {{ grupo.grouper }}</strong>
+            <tr style="background:#f9e5e7;">
+              <td colspan="9" class="py-1 px-3" style="border-left:3px solid var(--mppi-vermelho);">
+                <i class="bi bi-collection me-1" style="color:var(--mppi-vermelho);"></i>
+                <strong style="color:var(--mppi-vermelho-escuro);">Lote {{ grupo.grouper }}</strong>
                 <span class="text-muted ms-2" style="font-size:.8rem;">
                   {{ grupo.list|length }} item{{ grupo.list|length|pluralize:"ns" }}
                 </span>
@@ -112,8 +112,9 @@
               <td class="font-monospace fw-bold text-primary" style="font-size:.8rem;">
                 {{ item.codigo_pca }}
                 {% if item.numero_lote_pca %}
-                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 ms-1"
-                      style="font-size:.6rem;" title="Lote {{ item.numero_lote_pca }}">
+                <span class="badge ms-1"
+                      style="font-size:.6rem; background:#f9e5e7; color:var(--mppi-vermelho); border:1px solid #f0c0c0;"
+                      title="Lote {{ item.numero_lote_pca }}">
                   L{{ item.numero_lote_pca }}
                 </span>
                 {% endif %}

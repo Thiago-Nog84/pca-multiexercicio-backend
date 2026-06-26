@@ -7,14 +7,43 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <style>
-    /* ── Variáveis de cor ─────────────────────────────────── */
+    /* ── Variáveis de cor — MPPI Identidade Visual (Res. CPJ 08/2025) ── */
     :root {
-      --mppi-azul:       #003366;
-      --mppi-azul-claro: #0055a4;
-      --mppi-verde:      #198754;
-      --sidebar-w:       240px;
-      --sidebar-w-col:    64px;
-      --topbar-h:         52px;
+      --mppi-vermelho:        #9B2335;   /* Vermelho institucional primário */
+      --mppi-vermelho-escuro: #7A1B28;   /* Sidebar / hover */
+      --mppi-vermelho-claro:  #C0392B;   /* Acento / destaque */
+      --mppi-cinza:           #64748b;
+      /* Aliases para compatibilidade com templates existentes */
+      --mppi-azul:            #9B2335;
+      --mppi-azul-claro:      #C0392B;
+      --mppi-verde:           #198754;
+      --sidebar-w:            240px;
+      --sidebar-w-col:         64px;
+      --topbar-h:              52px;
+
+      /* ── Sobrescreve Bootstrap primary → vermelho MPPI ── */
+      --bs-primary:           #9B2335;
+      --bs-primary-rgb:       155, 35, 53;
+      --bs-link-color:        #9B2335;
+      --bs-link-hover-color:  #7A1B28;
+    }
+
+    /* Botões e componentes que usam primary via CSS props */
+    .btn-primary {
+      --bs-btn-bg:                  #9B2335;
+      --bs-btn-border-color:        #9B2335;
+      --bs-btn-hover-bg:            #7A1B28;
+      --bs-btn-hover-border-color:  #7A1B28;
+      --bs-btn-active-bg:           #7A1B28;
+      --bs-btn-active-border-color: #7A1B28;
+      --bs-btn-focus-shadow-rgb:    155, 35, 53;
+    }
+    .btn-outline-primary {
+      --bs-btn-color:               #9B2335;
+      --bs-btn-border-color:        #9B2335;
+      --bs-btn-hover-bg:            #9B2335;
+      --bs-btn-hover-border-color:  #9B2335;
+      --bs-btn-active-bg:           #7A1B28;
     }
 
     /* ── Layout ───────────────────────────────────────────── */
@@ -30,8 +59,8 @@
       position: fixed;
       top: 0; left: 0; right: 0;
       height: var(--topbar-h);
-      background: linear-gradient(135deg, var(--mppi-azul) 0%, var(--mppi-azul-claro) 100%);
-      box-shadow: 0 2px 8px rgba(0,0,0,.28);
+      background: var(--mppi-vermelho-escuro);
+      box-shadow: 0 2px 8px rgba(0,0,0,.3);
       display: flex;
       align-items: center;
       padding: 0 1rem;
@@ -75,15 +104,15 @@
       color: rgba(255,255,255,.75);
     }
 
-    /* ── Sidebar ──────────────────────────────────────────── */
+    /* ── Sidebar — fundo vermelho institucional (Identidade Visual MPPI) ── */
     .sidebar {
       position: fixed;
       top: var(--topbar-h);
       left: 0;
       bottom: 0;
       width: var(--sidebar-w);
-      background: #fff;
-      border-right: 1px solid #e2e8f0;
+      background: var(--mppi-vermelho-escuro);
+      border-right: none;
       overflow-y: auto;
       overflow-x: hidden;
       transition: width .2s ease;
@@ -96,12 +125,12 @@
     .sidebar-nav { flex: 1; padding: .5rem 0; }
 
     .sidebar-section-label {
-      font-size: .65rem;
+      font-size: .62rem;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: .08em;
-      color: #94a3b8;
-      padding: .75rem 1.1rem .35rem;
+      letter-spacing: .1em;
+      color: rgba(255,255,255,.45);
+      padding: .85rem 1.1rem .3rem;
       white-space: nowrap;
       overflow: hidden;
     }
@@ -111,8 +140,8 @@
       display: flex;
       align-items: center;
       gap: .65rem;
-      padding: .5rem 1.1rem;
-      color: #374151;
+      padding: .52rem 1.1rem;
+      color: rgba(255,255,255,.80);
       text-decoration: none;
       border-radius: 0;
       font-size: .85rem;
@@ -126,20 +155,20 @@
     body.sidebar-collapsed .sidebar-link .link-text { opacity: 0; }
 
     .sidebar-link:hover {
-      background: #f1f5f9;
-      color: var(--mppi-azul-claro);
+      background: rgba(255,255,255,.12);
+      color: #fff;
     }
     .sidebar-link.active {
-      background: #e8f0fb;
-      color: var(--mppi-azul);
+      background: rgba(255,255,255,.18);
+      color: #fff;
       font-weight: 600;
-      border-right: 3px solid var(--mppi-azul-claro);
+      border-left: 3px solid rgba(255,255,255,.7);
     }
     .sidebar-link .badge-count {
       margin-left: auto;
       font-size: .65rem;
-      background: #fee2e2;
-      color: #dc2626;
+      background: rgba(255,255,255,.2);
+      color: #fff;
       border-radius: 20px;
       padding: 1px 7px;
       font-weight: 700;
@@ -148,21 +177,21 @@
 
     .sidebar-divider {
       height: 1px;
-      background: #e8edf3;
+      background: rgba(255,255,255,.12);
       margin: .4rem .8rem;
     }
 
     .sidebar-footer {
       padding: .6rem .8rem;
-      border-top: 1px solid #e2e8f0;
+      border-top: 1px solid rgba(255,255,255,.12);
       font-size: .72rem;
-      color: #94a3b8;
+      color: rgba(255,255,255,.4);
     }
     .sidebar-footer a {
       color: inherit;
       text-decoration: none;
     }
-    .sidebar-footer a:hover { color: var(--mppi-azul-claro); }
+    .sidebar-footer a:hover { color: rgba(255,255,255,.7); }
 
     /* ── Main content ─────────────────────────────────────── */
     .main-wrap {

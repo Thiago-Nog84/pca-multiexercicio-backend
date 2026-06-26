@@ -85,6 +85,11 @@ class DashboardSRPView(View):
                 }
             )
 
+        anos_disponiveis = sorted(
+            {a["arp"].data_inicio_vigencia.year for a in arps_lista if a["arp"].data_inicio_vigencia},
+            reverse=True,
+        )
+
         context = {
             "arps_lista": arps_lista,
             "total_arps": total_arps,
@@ -92,6 +97,7 @@ class DashboardSRPView(View):
             "arps_encerradas": arps_encerradas,
             "valor_total": valor_total,
             "total_itens": total_itens,
+            "anos_disponiveis": anos_disponiveis,
         }
         return render(request, self.template_name, context)
 
