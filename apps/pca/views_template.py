@@ -92,7 +92,7 @@ class DemandasPCAView(View):
 
         itens_qs = ItemPCA.objects.select_related(
             "dfd", "dfd__pca", "dfd__unidade"
-        ).order_by("dfd__pca__exercicio", "dfd__numero_dfd", "numero_item")
+        ).order_by("dfd__pca__exercicio", "numero_lote_pca", "dfd__numero_dfd", "numero_item")
 
         if pca:
             itens_qs = itens_qs.filter(dfd__pca=pca)

@@ -141,6 +141,28 @@ class ARPDetalheView(View):
         qtd_total_registrada = sum(i.quantidade_registrada for i in itens)
         qtd_total_contratada = sum(i.quantidade_contratada for i in itens)
 
+        # Agrupa itens por lote para exibição no template.
+        # Itens sem lote ficam num grupo com numero_lote="" (exibidos individualmente).
+        # A ordem preserva a ordenação original (numero_lote, numero_item).
+        lotes_agrupados = []
+        lote_atual = None
+        for det in itens_detalhados:
+            nl = det["item"].numero_lote or ""
+            if lote_atual is None or lote_atual["numero_lote"] != nl:
+                lote_atual = {
+                    "numero_lote": nl,
+                    "tem_lote": bool(nl),
+                    "itens": [],
+                    "valor_total_lote": 0,
+                    "qtd_registrada_lote": 0,
+                    "qtd_contratada_lote": 0,
+                }
+                lotes_agrupados.append(lote_atual)
+            lote_atual["itens"].append(det)
+            lote_atual["valor_total_lote"] += det["valor_total"]
+            lote_atual["qtd_registrada_lote"] += det["item"].quantidade_registrada
+            lote_atual["qtd_contratada_lote"] += det["item"].quantidade_contratada
+
         # Contratos decorrentes desta ARP (com itens pré-carregados)
         contratos = (
             ContratoARP.objects.filter(arp=arp)
@@ -152,10 +174,12 @@ class ARPDetalheView(View):
         context = {
             "arp": arp,
             "itens_detalhados": itens_detalhados,
+            "lotes_agrupados": lotes_agrupados,
             "valor_total_arp": valor_total_arp,
             "qtd_total_registrada": qtd_total_registrada,
             "qtd_total_contratada": qtd_total_contratada,
             "total_itens": len(itens_detalhados),
+            "total_lotes": sum(1 for l in lotes_agrupados if l["tem_lote"]),
             "contratos": contratos,
             "total_valor_contratos": total_valor_contratos,
             "total_contratos": contratos.count(),

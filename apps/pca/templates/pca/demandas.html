@@ -64,6 +64,7 @@
 </div>
 
 <!-- Tabela -->
+{% regroup itens by numero_lote_pca as grupos_lote %}
 <div class="card">
   <div class="card-body p-0">
     <div class="table-responsive">
@@ -82,49 +83,7 @@
           </tr>
         </thead>
         <tbody>
-          {% for item in itens %}
-          <tr>
-            <td class="font-monospace fw-bold text-primary" style="font-size:.8rem;">
-              {{ item.codigo_pca }}
-            </td>
-            <td style="max-width:260px;">
-              <div class="text-truncate" style="max-width:250px;" title="{{ item.descricao }}">
-                {{ item.descricao|truncatechars:60 }}
-              </div>
-            </td>
-            <td style="font-size:.8rem;">
-              {{ item.dfd.numero_dfd|default:"-" }}<br>
-              <span class="text-muted">{{ item.dfd.unidade|default:"" }}</span>
-            </td>
-            <td class="text-center">
-              <span class="badge bg-light text-dark border" style="font-size:.68rem;">
-                {{ item.get_categoria_display }}
-              </span>
-            </td>
-            <td class="text-center" style="font-size:.78rem;">
-              {{ item.get_modalidade_display|truncatechars:30 }}
-            </td>
-            <td class="text-end">{{ item.quantidade_estimada|floatformat:"0g" }}</td>
-            <td class="text-end fw-bold">R$ {{ item.valor_total_estimado|floatformat:"2g" }}</td>
-            <td class="text-center">
-              <span class="badge rounded-pill
-                {% if item.status == 'concluido' %}bg-success
-                {% elif item.status == 'suspenso' %}bg-warning text-dark
-                {% elif item.status == 'em_andamento' %}bg-primary
-                {% elif item.status == 'iniciado' %}bg-info text-dark
-                {% elif item.status == 'em_diligencia' %}bg-secondary
-                {% else %}bg-light text-dark border{% endif %}
-                " style="font-size:.68rem;">
-                {{ item.get_status_display }}
-              </span>
-            </td>
-            <td>
-              <a href="{% url 'pca:item_detalhe' item.pk %}" class="btn btn-ghost btn-sm p-1" title="Ver detalhe">
-                <i class="bi bi-eye text-secondary"></i>
-              </a>
-            </td>
-          </tr>
-          {% empty %}
+          {% if not itens %}
           <tr>
             <td colspan="9" class="text-center text-muted py-4">
               <i class="bi bi-inbox fs-3 d-block mb-2"></i>
@@ -134,6 +93,69 @@
               {% endif %}
             </td>
           </tr>
+          {% endif %}
+          {% for grupo in grupos_lote %}
+            {% if grupo.grouper %}
+            {# ── Cabeçalho de lote ── #}
+            <tr class="table-primary">
+              <td colspan="9" class="py-1 px-3">
+                <i class="bi bi-collection me-1"></i>
+                <strong>Lote {{ grupo.grouper }}</strong>
+                <span class="text-muted ms-2" style="font-size:.8rem;">
+                  {{ grupo.list|length }} item{{ grupo.list|length|pluralize:"ns" }}
+                </span>
+              </td>
+            </tr>
+            {% endif %}
+            {% for item in grupo.list %}
+            <tr>
+              <td class="font-monospace fw-bold text-primary" style="font-size:.8rem;">
+                {{ item.codigo_pca }}
+                {% if item.numero_lote_pca %}
+                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 ms-1"
+                      style="font-size:.6rem;" title="Lote {{ item.numero_lote_pca }}">
+                  L{{ item.numero_lote_pca }}
+                </span>
+                {% endif %}
+              </td>
+              <td style="max-width:260px;">
+                <div class="text-truncate" style="max-width:250px;" title="{{ item.descricao }}">
+                  {{ item.descricao|truncatechars:60 }}
+                </div>
+              </td>
+              <td style="font-size:.8rem;">
+                {{ item.dfd.numero_dfd|default:"-" }}<br>
+                <span class="text-muted">{{ item.dfd.unidade|default:"" }}</span>
+              </td>
+              <td class="text-center">
+                <span class="badge bg-light text-dark border" style="font-size:.68rem;">
+                  {{ item.get_categoria_display }}
+                </span>
+              </td>
+              <td class="text-center" style="font-size:.78rem;">
+                {{ item.get_modalidade_display|truncatechars:30 }}
+              </td>
+              <td class="text-end">{{ item.quantidade_estimada|floatformat:"0g" }}</td>
+              <td class="text-end fw-bold">R$ {{ item.valor_total_estimado|floatformat:"2g" }}</td>
+              <td class="text-center">
+                <span class="badge rounded-pill
+                  {% if item.status == 'concluido' %}bg-success
+                  {% elif item.status == 'suspenso' %}bg-warning text-dark
+                  {% elif item.status == 'em_andamento' %}bg-primary
+                  {% elif item.status == 'iniciado' %}bg-info text-dark
+                  {% elif item.status == 'em_diligencia' %}bg-secondary
+                  {% else %}bg-light text-dark border{% endif %}
+                  " style="font-size:.68rem;">
+                  {{ item.get_status_display }}
+                </span>
+              </td>
+              <td>
+                <a href="{% url 'pca:item_detalhe' item.pk %}" class="btn btn-ghost btn-sm p-1" title="Ver detalhe">
+                  <i class="bi bi-eye text-secondary"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
           {% endfor %}
         </tbody>
       </table>

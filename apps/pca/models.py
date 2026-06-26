@@ -227,6 +227,16 @@ class ItemPCA(models.Model):
     # SRP
     is_srp = models.BooleanField(default=False)
     justificativa_srp = models.TextField(blank=True)
+    numero_lote_pca = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text=(
+            "Número do lote ao qual este item pertence na licitação/ARP. "
+            "Deve espelhar o numero_lote do ItemARP correspondente. "
+            "Itens com o mesmo numero_lote_pca são tratados como unidade "
+            "para fins de PCA e exibição no dashboard."
+        ),
+    )
 
     # Planejamento
     etp = models.ForeignKey(

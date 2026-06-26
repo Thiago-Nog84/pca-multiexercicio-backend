@@ -307,6 +307,8 @@ class VinculoPCAItemARP(models.Model):
         Valida:
         1. Que a ARP está vigente (status='vigente' e dentro do prazo).
         2. Que a soma das quantidades comprometidas não excede a quantidade registrada.
+        3. Coerência de lote: se ItemPCA tem numero_lote_pca e ItemARP tem numero_lote,
+           os valores devem coincidir para evitar vínculos cruzados entre lotes.
         """
         from datetime import date
         # Regra 1 — Vigência da ARP
@@ -335,6 +337,17 @@ class VinculoPCAItemARP(models.Model):
                 f"na ARP ({self.item_arp.quantidade_registrada}). "
                 f"Já comprometido: {total_ja_comprometido} | "
                 f"Tentativa: {self.quantidade_comprometida}."
+            )
+        # Regra 3 — Coerência de lote
+        # Só valida quando ambos os lados têm lote informado; se um está vazio,
+        # não há como afirmar incompatibilidade (tolerância para dados parciais).
+        lote_pca = (self.item_pca.numero_lote_pca or "").strip()
+        lote_arp = (self.item_arp.numero_lote or "").strip()
+        if lote_pca and lote_arp and lote_pca != lote_arp:
+            raise ValidationError(
+                f"Incompatibilidade de lote: o ItemPCA está no lote '{lote_pca}' "
+                f"mas o ItemARP selecionado pertence ao lote '{lote_arp}' da ARP "
+                f"{arp.numero_arp}. Vincule itens do mesmo lote."
             )
     def save(self, *args, **kwargs):
         self.full_clean()
