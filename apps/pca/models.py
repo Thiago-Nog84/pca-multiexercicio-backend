@@ -398,100 +398,189 @@ class ItemCatalogo(models.Model):
     atualizado_em = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "Item do Catálogo"
-        verbose_name_plural = "Catálogo de Itens"
+        verbose_name = "Item do Catalogo"
+        verbose_name_plural = "Catalogo de Itens"
         ordering = ["classificacao", "descricao_padrao"]
 
     def __str__(self):
-        return f"{self.codigo_catalogo} — {self.descricao_padrao}"
+        return f"{self.codigo_catalogo} — {self.descricao_padrao[:60]}"
 
     @property
     def is_continuo(self):
         return self.classificacao.startswith("continuo_")
 
 
+# ---------------------------------------------------------------------------
+# Orçamento Planejado por Unidade Orçamentária
+# Registra o teto orçamentário aprovado por setor/exercício, segregado
+# por unidade orçamentária (PGJ, FMMP, FEPDC).
+# ---------------------------------------------------------------------------
+
+class OrcamentoPlanejado(models.Model):
+    """
+    Teto orçamentário de um setor requisitante para um determinado exercício,
+    segregado por unidade orçamentária (PGJ, FMMP e FEPDC).
+
+    A 'trava_ativa' impede que o setor cadastre novas demandas que
+    ultrapassem o limite aprovado.
+    """
+
+    pca = models.ForeignKey(
+        PlanoContratacaoAnual,
+        on_delete=models.CASCADE,
+        related_name="orcamentos",
+        verbose_name="PCA",
+    )
+    unidade = models.ForeignKey(
+        "core.UnidadeRequisitante",
+        on_delete=models.CASCADE,
+        related_name="orcamentos",
+        verbose_name="Setor requisitante",
+    )
+    valor_pgj = models.DecimalField(
+        max_digits=16, decimal_places=2, default=0,
+        verbose_name="Teto PGJ",
+        help_text="Valor aprovado com recursos da Procuradoria-Geral de Justica",
+    )
+    valor_fmmp = models.DecimalField(
+        max_digits=16, decimal_places=2, default=0,
+        verbose_name="Teto FMMP",
+        help_text="Valor aprovado com recursos do FMMP",
+    )
+    valor_fepdc = models.DecimalField(
+        max_digits=16, decimal_places=2, default=0,
+        verbose_name="Teto FEPDC",
+        help_text="Valor aprovado com recursos do FEPDC",
+    )
+    trava_ativa = models.BooleanField(
+        default=False,
+        verbose_name="Trava ativa",
+        help_text="Quando ativa, bloqueia demandas que ultrapassem o teto aprovado",
+    )
+    atualizado_em = models.DateTimeField(auto_now=True)
+    atualizado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="orcamentos_atualizados",
+    )
+
+    class Meta:
+        unique_together = ("pca", "unidade")
+        verbose_name = "Orcamento Planejado"
+        verbose_name_plural = "Orcamentos Planejados"
+        ordering = ["pca", "unidade"]
+
+    def __str__(self):
+        return f"Orcamento {self.unidade.sigla} — PCA {self.pca.exercicio}"
+
+    @property
+    def valor_total(self):
+        return self.valor_pgj + self.valor_fmmp + self.valor_fepdc
+
+    def valor_comprometido(self):
+        """Soma dos valores estimados dos ItemPCA ativos do setor neste PCA."""
+        from django.db.models import Sum
+        total = (
+            ItemPCA.objects
+            .filter(dfd__pca=self.pca, dfd__unidade=self.unidade)
+            .exclude(status="suspenso")
+            .aggregate(s=Sum("valor_total_estimado"))["s"]
+        ) or 0
+        return total
+
+    def saldo_disponivel(self):
+        return self.valor_total - self.valor_comprometido()
+
+    def percentual_comprometido(self):
+        if not self.valor_total:
+            return 0
+        return round((self.valor_comprometido() / self.valor_total) * 100, 1)
+
+
+# ---------------------------------------------------------------------------
+# Conformidade do Item PCA
+# Checklist de documentos exigidos para a instrucao processual.
+# ---------------------------------------------------------------------------
+
 class ConformidadeItem(models.Model):
     """
-    Checklist de conformidade da fase de licitação/contratação e de execução
-    contratual de um item do PCA.
+    Checklist de conformidade documental de um ItemPCA.
+    Registra quais documentos obrigatorios foram juntados ao processo.
     """
 
-    FASE_LICITACAO_CONTRATACAO = [
-        "termo_referencia_aprovado",
-        "pesquisa_mercado",
-        "pareceres_juridicos",
-        "publicacao_edital",
-        "atas_certame",
-        "termo_homologacao",
-        "termo_adjudicacao",
-        "atos_autorizacao",
-        "documentacao_fornecedor",
-        "assinatura_contrato",
-        "publicacao_contrato",
-    ]
+    item = models.OneToOneField(
+        ItemPCA,
+        on_delete=models.CASCADE,
+        related_name="conformidade",
+    )
 
-    FASE_EXECUCAO = [
-        "documento_aceite",
-        "justificativa_vantajosidade",
-        "declaracao_conformidade",
-        "pesquisa_precos",
-        "mapa_comparativo",
-        "certidoes_habilitacao",
-        "margem_calculo",
-        "parecer_orcamentario_financeiro",
-        "parecer_juridico_execucao",
-        "parecer_conint",
-        "oficio_autorizacao_empenho",
-        "atualizar_certidoes",
-        "termo_aditivo_apostilamento",
-        "publicacoes_execucao",
-    ]
+    # Planejamento
+    termo_referencia_aprovado   = models.BooleanField(default=False)
+    pesquisa_mercado            = models.BooleanField(default=False)
+    pareceres_juridicos         = models.BooleanField(default=False)
+    mapa_comparativo            = models.BooleanField(default=False)
+    margem_calculo              = models.BooleanField(default=False)
+    pesquisa_precos             = models.BooleanField(default=False)
 
-    item = models.OneToOneField(ItemPCA, on_delete=models.CASCADE, related_name="conformidade")
-
-    # Fase 1 — Licitação e Contratação
-    termo_referencia_aprovado = models.BooleanField(default=False)
-    pesquisa_mercado = models.BooleanField(default=False)
-    pareceres_juridicos = models.BooleanField(default=False)
-    publicacao_edital = models.BooleanField(default=False)
-    atas_certame = models.BooleanField(default=False)
-    termo_homologacao = models.BooleanField(default=False)
-    termo_adjudicacao = models.BooleanField(default=False)
-    atos_autorizacao = models.BooleanField(default=False)
-    documentacao_fornecedor = models.BooleanField(default=False)
-    assinatura_contrato = models.BooleanField(default=False)
-    publicacao_contrato = models.BooleanField(default=False)
-
-    # Fase 2 — Execução Contratual
-    documento_aceite = models.BooleanField(default=False)
+    # Licitacao
+    publicacao_edital           = models.BooleanField(default=False)
+    atas_certame                = models.BooleanField(default=False)
+    termo_homologacao           = models.BooleanField(default=False)
+    termo_adjudicacao           = models.BooleanField(default=False)
     justificativa_vantajosidade = models.BooleanField(default=False)
-    declaracao_conformidade = models.BooleanField(default=False)
-    pesquisa_precos = models.BooleanField(default=False)
-    mapa_comparativo = models.BooleanField(default=False)
-    certidoes_habilitacao = models.BooleanField(default=False)
-    margem_calculo = models.BooleanField(default=False)
+
+    # Habilitacao e contrato
+    documentacao_fornecedor     = models.BooleanField(default=False)
+    certidoes_habilitacao       = models.BooleanField(default=False)
+    assinatura_contrato         = models.BooleanField(default=False)
+    publicacao_contrato         = models.BooleanField(default=False)
+    declaracao_conformidade     = models.BooleanField(default=False)
+    atos_autorizacao            = models.BooleanField(default=False)
+    oficio_autorizacao_empenho  = models.BooleanField(default=False)
+
+    # Execucao
     parecer_orcamentario_financeiro = models.BooleanField(default=False)
-    parecer_juridico_execucao = models.BooleanField(default=False)
-    parecer_conint = models.BooleanField(default=False)
-    oficio_autorizacao_empenho = models.BooleanField(default=False)
-    atualizar_certidoes = models.BooleanField(default=False)
-    termo_aditivo_apostilamento = models.BooleanField(default=False)
-    publicacoes_execucao = models.BooleanField(default=False)
+    parecer_juridico_execucao       = models.BooleanField(default=False)
+    parecer_conint                  = models.BooleanField(default=False)
+    documento_aceite                = models.BooleanField(default=False)
+    atualizar_certidoes             = models.BooleanField(default=False)
+    termo_aditivo_apostilamento     = models.BooleanField(default=False)
+    publicacoes_execucao            = models.BooleanField(default=False)
 
     observacao = models.TextField(blank=True)
+
     avaliado_por = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="conformidades_avaliadas"
+        settings.AUTH_USER_MODEL,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="conformidades_avaliadas",
     )
     atualizado_em = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Conformidade do Item"
+        verbose_name_plural = "Conformidade dos Itens"
+
+    def __str__(self):
+        return f"Conformidade — {self.item}"
 
     @property
     def percentual_conformidade(self):
-        campos = self.FASE_LICITACAO_CONTRATACAO + self.FASE_EXECUCAO
-        marcados = sum(1 for c in campos if getattr(self, c))
-        return round((marcados / len(campos)) * 100)
-
-    def __str__(self):
-        return f"Conformidade — Item {self.item_id} ({self.percentual_conformidade}%)"
+        campos = [
+            self.termo_referencia_aprovado, self.pesquisa_mercado,
+            self.pareceres_juridicos, self.mapa_comparativo,
+            self.margem_calculo, self.pesquisa_precos,
+            self.publicacao_edital, self.atas_certame,
+            self.termo_homologacao, self.termo_adjudicacao,
+            self.justificativa_vantajosidade, self.documentacao_fornecedor,
+            self.certidoes_habilitacao, self.assinatura_contrato,
+            self.publicacao_contrato, self.declaracao_conformidade,
+            self.atos_autorizacao, self.oficio_autorizacao_empenho,
+            self.parecer_orcamentario_financeiro, self.parecer_juridico_execucao,
+            self.parecer_conint, self.documento_aceite,
+            self.atualizar_certidoes, self.termo_aditivo_apostilamento,
+            self.publicacoes_execucao,
+        ]
+        marcados = sum(1 for c in campos if c)
+        return round(marcados / len(campos) * 100)

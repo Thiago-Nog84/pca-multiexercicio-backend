@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% load humanize %}
 
-{% block title %}PCA — Visão Geral{% endblock %}
+{% block title %}PCA -- Visão Geral{% endblock %}
 {% block nav_pca %}active{% endblock %}
 
 {% block content %}
 <div class="page-header mb-4">
-  <h1><i class="bi bi-clipboard2-check text-primary me-2"></i>Visão Geral — PCA
+  <h1><i class="bi bi-clipboard2-check text-primary me-2"></i>Visão Geral -- PCA
     {% if pca %}<span class="fs-4 text-muted ms-2">{{ pca.exercicio }}</span>{% endif %}
   </h1>
   <p>Panorama do Plano de Contratações Anuais do MPPI.</p>
@@ -20,12 +20,21 @@
     <strong>Status do PCA {{ pca.exercicio }}:</strong>
     {{ pca.get_status_display }}
     {% if pca.data_aprovacao_pgj %}
-      — Aprovado em {{ pca.data_aprovacao_pgj|date:"d/m/Y" }}
+      -- Aprovado em {{ pca.data_aprovacao_pgj|date:"d/m/Y" }}
     {% endif %}
   </div>
   <div class="d-flex gap-2 ms-auto flex-wrap">
+    <a href="{% url 'pca:riscos' %}" class="btn btn-sm btn-outline-light" style="border-color:#fca5a5;color:#fca5a5;">
+      <i class="bi bi-exclamation-triangle me-1"></i>Riscos
+    </a>
+    <a href="{% url 'pca:prazos' %}" class="btn btn-sm btn-outline-light">
+      <i class="bi bi-calendar-check me-1"></i>Prazos
+    </a>
+    <a href="{% url 'pca:orcamento' %}" class="btn btn-sm btn-outline-light">
+      <i class="bi bi-wallet2 me-1"></i>Orcamento
+    </a>
     <a href="{% url 'pca:renovacao' %}" class="btn btn-sm btn-outline-light">
-      <i class="bi bi-arrow-repeat me-1"></i>Renovar itens contínuos
+      <i class="bi bi-arrow-repeat me-1"></i>Renovar continuos
     </a>
     <a href="{% url 'pca:demandas' %}" class="btn btn-sm btn-primary">
       <i class="bi bi-list-task me-1"></i>Ver demandas
@@ -85,7 +94,7 @@
     <div class="card kpi-card h-100 p-3">
       <div class="d-flex align-items-start justify-content-between">
         <div>
-          <div class="kpi-label">Concluídas</div>
+          <div class="kpi-label">Concluidas</div>
           <div class="kpi-value mt-1">{{ concluidos }}</div>
           <div class="kpi-sub">{{ em_andamento }} em andamento · {{ suspensos }} suspensos</div>
         </div>
@@ -122,8 +131,8 @@
                   {% elif s.status == 'em_andamento' %}bg-primary
                   {% elif s.status == 'iniciado' %}bg-info text-dark
                   {% elif s.status == 'em_diligencia' %}bg-secondary
-                  {% else %}bg-light text-dark border{% endif %}
-                  " style="font-size:.7rem;">
+                  {% else %}bg-light text-dark border{% endif %}"
+                  style="font-size:.7rem;">
                   {{ s.status|cut:"_"|capfirst }}
                 </span>
               </td>
@@ -204,7 +213,7 @@
 {% if not pca %}
 <div class="alert alert-warning mt-4">
   <i class="bi bi-exclamation-triangle me-2"></i>
-  Nenhum Plano de Contratações Anual cadastrado ainda. Acesse o
+  Nenhum Plano de Contratacoes Anual cadastrado ainda. Acesse o
   <a href="/admin/pca/planocontratacaoanual/add/" class="alert-link">Admin</a> para criar o primeiro PCA.
 </div>
 {% endif %}

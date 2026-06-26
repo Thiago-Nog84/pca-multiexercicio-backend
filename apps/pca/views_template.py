@@ -1,15 +1,14 @@
 """
-Views Django Templates — Módulo PCA
-
-Rotas:
-    /pca/                → DashboardPCAView        (visão geral do PCA)
-    /pca/demandas/       → DemandasPCAView         (lista de DFDs e itens)
-    /pca/item/<pk>/      → ItemPCADetalheView      (detalhe de um item)
-    /pca/renovacao/      → RenovacaoExercicioView  (fluxo de renovação multiexercício)
-    /pca/api/catalogo/   → CatalogoSearchView      (JSON — busca de itens do catálogo)
+Views Django Templates - Modulo PCA
 """
 
 import datetime
+
+
+def _pca_default(todos_pcas):
+    """Retorna o PCA do ano corrente; se nao existir, o mais recente."""
+    ano = datetime.date.today().year
+    return todos_pcas.filter(exercicio=ano).first() or todos_pcas.first()
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -24,6 +23,7 @@ from .models import (
     DocumentoFormalizacaoDemanda,
     ItemCatalogo,
     ItemPCA,
+    OrcamentoPlanejado,
     PlanoContratacaoAnual,
 )
 
@@ -33,8 +33,8 @@ class DashboardPCAView(View):
     template_name = "pca/dashboard.html"
 
     def get(self, request):
-        # PCA do exercício corrente (mais recente)
-        pca = PlanoContratacaoAnual.objects.order_by("-exercicio").first()
+        todos_pcas_qs = PlanoContratacaoAnual.objects.order_by("-exercicio")
+        pca = _pca_default(todos_pcas_qs)
 
         if pca:
             dfds = DocumentoFormalizacaoDemanda.objects.filter(pca=pca)
@@ -43,39 +43,28 @@ class DashboardPCAView(View):
             dfds = DocumentoFormalizacaoDemanda.objects.none()
             itens = ItemPCA.objects.none()
 
-        # KPIs
         total_itens = itens.count()
         valor_total = itens.aggregate(total=Sum("valor_total_estimado"))["total"] or 0
         valor_empenhado = itens.aggregate(total=Sum("valor_empenhado"))["total"] or 0
 
-        # Distribuição por status
         por_status = (
             itens.values("status")
             .annotate(qtd=Count("id"))
             .order_by("-qtd")
         )
-
-        # Distribuição por categoria
         por_categoria = (
             itens.values("categoria")
             .annotate(qtd=Count("id"), valor=Sum("valor_total_estimado"))
             .order_by("-valor")
         )
-
-        # Distribuição por modalidade
         por_modalidade = (
             itens.values("modalidade")
             .annotate(qtd=Count("id"))
             .order_by("-qtd")
         )
 
-        # Itens suspensos
-        suspensos = itens.filter(status="suspenso").count()
-
-        # Itens concluídos
-        concluidos = itens.filter(status="concluido").count()
-
-        # Itens em andamento
+        suspensos   = itens.filter(status="suspenso").count()
+        concluidos  = itens.filter(status="concluido").count()
         em_andamento = itens.filter(status__in=["em_andamento", "iniciado"]).count()
 
         context = {
@@ -100,7 +89,8 @@ class DemandasPCAView(View):
     template_name = "pca/demandas.html"
 
     def get(self, request):
-        pca = PlanoContratacaoAnual.objects.order_by("-exercicio").first()
+        todos_pcas_qs = PlanoContratacaoAnual.objects.order_by("-exercicio")
+        pca = _pca_default(todos_pcas_qs)
 
         itens_qs = ItemPCA.objects.select_related(
             "dfd", "dfd__pca", "dfd__unidade"
@@ -109,8 +99,7 @@ class DemandasPCAView(View):
         if pca:
             itens_qs = itens_qs.filter(dfd__pca=pca)
 
-        # Filtros
-        status_filtro = request.GET.get("status", "")
+        status_filtro    = request.GET.get("status", "")
         categoria_filtro = request.GET.get("categoria", "")
         modalidade_filtro = request.GET.get("modalidade", "")
         busca = request.GET.get("q", "").strip()
@@ -148,21 +137,13 @@ class ItemPCADetalheView(View):
             ItemPCA.objects.select_related("dfd", "dfd__pca", "dfd__unidade", "item_pai"),
             pk=pk,
         )
-        context = {"item": item}
-        return render(request, self.template_name, context)
+        return render(request, self.template_name, {"item": item})
 
 
-# ─────────────────────────────────────────────────────────────
-# Catálogo — endpoint JSON para busca (AJAX)
-# ─────────────────────────────────────────────────────────────
+# --- Catalogo (AJAX) --------------------------------------------------------
 
 @method_decorator(login_required, name="dispatch")
 class CatalogoSearchView(View):
-    """
-    GET /pca/api/catalogo/?q=...&classificacao=...
-    Retorna até 20 itens do catálogo em JSON para uso em formulários.
-    """
-
     def get(self, request):
         q = request.GET.get("q", "").strip()
         classificacao = request.GET.get("classificacao", "").strip()
@@ -187,29 +168,19 @@ class CatalogoSearchView(View):
         return JsonResponse({"results": results})
 
 
-# ─────────────────────────────────────────────────────────────
-# Renovação Multiexercício
-# ─────────────────────────────────────────────────────────────
+# --- Renovacao Multiexercicio ------------------------------------------------
 
 @method_decorator(login_required, name="dispatch")
 class RenovacaoExercicioView(View):
-    """
-    GET  /pca/renovacao/         — mostra itens contínuos para seleção
-    GET  /pca/renovacao/?ids=... — pré-seleciona IDs vindos da action do Admin
-    POST /pca/renovacao/         — executa a renovação
-    """
-
     template_name = "pca/renovacao.html"
 
     def get(self, request):
         pca_atual = PlanoContratacaoAnual.objects.order_by("-exercicio").first()
         todos_pcas = PlanoContratacaoAnual.objects.order_by("-exercicio")
 
-        # Itens selecionados via Admin action (query-string ?ids=1,2,3)
         ids_param = request.GET.get("ids", "")
         ids_pre = [int(i) for i in ids_param.split(",") if i.strip().isdigit()]
 
-        # Itens contínuos do PCA atual disponíveis para renovação
         qs = (
             ItemPCA.objects
             .filter(dfd__pca=pca_atual, classificacao_continuidade__startswith="continuo_")
@@ -233,7 +204,6 @@ class RenovacaoExercicioView(View):
         if not ids_sel:
             messages.error(request, "Selecione ao menos um item para renovar.")
             return redirect("pca:renovacao")
-
         if not pca_destino_id:
             messages.error(request, "Selecione o PCA de destino.")
             return redirect("pca:renovacao")
@@ -248,7 +218,6 @@ class RenovacaoExercicioView(View):
 
         with transaction.atomic():
             for item in itens_origem:
-                # Verifica se já existe uma renovação deste item no PCA destino
                 ja_existe = ItemPCA.objects.filter(
                     origem_item=item, dfd__pca=pca_destino
                 ).exists()
@@ -256,20 +225,19 @@ class RenovacaoExercicioView(View):
                     ignorados += 1
                     continue
 
-                # Obtém ou cria um DFD genérico de renovação para a unidade no PCA destino
                 dfd_destino, _ = DocumentoFormalizacaoDemanda.objects.get_or_create(
                     pca=pca_destino,
                     unidade=item.dfd.unidade,
                     numero_dfd=f"REN-{pca_destino.exercicio}-{item.dfd.unidade_id}",
                     defaults={
                         "descricao_objeto": (
-                            f"Renovação de contratações contínuas — "
-                            f"{item.dfd.unidade} — exercício {pca_destino.exercicio}"
+                            f"Renovacao de contratacoes continuas"
+                            f" - {item.dfd.unidade} - exercicio {pca_destino.exercicio}"
                         ),
                         "justificativa": (
-                            f"Renovação automática de itens classificados como contínuos "
-                            f"conforme Ato PGJ 1.415/2024, originados do PCA "
-                            f"{item.dfd.pca.exercicio}."
+                            f"Renovacao automatica de itens classificados como continuos"
+                            f" conforme Ato PGJ 1.415/2024, originados do PCA"
+                            f" {item.dfd.pca.exercicio}."
                         ),
                         "prazo_necessidade": datetime.date(pca_destino.exercicio, 12, 31),
                         "grau_prioridade": item.dfd.grau_prioridade,
@@ -278,7 +246,6 @@ class RenovacaoExercicioView(View):
                     },
                 )
 
-                # Calcula próximo número de item no DFD destino
                 ultimo_num = (
                     ItemPCA.objects.filter(dfd=dfd_destino)
                     .aggregate(m=Max("numero_item"))["m"]
@@ -287,11 +254,9 @@ class RenovacaoExercicioView(View):
                 ItemPCA.objects.create(
                     dfd=dfd_destino,
                     numero_item=ultimo_num + 1,
-                    # Vinculação ao exercício anterior e ao catálogo
                     origem_item=item,
                     item_catalogo=item.item_catalogo,
                     classificacao_continuidade=item.classificacao_continuidade,
-                    # Cópia dos dados do objeto
                     categoria=item.categoria,
                     codigo_catmat_catser=item.codigo_catmat_catser,
                     descricao=item.descricao,
@@ -299,18 +264,16 @@ class RenovacaoExercicioView(View):
                     quantidade_estimada=item.quantidade_estimada,
                     valor_unitario_estimado=item.valor_unitario_estimado,
                     valor_total_estimado=item.valor_total_estimado,
-                    # Tipo e modalidade mantidos
                     tipo_demanda="renovacao",
                     modalidade=item.modalidade,
                     normativo=item.normativo,
                     unidade_orcamentaria=item.unidade_orcamentaria,
                     is_srp=item.is_srp,
                     numero_lote_pca=item.numero_lote_pca,
-                    # Status inicial
                     status="nao_iniciado",
                     observacoes=(
-                        f"Renovado automaticamente a partir de {item.codigo_pca} "
-                        f"(PCA {item.dfd.pca.exercicio})."
+                        f"Renovado automaticamente a partir de {item.codigo_pca}"
+                        f" (PCA {item.dfd.pca.exercicio})."
                     ),
                 )
                 criados += 1
@@ -319,12 +282,77 @@ class RenovacaoExercicioView(View):
             messages.success(
                 request,
                 f"{criados} item(ns) renovado(s) com sucesso para o PCA {pca_destino.exercicio}."
-                + (f" {ignorados} já existia(m) e foram ignorados." if ignorados else ""),
+                + (f" {ignorados} ja existia(m) e foram ignorados." if ignorados else ""),
             )
         else:
             messages.warning(
                 request,
-                f"Nenhum item novo criado — todos os {ignorados} selecionados já haviam sido renovados.",
+                f"Nenhum item novo criado - todos os {ignorados} selecionados ja haviam sido renovados.",
             )
 
         return redirect("pca:demandas")
+
+
+# --- Orcamento Planejado ----------------------------------------------------
+
+@method_decorator(login_required, name="dispatch")
+class OrcamentoView(View):
+    template_name = "pca/orcamento.html"
+
+    def get(self, request):
+        exercicio_param = request.GET.get("exercicio")
+        todos_pcas = PlanoContratacaoAnual.objects.order_by("-exercicio")
+
+        if exercicio_param:
+            pca = PlanoContratacaoAnual.objects.filter(exercicio=exercicio_param).first()
+        else:
+            pca = _pca_default(todos_pcas)
+
+        orcamentos = []
+        totais = {"aprovado": 0, "comprometido": 0}
+
+        if pca:
+            qs = (
+                OrcamentoPlanejado.objects
+                .filter(pca=pca)
+                .select_related("unidade", "pca")
+                .order_by("unidade__sigla")
+            )
+            for orc in qs:
+                comprometido = orc.valor_comprometido()
+                total_aprov = orc.valor_total
+                saldo = total_aprov - comprometido
+                pct = orc.percentual_comprometido()
+                orcamentos.append({
+                    "obj": orc,
+                    "comprometido": comprometido,
+                    "saldo": saldo,
+                    "pct": pct,
+                    "alerta": pct >= 90,
+                })
+                totais["aprovado"] += total_aprov
+                totais["comprometido"] += comprometido
+
+        totais["saldo"] = totais["aprovado"] - totais["comprometido"]
+        totais["pct"] = (
+            round(totais["comprometido"] / totais["aprovado"] * 100, 1)
+            if totais["aprovado"] else 0
+        )
+
+        setores_com_itens = set(
+            ItemPCA.objects
+            .filter(dfd__pca=pca)
+            .values_list("dfd__unidade__sigla", flat=True)
+            .distinct()
+        ) if pca else set()
+        setores_com_orc = {o["obj"].unidade.sigla for o in orcamentos}
+        setores_sem_orc = setores_com_itens - setores_com_orc
+
+        context = {
+            "pca": pca,
+            "todos_pcas": todos_pcas,
+            "orcamentos": orcamentos,
+            "totais": totais,
+            "setores_sem_orc": sorted(setores_sem_orc),
+        }
+        return render(request, self.template_name, context)

@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}PCA — Riscos e Pendencias{% endblock %}
+{% block nav_pca %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div class="page-header">
+    <h1><i class="bi bi-exclamation-triangle me-2" style="color:#dc2626;"></i>Riscos e Pendencias</h1>
+    <p>Painel de alertas — contratacoes com prazos vencidos ou criticos — PCA
+      {% if pca %}<strong>{{ pca.exercicio }}</strong>{% endif %}.
+    </p>
+  </div>
+  <div class="d-flex gap-2 align-items-center flex-wrap">
+    <form method="get" class="d-flex gap-2 align-items-center">
+      <select name="exercicio" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width:130px;">
+        {% for p in todos_pcas %}
+          <option value="{{ p.exercicio }}" {% if p == pca %}selected{% endif %}>PCA {{ p.exercicio }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    <a href="{% url 'pca:prazos' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-calendar-check me-1"></i>Controle de Prazos
+    </a>
+    <a href="{% url 'pca:dashboard' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Voltar
+    </a>
+  </div>
+</div>
+
+{% if not pca %}
+  <div class="alert alert-warning">Nenhum PCA encontrado.</div>
+{% else %}
+
+{# KPIs #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4">
+    <div class="card kpi-card h-100 p-3" style="border-left: 4px solid #dc2626;">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">Demandas Atrasadas</div>
+          <div class="kpi-value mt-1" style="color:#dc2626; font-size:2.2rem;">{{ qtd_atrasados }}</div>
+          <div class="kpi-sub">Prazo de conclusao vencido</div>
+        </div>
+        <div class="kpi-icon" style="background:#fee2e2;">
+          <i class="bi bi-x-circle text-danger"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="card kpi-card h-100 p-3" style="border-left: 4px solid #d97706;">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">Atencao — Proximo 120 dias</div>
+          <div class="kpi-value mt-1" style="color:#d97706; font-size:2.2rem;">{{ qtd_atencao }}</div>
+          <div class="kpi-sub">Vence ate {{ hoje|date:"d/m/Y"|add:"" }}</div>
+        </div>
+        <div class="kpi-icon" style="background:#fef3c7;">
+          <i class="bi bi-clock-history text-warning"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="card kpi-card h-100 p-3" style="border-left: 4px solid #7c3aed;">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">Valor Retido (atrasados)</div>
+          <div class="kpi-value mt-1" style="font-size:1.05rem; color:#7c3aed;">
+            R$ {{ valor_retido|floatformat:"2g" }}
+          </div>
+          <div class="kpi-sub">Soma estimada dos itens vencidos</div>
+        </div>
+        <div class="kpi-icon" style="background:#ede9fe;">
+          <i class="bi bi-currency-dollar" style="color:#7c3aed;"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Alerta geral #}
+{% if qtd_atrasados > 0 %}
+<div class="alert alert-danger d-flex align-items-start gap-2 mb-4">
+  <i class="bi bi-exclamation-octagon-fill fs-5 mt-1 flex-shrink-0"></i>
+  <div>
+    <strong>{{ qtd_atrasados }} contratacao(es) com prazo vencido</strong> requerem verificacao urgente.
+    {% if por_setor_atrasados %}
+      Setores com maior concentracao:
+      {% for s in por_setor_atrasados|slice:":5" %}
+        <span class="badge bg-danger ms-1">{{ s.dfd__unidade__sigla }} ({{ s.qtd }})</span>
+      {% endfor %}
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{# Abas #}
+<ul class="nav nav-tabs mb-0" id="riscosTab">
+  <li class="nav-item">
+    <a class="nav-link active d-flex align-items-center gap-1" data-bs-toggle="tab" href="#tab-atrasados">
+      <i class="bi bi-x-circle-fill text-danger"></i>
+      Atrasados
+      <span class="badge bg-danger ms-1">{{ qtd_atrasados }}</span>
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link d-flex align-items-center gap-1" data-bs-toggle="tab" href="#tab-atencao">
+      <i class="bi bi-clock-history text-warning"></i>
+      Atencao — 120 dias
+      <span class="badge bg-warning text-dark ms-1">{{ qtd_atencao }}</span>
+    </a>
+  </li>
+</ul>
+
+<div class="tab-content">
+
+  {# ABA ATRASADOS #}
+  <div class="tab-pane fade show active" id="tab-atrasados">
+    {% if atrasados %}
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0">
+        <thead class="table-danger">
+          <tr>
+            <th>Codigo</th>
+            <th>Descricao</th>
+            <th class="text-center">Setor</th>
+            <th class="text-center">UO</th>
+            <th class="text-end">Valor estimado</th>
+            <th class="text-center">Conclusao prevista</th>
+            <th class="text-center">Atraso</th>
+            <th class="text-center">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in atrasados %}
+          {% with item=row.item %}
+          <tr>
+            <td class="font-monospace" style="font-size:.8rem; white-space:nowrap;">
+              <a href="{% url 'pca:item_detalhe' item.pk %}" class="text-decoration-none fw-bold text-danger">
+                {{ item.codigo_pca }}
+              </a>
+            </td>
+            <td style="max-width:280px; font-size:.82rem;">{{ item.descricao|truncatechars:65 }}</td>
+            <td class="text-center">
+              <span class="badge bg-secondary" style="font-size:.7rem;">{{ item.dfd.unidade.sigla }}</span>
+            </td>
+            <td class="text-center" style="font-size:.78rem;">
+              {{ item.get_unidade_orcamentaria_display }}
+            </td>
+            <td class="text-end font-monospace" style="font-size:.82rem;">
+              R$ {{ item.valor_total_estimado|floatformat:"2g" }}
+            </td>
+            <td class="text-center font-monospace" style="font-size:.8rem;">
+              {{ item.data_pretendida_conclusao|date:"d/m/Y" }}
+            </td>
+            <td class="text-center">
+              <span class="badge bg-danger" style="font-size:.75rem;">
+                {{ row.dias|stringformat:"d" }}d
+              </span>
+            </td>
+            <td class="text-center">
+              <span class="badge rounded-pill
+                {% if item.status == 'em_andamento' %}bg-primary
+                {% elif item.status == 'iniciado' %}bg-info text-dark
+                {% elif item.status == 'em_diligencia' %}bg-secondary
+                {% else %}bg-light text-dark border{% endif %}"
+                style="font-size:.68rem;">
+                {{ item.get_status_display }}
+              </span>
+            </td>
+          </tr>
+          {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="card-body text-center text-success py-5">
+      <i class="bi bi-check-circle-fill fs-2 d-block mb-2"></i>
+      <strong>Nenhuma demanda atrasada.</strong> Todos os prazos estao sendo cumpridos.
+    </div>
+    {% endif %}
+  </div>
+
+  {# ABA ATENCAO #}
+  <div class="tab-pane fade" id="tab-atencao">
+    {% if atencao %}
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0">
+        <thead class="table-warning">
+          <tr>
+            <th>Codigo</th>
+            <th>Descricao</th>
+            <th class="text-center">Setor</th>
+            <th class="text-center">UO</th>
+            <th class="text-end">Valor estimado</th>
+            <th class="text-center">Conclusao prevista</th>
+            <th class="text-center">Dias restantes</th>
+            <th class="text-center">Urgencia</th>
+            <th class="text-center">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in atencao %}
+          {% with item=row.item %}
+          <tr {% if row.dias <= 30 %}class="table-warning"{% endif %}>
+            <td class="font-monospace" style="font-size:.8rem; white-space:nowrap;">
+              <a href="{% url 'pca:item_detalhe' item.pk %}" class="text-decoration-none fw-bold">
+                {{ item.codigo_pca }}
+              </a>
+            </td>
+            <td style="max-width:280px; font-size:.82rem;">{{ item.descricao|truncatechars:65 }}</td>
+            <td class="text-center">
+              <span class="badge bg-secondary" style="font-size:.7rem;">{{ item.dfd.unidade.sigla }}</span>
+            </td>
+            <td class="text-center" style="font-size:.78rem;">
+              {{ item.get_unidade_orcamentaria_display }}
+            </td>
+            <td class="text-end font-monospace" style="font-size:.82rem;">
+              R$ {{ item.valor_total_estimado|floatformat:"2g" }}
+            </td>
+            <td class="text-center font-monospace" style="font-size:.8rem;">
+              {{ item.data_pretendida_conclusao|date:"d/m/Y" }}
+            </td>
+            <td class="text-center font-monospace" style="font-size:.85rem; font-weight:600;">
+              <span class="{% if row.dias <= 30 %}text-danger{% else %}text-warning{% endif %}">
+                +{{ row.dias }}d
+              </span>
+            </td>
+            <td class="text-center">
+              {% if row.dias <= 30 %}
+                <span class="badge bg-danger" style="font-size:.7rem;">Critico</span>
+              {% elif row.dias <= 60 %}
+                <span class="badge bg-warning text-dark" style="font-size:.7rem;">Alto</span>
+              {% else %}
+                <span class="badge bg-secondary" style="font-size:.7rem;">Moderado</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <span class="badge rounded-pill
+                {% if item.status == 'em_andamento' %}bg-primary
+                {% elif item.status == 'iniciado' %}bg-info text-dark
+                {% elif item.status == 'em_diligencia' %}bg-secondary
+                {% else %}bg-light text-dark border{% endif %}"
+                style="font-size:.68rem;">
+                {{ item.get_status_display }}
+              </span>
+            </td>
+          </tr>
+          {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="card-body text-center text-success py-5">
+      <i class="bi bi-check-circle-fill fs-2 d-block mb-2"></i>
+      <strong>Nenhuma demanda critica nos proximos 120 dias.</strong>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<div class="mt-3 text-muted" style="font-size:.78rem;">
+  <i class="bi bi-info-circle me-1"></i>
+  Demandas suspensas e concluidas nao aparecem neste painel. Referencia: <strong>{{ hoje|date:"d/m/Y" }}</strong>.
+</div>
+
+{% endif %}
+{% endblock %}

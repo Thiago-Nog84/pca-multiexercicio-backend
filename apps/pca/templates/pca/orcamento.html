@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}PCA — Orçamento Planejado{% endblock %}
+{% block nav_pca %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div class="page-header">
+    <h1><i class="bi bi-wallet2 me-2" style="color:var(--mppi-vermelho);"></i>Orçamento Planejado</h1>
+    <p>Teto orçamentário aprovado versus valor comprometido por setor — PCA
+      {% if pca %}<strong>{{ pca.exercicio }}</strong>{% endif %}.
+    </p>
+  </div>
+  <div class="d-flex gap-2 align-items-center flex-wrap">
+    {# Seletor de exercício #}
+    <form method="get" class="d-flex gap-2 align-items-center">
+      <select name="exercicio" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width:130px;">
+        {% for p in todos_pcas %}
+          <option value="{{ p.exercicio }}" {% if p == pca %}selected{% endif %}>
+            PCA {{ p.exercicio }}
+          </option>
+        {% endfor %}
+      </select>
+    </form>
+    <a href="/admin/pca/orcamentoplanejado/add/" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-plus-lg me-1"></i>Novo teto
+    </a>
+    <a href="{% url 'pca:dashboard' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Voltar
+    </a>
+  </div>
+</div>
+
+{% if messages %}
+  {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags }} alert-dismissible fade show mb-3">
+      {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  {% endfor %}
+{% endif %}
+
+{% if not pca %}
+  <div class="alert alert-warning">Nenhum PCA encontrado.</div>
+{% else %}
+
+{# ── KPIs de topo ── #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="kpi-label">Teto Total Aprovado</div>
+      <div class="kpi-value mt-1" style="font-size:1.05rem;">
+        R$ {{ totais.aprovado|floatformat:"2g" }}
+      </div>
+      <div class="kpi-sub">Soma PGJ + FMMP + FEPDC</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="kpi-label">Valor Comprometido</div>
+      <div class="kpi-value mt-1" style="font-size:1.05rem; color:var(--mppi-vermelho);">
+        R$ {{ totais.comprometido|floatformat:"2g" }}
+      </div>
+      <div class="kpi-sub">Itens ativos no PCA</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="kpi-label">Saldo Disponível</div>
+      <div class="kpi-value mt-1" style="font-size:1.05rem;
+        {% if totais.saldo < 0 %}color:#dc2626;{% else %}color:#16a34a;{% endif %}">
+        R$ {{ totais.saldo|floatformat:"2g" }}
+      </div>
+      <div class="kpi-sub">{{ totais.pct }}% do teto comprometido</div>
+      <div class="progress prog-bar-sm mt-2">
+        <div class="progress-bar {% if totais.pct >= 90 %}bg-danger{% elif totais.pct >= 70 %}bg-warning{% else %}bg-success{% endif %}"
+             style="width:{{ totais.pct }}%"></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="kpi-label">Setores cadastrados</div>
+      <div class="kpi-value mt-1">{{ orcamentos|length }}</div>
+      <div class="kpi-sub">
+        {% if setores_sem_orc %}
+          <span class="text-danger">{{ setores_sem_orc|length }} sem teto definido</span>
+        {% else %}
+          Todos com teto definido
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Tabela por setor ── #}
+{% if orcamentos %}
+<div class="card mb-4">
+  <div class="card-header bg-white border-bottom py-3">
+    <i class="bi bi-table me-2 text-primary"></i>
+    Utilização por Setor — PCA {{ pca.exercicio }}
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Setor</th>
+          <th class="text-end">Teto PGJ</th>
+          <th class="text-end">Teto FMMP</th>
+          <th class="text-end">Teto FEPDC</th>
+          <th class="text-end">Total Aprovado</th>
+          <th class="text-end">Comprometido</th>
+          <th class="text-end">Saldo</th>
+          <th class="text-center" style="min-width:110px;">Utilização</th>
+          <th class="text-center">Trava</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in orcamentos %}
+        {% with orc=row.obj %}
+        <tr {% if row.alerta %}class="table-danger"{% endif %}>
+          <td class="fw-bold">
+            {{ orc.unidade.sigla }}
+            <div class="text-muted" style="font-size:.72rem; font-weight:400;">{{ orc.unidade.nome|truncatechars:35 }}</div>
+          </td>
+          <td class="text-end font-monospace" style="font-size:.8rem;">
+            R$ {{ orc.valor_pgj|floatformat:"2g" }}
+          </td>
+          <td class="text-end font-monospace" style="font-size:.8rem;">
+            R$ {{ orc.valor_fmmp|floatformat:"2g" }}
+          </td>
+          <td class="text-end font-monospace" style="font-size:.8rem;">
+            R$ {{ orc.valor_fepdc|floatformat:"2g" }}
+          </td>
+          <td class="text-end fw-bold font-monospace" style="font-size:.85rem;">
+            R$ {{ orc.valor_total|floatformat:"2g" }}
+          </td>
+          <td class="text-end font-monospace" style="font-size:.85rem; color:var(--mppi-vermelho);">
+            R$ {{ row.comprometido|floatformat:"2g" }}
+          </td>
+          <td class="text-end font-monospace fw-bold" style="font-size:.85rem;
+            {% if row.saldo < 0 %}color:#dc2626;{% else %}color:#16a34a;{% endif %}">
+            R$ {{ row.saldo|floatformat:"2g" }}
+          </td>
+          <td class="text-center align-middle" style="min-width:110px;">
+            <div class="d-flex align-items-center gap-1">
+              <div class="progress flex-grow-1" style="height:6px;">
+                <div class="progress-bar
+                  {% if row.pct >= 100 %}bg-danger
+                  {% elif row.pct >= 90 %}bg-danger
+                  {% elif row.pct >= 70 %}bg-warning
+                  {% else %}bg-success{% endif %}"
+                  style="width:{% if row.pct > 100 %}100{% else %}{{ row.pct }}{% endif %}%">
+                </div>
+              </div>
+              <span style="font-size:.72rem; min-width:32px;">{{ row.pct }}%</span>
+            </div>
+          </td>
+          <td class="text-center align-middle">
+            {% if orc.trava_ativa %}
+              <span style="background:#9B2335;color:#fff;padding:2px 7px;border-radius:20px;font-size:.7rem;font-weight:600;">
+                <i class="bi bi-lock-fill"></i> Ativa
+              </span>
+            {% else %}
+              <span style="background:#e2e8f0;color:#64748b;padding:2px 7px;border-radius:20px;font-size:.7rem;">
+                Inativa
+              </span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="/admin/pca/orcamentoplanejado/{{ orc.pk }}/change/"
+               class="btn btn-outline-secondary btn-sm py-0 px-2" title="Editar">
+              <i class="bi bi-pencil" style="font-size:.75rem;"></i>
+            </a>
+          </td>
+        </tr>
+        {% endwith %}
+        {% endfor %}
+      </tbody>
+      <tfoot class="table-secondary fw-bold">
+        <tr>
+          <td>TOTAL</td>
+          <td colspan="3"></td>
+          <td class="text-end font-monospace">R$ {{ totais.aprovado|floatformat:"2g" }}</td>
+          <td class="text-end font-monospace" style="color:var(--mppi-vermelho);">R$ {{ totais.comprometido|floatformat:"2g" }}</td>
+          <td class="text-end font-monospace
+            {% if totais.saldo < 0 %}text-danger{% else %}text-success{% endif %}">
+            R$ {{ totais.saldo|floatformat:"2g" }}
+          </td>
+          <td class="text-center">{{ totais.pct }}%</td>
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="card-body text-center text-muted py-5">
+    <i class="bi bi-wallet2 fs-2 d-block mb-2"></i>
+    Nenhum teto orçamentário cadastrado para o PCA {{ pca.exercicio }}.
+    <br>
+    <a href="/admin/pca/orcamentoplanejado/add/" class="btn btn-sm btn-primary mt-3">
+      <i class="bi bi-plus-lg me-1"></i>Cadastrar tetos no Admin
+    </a>
+  </div>
+</div>
+{% endif %}
+
+{# ── Setores sem teto ── #}
+{% if setores_sem_orc %}
+<div class="alert alert-warning d-flex gap-2 align-items-start">
+  <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+  <div>
+    <strong>Setores com demandas mas sem teto orçamentário:</strong>
+    {% for s in setores_sem_orc %}
+      <span class="badge bg-warning text-dark ms-1">{{ s }}</span>
+    {% endfor %}
+    <br><small>Cadastre os tetos no Admin para habilitar o controle de utilização.</small>
+  </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

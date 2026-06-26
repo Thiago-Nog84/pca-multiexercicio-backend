@@ -1,5 +1,4 @@
 # Admin do modulo PCA
-# ItemCatalogoAdmin, ItemPCAAdmin (com autocomplete + action de renovacao), DFD/PCA
 
 from django.contrib import admin
 from django.http import JsonResponse
@@ -8,15 +7,15 @@ from django.utils.html import format_html
 
 from .models import (
     CLASSIFICACAO_CONTINUIDADE,
-    ConformidadeItem,
     DocumentoFormalizacaoDemanda,
     ItemCatalogo,
     ItemPCA,
+    OrcamentoPlanejado,
     PlanoContratacaoAnual,
 )
 
 
-# ─── ItemCatalogo ──────────────────────────────────────────────────────────────
+# --- ItemCatalogo -----------------------------------------------------------
 
 @admin.register(ItemCatalogo)
 class ItemCatalogoAdmin(admin.ModelAdmin):
@@ -62,7 +61,62 @@ class ItemCatalogoAdmin(admin.ModelAdmin):
         )
 
 
-# ─── PlanoContratacaoAnual ─────────────────────────────────────────────────────
+# --- OrcamentoPlanejado -----------------------------------------------------
+
+class OrcamentoPlanejadoInline(admin.TabularInline):
+    model = OrcamentoPlanejado
+    extra = 0
+    fields = [
+        "unidade", "valor_pgj", "valor_fmmp", "valor_fepdc",
+        "trava_ativa", "atualizado_por",
+    ]
+    readonly_fields = ["atualizado_por"]
+
+
+@admin.register(OrcamentoPlanejado)
+class OrcamentoPlanejadoAdmin(admin.ModelAdmin):
+    list_display = [
+        "unidade", "get_exercicio", "valor_pgj", "valor_fmmp",
+        "valor_fepdc", "valor_total_display", "trava_display", "atualizado_em",
+    ]
+    list_filter  = ["pca__exercicio", "trava_ativa", "unidade"]
+    ordering     = ["-pca__exercicio", "unidade__sigla"]
+    readonly_fields = ["atualizado_por", "atualizado_em"]
+
+    fieldsets = [
+        ("Identificacao", {"fields": ["pca", "unidade"]}),
+        ("Tetos por UO (R$)", {"fields": ["valor_pgj", "valor_fmmp", "valor_fepdc"]}),
+        ("Controle", {"fields": ["trava_ativa", "atualizado_por", "atualizado_em"]}),
+    ]
+
+    def save_model(self, request, obj, form, change):
+        obj.atualizado_por = request.user
+        super().save_model(request, obj, form, change)
+
+    @admin.display(description="Exercicio", ordering="pca__exercicio")
+    def get_exercicio(self, obj):
+        return obj.pca.exercicio
+
+    @admin.display(description="Total aprovado")
+    def valor_total_display(self, obj):
+        total = obj.valor_total
+        formatted = "R$ {:,.2f}".format(float(total)).replace(",", "X").replace(".", ",").replace("X", ".")
+        return format_html("<strong>{}</strong>", formatted)
+
+    @admin.display(description="Trava")
+    def trava_display(self, obj):
+        if obj.trava_ativa:
+            return format_html(
+                '<span style="background:#9B2335;color:#fff;padding:2px 8px;'
+                'border-radius:20px;font-size:.72rem;font-weight:600">Ativa</span>'
+            )
+        return format_html(
+            '<span style="background:#64748b;color:#fff;padding:2px 8px;'
+            'border-radius:20px;font-size:.72rem;">Inativa</span>'
+        )
+
+
+# --- PlanoContratacaoAnual --------------------------------------------------
 
 @admin.register(PlanoContratacaoAnual)
 class PlanoContratacaoAnualAdmin(admin.ModelAdmin):
@@ -70,6 +124,7 @@ class PlanoContratacaoAnualAdmin(admin.ModelAdmin):
     list_filter   = ["status", "exercicio"]
     search_fields = ["exercicio"]
     ordering      = ["-exercicio"]
+    inlines       = [OrcamentoPlanejadoInline]
 
     fieldsets = [
         ("Identificacao", {
@@ -92,7 +147,7 @@ class PlanoContratacaoAnualAdmin(admin.ModelAdmin):
     ]
 
 
-# ─── DocumentoFormalizacaoDemanda ──────────────────────────────────────────────
+# --- DocumentoFormalizacaoDemanda -------------------------------------------
 
 class ItemPCAInline(admin.TabularInline):
     model = ItemPCA
@@ -132,7 +187,7 @@ class DocumentoFormalizacaoDemandaAdmin(admin.ModelAdmin):
         return obj.pca.exercicio
 
 
-# ─── ItemPCA ───────────────────────────────────────────────────────────────────
+# --- ItemPCA ----------------------------------------------------------------
 
 @admin.action(description="Renovar itens selecionados para o proximo exercicio")
 def renovar_para_proximo_exercicio(modeladmin, request, queryset):

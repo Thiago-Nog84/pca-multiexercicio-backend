@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}PCA — Controle de Prazos{% endblock %}
+{% block nav_pca %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div class="page-header">
+    <h1><i class="bi bi-calendar-check me-2" style="color:var(--mppi-vermelho);"></i>Controle de Prazos</h1>
+    <p>Monitoramento das datas-chave por contratacao — PCA
+      {% if pca %}<strong>{{ pca.exercicio }}</strong>{% endif %}.
+    </p>
+  </div>
+  <div class="d-flex gap-2 align-items-center flex-wrap">
+    <form method="get" class="d-flex gap-2 align-items-center">
+      <select name="exercicio" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width:130px;">
+        {% for p in todos_pcas %}
+          <option value="{{ p.exercicio }}" {% if p == pca %}selected{% endif %}>PCA {{ p.exercicio }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    <a href="{% url 'pca:riscos' %}" class="btn btn-sm btn-outline-danger">
+      <i class="bi bi-exclamation-triangle me-1"></i>Riscos
+    </a>
+    <a href="{% url 'pca:dashboard' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Voltar
+    </a>
+  </div>
+</div>
+
+{% if not pca %}
+  <div class="alert alert-warning">Nenhum PCA encontrado.</div>
+{% else %}
+
+{# KPIs #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="kpi-label">Vencidos</div>
+      <div class="kpi-value mt-1" style="color:#dc2626;">{{ contadores.vencido }}</div>
+      <div class="kpi-sub">Prazo ja passou</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="kpi-label">Proximo ao vencimento</div>
+      <div class="kpi-value mt-1" style="color:#d97706;">{{ contadores.proximo }}</div>
+      <div class="kpi-sub">Ate 30 dias</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="kpi-label">No prazo</div>
+      <div class="kpi-value mt-1" style="color:#16a34a;">{{ contadores.no_prazo }}</div>
+      <div class="kpi-sub">Mais de 30 dias</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="kpi-label">Concluidos</div>
+      <div class="kpi-value mt-1" style="color:#64748b;">{{ contadores.concluido }}</div>
+      <div class="kpi-sub">Finalizados</div>
+    </div>
+  </div>
+</div>
+
+{# Filtros #}
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="d-flex gap-2 flex-wrap align-items-center">
+      <input type="hidden" name="exercicio" value="{{ pca.exercicio }}">
+      <input type="text" name="q" value="{{ busca }}" placeholder="Buscar codigo ou descricao..."
+             class="form-control form-control-sm" style="max-width:260px;">
+      <select name="setor" class="form-select form-select-sm" style="max-width:160px;">
+        <option value="">Todos os setores</option>
+        {% for s in setores %}
+          <option value="{{ s }}" {% if s == setor_filtro %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+      <select name="status_prazo" class="form-select form-select-sm" style="max-width:180px;">
+        <option value="">Todos os status</option>
+        <option value="vencido"  {% if status_prazo_filtro == "vencido" %}selected{% endif %}>Vencido</option>
+        <option value="proximo"  {% if status_prazo_filtro == "proximo" %}selected{% endif %}>Proximo ao vencimento</option>
+        <option value="no_prazo" {% if status_prazo_filtro == "no_prazo" %}selected{% endif %}>No prazo</option>
+        <option value="concluido" {% if status_prazo_filtro == "concluido" %}selected{% endif %}>Concluido</option>
+      </select>
+      <button type="submit" class="btn btn-sm btn-primary">Filtrar</button>
+      <a href="{% url 'pca:prazos' %}?exercicio={{ pca.exercicio }}" class="btn btn-sm btn-outline-secondary">Limpar</a>
+    </form>
+  </div>
+</div>
+
+{# Tabela #}
+{% if itens %}
+<div class="card">
+  <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+    <span><i class="bi bi-table me-2 text-primary"></i>Contratacoes — {{ itens|length }} resultado(s)</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Codigo</th>
+          <th>Descricao</th>
+          <th class="text-center">Setor</th>
+          <th class="text-center">Status prazo</th>
+          <th class="text-center">Conclusao prevista</th>
+          <th class="text-center">Dias restantes</th>
+          <th class="text-center">Envio PGEA</th>
+          <th class="text-center">Fin. licitacao</th>
+          <th class="text-center">Conclusao efetiva</th>
+          <th class="text-center">Status demanda</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in itens %}
+        {% with item=row.item %}
+        <tr>
+          <td class="font-monospace" style="font-size:.8rem; white-space:nowrap;">
+            <a href="{% url 'pca:item_detalhe' item.pk %}" class="text-decoration-none">{{ item.codigo_pca }}</a>
+          </td>
+          <td style="max-width:260px; font-size:.82rem;">
+            {{ item.descricao|truncatechars:60 }}
+          </td>
+          <td class="text-center">
+            <span class="badge bg-secondary" style="font-size:.7rem;">{{ item.dfd.unidade.sigla }}</span>
+          </td>
+          <td class="text-center">
+            <span class="badge rounded-pill
+              {% if row.cls == 'danger' %}bg-danger
+              {% elif row.cls == 'warning' %}bg-warning text-dark
+              {% elif row.cls == 'success' %}bg-success
+              {% else %}bg-secondary{% endif %}"
+              style="font-size:.72rem;">
+              {{ row.label }}
+            </span>
+          </td>
+          <td class="text-center font-monospace" style="font-size:.8rem;">
+            {% if item.data_pretendida_conclusao %}
+              {{ item.data_pretendida_conclusao|date:"d/m/Y" }}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-center font-monospace" style="font-size:.85rem; font-weight:600;">
+            {% if row.dias_restantes is not None %}
+              <span class="{% if row.dias_restantes < 0 %}text-danger{% elif row.dias_restantes <= 30 %}text-warning{% else %}text-success{% endif %}">
+                {% if row.dias_restantes < 0 %}{{ row.dias_restantes }}{% else %}+{{ row.dias_restantes }}{% endif %}d
+              </span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-center" style="font-size:.78rem;">
+            {% if item.data_envio_pgea %}
+              <span class="badge bg-light text-dark border">{{ item.data_envio_pgea|date:"d/m/Y" }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-center" style="font-size:.78rem;">
+            {% if item.data_finalizacao_licitacao %}
+              <span class="badge bg-light text-dark border">{{ item.data_finalizacao_licitacao|date:"d/m/Y" }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-center" style="font-size:.78rem;">
+            {% if item.data_conclusao_efetiva %}
+              <span class="badge bg-success-subtle text-success border border-success">{{ item.data_conclusao_efetiva|date:"d/m/Y" }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <span class="badge rounded-pill
+              {% if item.status == 'concluido' %}bg-success
+              {% elif item.status == 'suspenso' %}bg-warning text-dark
+              {% elif item.status == 'em_andamento' %}bg-primary
+              {% elif item.status == 'iniciado' %}bg-info text-dark
+              {% elif item.status == 'em_diligencia' %}bg-secondary
+              {% else %}bg-light text-dark border{% endif %}"
+              style="font-size:.68rem;">
+              {{ item.get_status_display }}
+            </span>
+          </td>
+        </tr>
+        {% endwith %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="card-body text-center text-muted py-5">
+    <i class="bi bi-calendar-check fs-2 d-block mb-2"></i>
+    Nenhum item encontrado com os filtros selecionados.
+  </div>
+</div>
+{% endif %}
+
+<div class="mt-3 text-muted" style="font-size:.78rem;">
+  <i class="bi bi-info-circle me-1"></i>
+  Demandas suspensas nao aparecem nesta tabela. Referencia de hoje: <strong>{{ hoje|date:"d/m/Y" }}</strong>.
+  Proximo ao vencimento = ate 30 dias.
+</div>
+
+{% endif %}
+{% endblock %}
