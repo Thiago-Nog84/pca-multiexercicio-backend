@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Prazos Criticos PCA {{ pca.exercicio }}</title>
+<style>
+  @media print { @page { size: A4 landscape; margin: 12mm; } .no-print { display:none; } }
+  body { font-family: Arial, sans-serif; font-size: 9px; color: #111; }
+  h3 { font-size: 13px; margin: 0 0 2px; }
+  .sub { font-size: 10px; color: #555; margin-bottom: 10px; }
+  .kpis { display: flex; gap: 20px; margin-bottom: 12px; }
+  .kpi { border-left: 4px solid #ccc; padding: 4px 10px; }
+  .kpi.red { border-color: #dc2626; }
+  .kpi.orange { border-color: #d97706; }
+  .kpi .num { font-size: 18px; font-weight: bold; }
+  .kpi .lbl { font-size: 9px; color: #555; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #1e3a5f; color: #fff; padding: 4px 5px; text-align: left; font-size: 8.5px; }
+  td { padding: 3px 5px; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+  tr:nth-child(even) td { background: #f7f7f7; }
+  .vencido { color: #dc2626; font-weight: bold; }
+  .critico { color: #b45309; font-weight: bold; }
+  .no-print { margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<div class="no-print">
+  <button onclick="window.print()">Imprimir / Salvar PDF</button>
+  <button onclick="window.close()" style="margin-left:8px">Fechar</button>
+</div>
+<h3>PCA {{ pca.exercicio }} &mdash; Prazos Criticos</h3>
+<div class="sub">Gerado em {{ hoje|date:"d/m/Y" }} &mdash; {{ rows|length }} item(ns) | Vencidos: {{ qtd_vencidos }} | Criticos (30 dias): {{ qtd_criticos }}</div>
+
+<div class="kpis">
+  <div class="kpi red"><div class="num">{{ qtd_vencidos }}</div><div class="lbl">Vencidos</div></div>
+  <div class="kpi orange"><div class="num">{{ qtd_criticos }}</div><div class="lbl">Criticos (ate 30 dias)</div></div>
+  <div class="kpi"><div class="num">{{ rows|length }}</div><div class="lbl">Total listados (120 dias)</div></div>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Cod.</th><th>Setor</th><th>UO</th><th>Descricao</th>
+      <th>Valor Total</th><th>Conclusao Prev.</th><th>Status Prazo</th><th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td>{{ r.item.codigo_pca }}</td>
+      <td>{{ r.item.dfd.unidade.sigla }}</td>
+      <td>{{ r.item.get_unidade_orcamentaria_display }}</td>
+      <td>{{ r.item.descricao|truncatechars:90 }}</td>
+      <td>{{ r.item.valor_total_estimado|floatformat:2 }}</td>
+      <td>{% if r.item.data_pretendida_conclusao %}{{ r.item.data_pretendida_conclusao|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+      <td class="{% if r.dias is not None and r.dias < 0 %}vencido{% elif r.dias is not None and r.dias <= 30 %}critico{% endif %}">
+        {{ r.status_prazo }}
+      </td>
+      <td>{{ r.item.get_status_display }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="8" style="text-align:center;padding:20px;color:#888">Nenhum prazo critico.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Orcamento Setorial PCA {{ pca.exercicio }}</title>
+<style>
+  @media print { @page { size: A4 portrait; margin: 15mm; } .no-print { display:none; } }
+  body { font-family: Arial, sans-serif; font-size: 10px; color: #111; }
+  h3 { font-size: 14px; margin: 0 0 2px; }
+  .sub { font-size: 10px; color: #555; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th { background: #1e3a5f; color: #fff; padding: 5px 6px; text-align: right; font-size: 9px; }
+  th:first-child, th:nth-child(2) { text-align: left; }
+  td { padding: 4px 6px; border-bottom: 1px solid #e0e0e0; text-align: right; }
+  td:first-child, td:nth-child(2) { text-align: left; }
+  tr:nth-child(even) td { background: #f7f7f7; }
+  .total-row td { font-weight: bold; background: #eef2f7; }
+  .bar-wrap { background: #e5e7eb; border-radius: 3px; height: 8px; min-width: 60px; }
+  .bar-fill { background: #3b82f6; border-radius: 3px; height: 8px; }
+  .bar-over { background: #ef4444; }
+  .trava { color: #dc2626; font-weight: bold; }
+  .no-print { margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<div class="no-print">
+  <button onclick="window.print()">Imprimir / Salvar PDF</button>
+  <button onclick="window.close()" style="margin-left:8px">Fechar</button>
+</div>
+<h3>PCA {{ pca.exercicio }} &mdash; Orcamento Setorial</h3>
+<div class="sub">Gerado em {{ hoje|date:"d/m/Y" }} &mdash; Teto total: R$ {{ total_aprovado|floatformat:2 }} &mdash; Comprometido: R$ {{ total_comprometido|floatformat:2 }}</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Setor</th><th>Nome</th>
+      <th>PGJ</th><th>FMMP</th><th>FEPDC</th>
+      <th>Total Aprovado</th><th>Comprometido</th><th>Saldo</th>
+      <th>% Util.</th><th>Utilizacao</th><th>Trava</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in orcamentos %}
+    <tr>
+      <td><strong>{{ r.sigla }}</strong></td>
+      <td>{{ r.nome }}</td>
+      <td>{{ r.pgj|floatformat:2 }}</td>
+      <td>{{ r.fmmp|floatformat:2 }}</td>
+      <td>{{ r.fepdc|floatformat:2 }}</td>
+      <td>{{ r.total|floatformat:2 }}</td>
+      <td>{{ r.comprometido|floatformat:2 }}</td>
+      <td {% if r.saldo < 0 %}style="color:#dc2626;font-weight:bold"{% endif %}>{{ r.saldo|floatformat:2 }}</td>
+      <td>{{ r.pct }}%</td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar-fill {% if r.pct > 100 %}bar-over{% endif %}" style="width:{% if r.pct > 100 %}100{% else %}{{ r.pct }}{% endif %}%"></div>
+        </div>
+      </td>
+      <td>{% if r.trava %}<span class="trava">TRAVADO</span>{% else %}—{% endif %}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="11" style="text-align:center;padding:20px;color:#888">Sem dados orcamentarios.</td></tr>
+  {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr class="total-row">
+      <td colspan="5">TOTAL</td>
+      <td>{{ total_aprovado|floatformat:2 }}</td>
+      <td>{{ total_comprometido|floatformat:2 }}</td>
+      <td>—</td><td colspan="3"></td>
+    </tr>
+  </tfoot>
+</table>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Base Completa PCA {{ pca.exercicio }}</title>
+<style>
+  @media print { @page { size: A4 landscape; margin: 12mm; } .no-print { display:none; } }
+  body { font-family: Arial, sans-serif; font-size: 9px; color: #111; }
+  h3 { font-size: 13px; margin: 0 0 2px; }
+  .sub { font-size: 10px; color: #555; margin-bottom: 10px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th { background: #1e3a5f; color: #fff; padding: 4px 5px; text-align: left; font-size: 8.5px; }
+  td { padding: 3px 5px; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+  tr:nth-child(even) td { background: #f7f7f7; }
+  .vencido { color: #c00; font-weight: bold; }
+  .proximo { color: #b45309; }
+  .badge { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 7.5px; font-weight: bold; }
+  .bg-concluido { background:#d1fae5; color:#065f46; }
+  .bg-em_execucao { background:#dbeafe; color:#1e40af; }
+  .bg-planejado { background:#fef9c3; color:#854d0e; }
+  .bg-suspenso { background:#f3f4f6; color:#6b7280; }
+  .total-row td { font-weight: bold; background: #eef2f7; }
+  .no-print { margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<div class="no-print">
+  <button onclick="window.print()">Imprimir / Salvar PDF</button>
+  <button onclick="window.close()" style="margin-left:8px">Fechar</button>
+</div>
+<h3>PCA {{ pca.exercicio }} &mdash; Base Completa de Demandas</h3>
+<div class="sub">Gerado em {{ hoje|date:"d/m/Y" }} &mdash; {{ itens.count }} itens &mdash; Valor total: R$ {{ total_valor|floatformat:2 }}</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Cod.</th><th>Setor</th><th>UO</th><th>Descricao</th>
+      <th>Qtd</th><th>Unid.</th><th>V.Unit.</th><th>V.Total</th>
+      <th>Tipo</th><th>Modalidade</th><th>SRP</th><th>Status</th>
+      <th>Conclusao Prev.</th><th>Conc. Efetiva</th><th>Empenhado</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for i in itens %}
+    <tr>
+      <td>{{ i.codigo_pca }}</td>
+      <td>{{ i.dfd.unidade.sigla }}</td>
+      <td>{{ i.get_unidade_orcamentaria_display }}</td>
+      <td>{{ i.descricao|truncatechars:80 }}</td>
+      <td>{{ i.quantidade_estimada }}</td>
+      <td>{{ i.unidade_fornecimento }}</td>
+      <td>{{ i.valor_unitario_estimado|floatformat:2 }}</td>
+      <td>{{ i.valor_total_estimado|floatformat:2 }}</td>
+      <td>{{ i.get_tipo_demanda_display }}</td>
+      <td>{{ i.get_modalidade_display }}</td>
+      <td>{% if i.is_srp %}Sim{% else %}Nao{% endif %}</td>
+      <td><span class="badge bg-{{ i.status }}">{{ i.get_status_display }}</span></td>
+      <td>{% if i.data_pretendida_conclusao %}{{ i.data_pretendida_conclusao|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+      <td>{% if i.data_conclusao_efetiva %}{{ i.data_conclusao_efetiva|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+      <td>{{ i.valor_empenhado|floatformat:2 }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="15" style="text-align:center;padding:20px;color:#888">Nenhum item encontrado.</td></tr>
+  {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr class="total-row">
+      <td colspan="7">TOTAL</td>
+      <td>{{ total_valor|floatformat:2 }}</td>
+      <td colspan="6"></td>
+      <td>{{ total_empenhado|floatformat:2 }}</td>
+    </tr>
+  </tfoot>
+</table>
+</body>
+</html>

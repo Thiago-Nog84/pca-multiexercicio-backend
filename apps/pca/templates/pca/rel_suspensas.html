@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Demandas Suspensas PCA {{ pca.exercicio }}</title>
+<style>
+  @media print { @page { size: A4 landscape; margin: 12mm; } .no-print { display:none; } }
+  body { font-family: Arial, sans-serif; font-size: 9px; color: #111; }
+  h3 { font-size: 13px; margin: 0 0 2px; }
+  .sub { font-size: 10px; color: #555; margin-bottom: 10px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #1e3a5f; color: #fff; padding: 4px 5px; text-align: left; font-size: 8.5px; }
+  td { padding: 3px 5px; border-bottom: 1px solid #e0e0e0; vertical-align: top; }
+  tr:nth-child(even) td { background: #f7f7f7; }
+  .valor { color: #c05621; font-weight: bold; }
+  .no-print { margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<div class="no-print">
+  <button onclick="window.print()">Imprimir / Salvar PDF</button>
+  <button onclick="window.close()" style="margin-left:8px">Fechar</button>
+</div>
+<h3>PCA {{ pca.exercicio }} &mdash; Demandas Suspensas</h3>
+<div class="sub">Gerado em {{ hoje|date:"d/m/Y" }} &mdash; {{ itens.count }} item(ns) &mdash; Valor retido: R$ {{ valor_retido|floatformat:2 }}</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Cod.</th><th>Setor</th><th>UO</th><th>Descricao</th>
+      <th>Valor Total</th><th>Tipo</th><th>Modalidade</th><th>Cod. Pai</th><th>Observacoes</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for i in itens %}
+    <tr>
+      <td>{{ i.codigo_pca }}</td>
+      <td>{{ i.dfd.unidade.sigla }}</td>
+      <td>{{ i.get_unidade_orcamentaria_display }}</td>
+      <td>{{ i.descricao|truncatechars:90 }}</td>
+      <td class="valor">{{ i.valor_total_estimado|floatformat:2 }}</td>
+      <td>{{ i.get_tipo_demanda_display }}</td>
+      <td>{{ i.get_modalidade_display }}</td>
+      <td>{% if i.item_pai %}{{ i.item_pai.codigo_pca }}{% else %}—{% endif %}</td>
+      <td>{{ i.observacoes|truncatechars:100|default:"—" }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="9" style="text-align:center;padding:20px;color:#888">Nenhuma demanda suspensa.</td></tr>
+  {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr style="font-weight:bold;background:#eef2f7">
+      <td colspan="4">TOTAL RETIDO</td>
+      <td class="valor">{{ valor_retido|floatformat:2 }}</td>
+      <td colspan="4"></td>
+    </tr>
+  </tfoot>
+</table>
+</body>
+</html>

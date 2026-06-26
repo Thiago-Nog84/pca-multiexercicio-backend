@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Relatorios PCA {{ pca.exercicio }}{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{% url 'pca:dashboard' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i>
+    </a>
+    <div>
+      <h4 class="mb-0 fw-semibold">Relatorios</h4>
+      <small class="text-muted">PCA {{ pca.exercicio|default:"—" }}</small>
+    </div>
+    {% if todos_pcas.count > 1 %}
+    <form method="get" class="ms-auto d-flex gap-2 align-items-center">
+      <select name="exercicio" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+        {% for p in todos_pcas %}
+        <option value="{{ p.exercicio }}" {% if p == pca %}selected{% endif %}>PCA {{ p.exercicio }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="row g-3">
+    <!-- 1. Base Completa -->
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="fs-4"><i class="bi bi-table text-primary"></i></span>
+            <h6 class="mb-0 fw-semibold">Base Completa</h6>
+          </div>
+          <p class="text-muted small mb-3">Todos os itens do PCA com todos os campos — descricao, valores, prazos, modalidade, status.</p>
+          <div class="d-flex gap-2">
+            <a href="{% url 'pca:rel_base_completa' %}?formato=csv&exercicio={{ pca.exercicio }}"
+               class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-download me-1"></i>CSV
+            </a>
+            <a href="{% url 'pca:rel_base_completa' %}?formato=html&exercicio={{ pca.exercicio }}"
+               class="btn btn-sm btn-outline-secondary" target="_blank">
+              <i class="bi bi-printer me-1"></i>Imprimir
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Orcamento Setorial -->
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="fs-4"><i class="bi bi-pie-chart-fill text-success"></i></span>
+            <h6 class="mb-0 fw-semibold">Orcamento Setorial</h6>
+          </div>
+          <p class="text-muted small mb-3">Teto aprovado (PGJ/FMMP/FEPDC) vs comprometido por setor, com saldo e percentual de utilizacao.</p>
+          <div class="d-flex gap-2">
+            <a href="{% url 'pca:rel_orcamento_setorial' %}?formato=csv&exercicio={{ pca.exercicio }}"
+               class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-download me-1"></i>CSV
+            </a>
+            <a href="{% url 'pca:rel_orcamento_setorial' %}?formato=html&exercicio={{ pca.exercicio }}"
+               class="btn btn-sm btn-outline-secondary" target="_blank">
+              <i class="bi bi-printer me-1"></i>Imprimir
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Prazos Criticos -->
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="fs-4"><i class="bi bi-calendar-x text-danger"></i></span>
+            <h6 class="mb-0 fw-semibold">Prazos Criticos</h6>
+          </div>
+          <p class="text-muted small mb-3">Itens vencidos e com conclusao prevista nos proximos 120 dias. Exclui suspensos e concluidos.</p>
+          <div class="d-flex gap-2">
+            <a href="{% url 'pca:rel_prazos_criticos' %}?formato=csv&exercicio={{ pca.exercicio }}"
+               class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-download me-1"></i>CSV
+            </a>
+            <a href="{% url 'pca:rel_prazos_criticos' %}?formato=html&exercicio={{ pca.exercicio }}"
+               class="btn btn-sm btn-outline-secondary" target="_blank">
+              <i class="bi bi-printer me-1"></i>Imprimir
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Demandas Suspensas -->
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="fs-4"><i class="bi bi-pause-circle text-warning"></i></span>
+            <h6 class="mb-0 fw-semibold">Demandas Suspensas</h6>
+          </div>
+          <p class="text-muted small mb-3">Todos os itens com status "suspenso" — valor retido, setor, tipo e eventual item pai.</p>
+          <div class="d-flex gap-2">
+            <a href="{% url 'pca:rel_suspensas' %}?formato=csv&exercicio={{ pca.exercicio }}"
+               class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-download me-1"></i>CSV
+            </a>
+            <a href="{% url 'pca:rel_suspensas' %}?formato=html&exercicio={{ pca.exercicio }}"
+               class="btn btn-sm btn-outline-secondary" target="_blank">
+              <i class="bi bi-printer me-1"></i>Imprimir
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Por Modalidade -->
+    <div class="col-md-6 col-xl-4">
+      <div class="card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="fs-4"><i class="bi bi-bar-chart-steps text-info"></i></span>
+            <h6 class="mb-0 fw-semibold">Resumo por Modalidade</h6>
+          </div>
+          <p class="text-muted small mb-3">Quantidade de itens e valor total agrupados por modalidade de contratacao e fonte orcamentaria.</p>
+          <div class="d-flex gap-2">
+            <a href="{% url 'pca:rel_modalidade' %}?formato=csv&exercicio={{ pca.exercicio }}"
+               class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-download me-1"></i>CSV
+            </a>
+            <a href="{% url 'pca:rel_modalidade' %}?formato=html&exercicio={{ pca.exercicio }}"
+               class="btn btn-sm btn-outline-secondary" target="_blank">
+              <i class="bi bi-printer me-1"></i>Imprimir
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
