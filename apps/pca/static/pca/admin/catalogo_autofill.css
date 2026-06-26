@@ -1,0 +1,19 @@
+/* catalogo_autofill.css — estilos do hint de catálogo no Admin */
+#catalogo-hint-box {
+  margin-top: 6px;
+  padding: 6px 12px;
+  background: #f9e5e7;
+  border-left: 3px solid #9B2335;
+  border-radius: 4px;
+  font-size: .82rem;
+  line-height: 1.4;
+}
+
+.catalogo-hint-tag {
+  font-weight: 700;
+  color: #7A1B28;
+}
+
+.catalogo-hint-norm {
+  color: #555;
+}

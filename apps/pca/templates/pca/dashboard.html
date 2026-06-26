@@ -23,9 +23,14 @@
       — Aprovado em {{ pca.data_aprovacao_pgj|date:"d/m/Y" }}
     {% endif %}
   </div>
-  <a href="{% url 'pca:demandas' %}" class="btn btn-sm btn-primary ms-auto">
-    <i class="bi bi-list-task me-1"></i>Ver todas as demandas
-  </a>
+  <div class="d-flex gap-2 ms-auto flex-wrap">
+    <a href="{% url 'pca:renovacao' %}" class="btn btn-sm btn-outline-light">
+      <i class="bi bi-arrow-repeat me-1"></i>Renovar itens contínuos
+    </a>
+    <a href="{% url 'pca:demandas' %}" class="btn btn-sm btn-primary">
+      <i class="bi bi-list-task me-1"></i>Ver demandas
+    </a>
+  </div>
 </div>
 {% endif %}
 
