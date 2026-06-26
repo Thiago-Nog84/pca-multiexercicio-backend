@@ -11,14 +11,17 @@ from .views_relatorios import (
     RelDemandasSuspensasView,
     RelModalidadeView,
 )
+from .views_suspensas import DemandasSuspensasView
 from .views_template import (
     CatalogoSearchView,
+    ClonarPCAView,
     DashboardPCAView,
     DemandasPCAView,
     ItemPCADetalheView,
     OrcamentoView,
     RenovacaoExercicioView,
 )
+from .views_validacao import ARPsVigentesJSON, ValidacaoDemandas, ValidacaoAcao, ValidacaoVincularARP
 
 router = DefaultRouter()
 router.register("planos", PlanoContratacaoAnualViewSet, basename="plano")
@@ -31,11 +34,17 @@ app_name = "pca"
 urlpatterns = [
     path("", DashboardPCAView.as_view(), name="dashboard"),
     path("demandas/", DemandasPCAView.as_view(), name="demandas"),
+    path("suspensas/", DemandasSuspensasView.as_view(), name="suspensas"),
     path("item/<int:pk>/", ItemPCADetalheView.as_view(), name="item_detalhe"),
     path("renovacao/", RenovacaoExercicioView.as_view(), name="renovacao"),
     path("orcamento/", OrcamentoView.as_view(), name="orcamento"),
     path("prazos/", ControlePrazosView.as_view(), name="prazos"),
     path("riscos/", RiscosView.as_view(), name="riscos"),
+    path("clonar/", ClonarPCAView.as_view(), name="clonar_pca"),
+    path("validar/<int:exercicio>/", ValidacaoDemandas.as_view(), name="validar_demandas"),
+    path("validar/<int:exercicio>/acao/", ValidacaoAcao.as_view(), name="validar_acao"),
+    path("validar/<int:exercicio>/vincular-arp/", ValidacaoVincularARP.as_view(), name="validar_vincular_arp"),
+    path("validar/<int:exercicio>/arps-vigentes.json", ARPsVigentesJSON.as_view(), name="arps_vigentes_json"),
     path("relatorios/", RelatoriosView.as_view(), name="relatorios"),
     path("relatorios/base-completa/", RelBaseCompletaView.as_view(), name="rel_base_completa"),
     path("relatorios/orcamento-setorial/", RelOrcamentoSetorialView.as_view(), name="rel_orcamento_setorial"),

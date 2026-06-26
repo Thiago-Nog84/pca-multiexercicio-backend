@@ -93,6 +93,16 @@ class AtaRegistroPrecos(models.Model):
         help_text="URL da ata no PNCP (ex: https://pncp.gov.br/app/atas/05805924000189/2024/16/1). "
                   "Usada para consultar contratos e histórico via PNCP REST API.",
     )
+    link_documento_mppi = models.URLField(
+        max_length=500,
+        blank=True,
+        verbose_name="Link do documento (MPPI)",
+        help_text=(
+            "URL do texto integral da ARP publicado no site do MPPI "
+            "(ex: https://www.mppi.mp.br/internet/wp-content/uploads/2025/12/ARP-54-2025_merged.pdf). "
+            "Exibido como botão 'Ver texto da ARP' na página de detalhe."
+        ),
+    )
     # Prorrogação de vigência (Termo Aditivo — art. 84 Lei 14.133/2021)
     prorrogada = models.BooleanField(
         default=False,
@@ -115,6 +125,15 @@ class AtaRegistroPrecos(models.Model):
         help_text="Data de publicação da prorrogação no PNCP",
     )
     status = models.CharField(max_length=15, choices=STATUS, default="vigente")
+    usa_lotes = models.BooleanField(
+        default=False,
+        verbose_name="Usa lotes",
+        help_text=(
+            "Marque quando a licitação foi dividida em lotes (ex: Lote 1 – Material de "
+            "Escritório, Lote 2 – Café). Desmarque para indicar lote único. "
+            "Quando marcado, cada ItemARP deve ter o campo 'numero_lote' preenchido."
+        ),
+    )
     observacoes = models.TextField(blank=True)
     criado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -207,14 +226,97 @@ class ItemARP(models.Model):
         verbose_name = "Item de ARP"
         ordering = ["numero_item"]
         unique_together = ("arp", "numero_item")
+
     def __str__(self):
         return f"Item {self.numero_item} — {self.descricao[:50]}"
+
+    def clean(self):
+        """Exige numero_lote quando a ARP usa lotes."""
+        if self.arp_id and self.arp.usa_lotes and not (self.numero_lote or "").strip():
+            raise ValidationError(
+                "Esta ARP está dividida em lotes. "
+                "Informe o número do lote (campo 'numero_lote') para este item."
+            )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    # ------------------------------------------------------------------ #
+    # Propriedades de quantidade                                           #
+    # ------------------------------------------------------------------ #
+
     @property
     def quantidade_disponivel(self):
         return self.quantidade_registrada - self.quantidade_contratada - self.quantidade_cedida_carona
+
+    # ------------------------------------------------------------------ #
+    # Propriedades de valor (R$)                                          #
+    # Permite planejar aquisições com base no saldo financeiro da ARP.    #
+    # ------------------------------------------------------------------ #
+
     @property
     def valor_total_registrado(self):
+        """Valor total registrado na ARP para este item (quantidade × preço unitário)."""
         return self.quantidade_registrada * self.valor_unitario
+
+    @property
+    def valor_total_contratado(self):
+        """
+        Soma dos valores efetivamente contratados via ContratacaoDecorrente.
+        Usa o valor_total de cada contratação (pode diferir do preço da ARP em ajustes).
+        """
+        from django.db.models import Sum as _Sum
+        result = self.contratacoes.exclude(status="cancelado").aggregate(
+            total=_Sum("valor_total")
+        )["total"]
+        return result or Decimal("0")
+
+    @property
+    def valor_cedido_carona(self):
+        """Valor total cedido a órgãos aderentes (caronas autorizadas)."""
+        from django.db.models import Sum as _Sum
+        result = self.adesoes.filter(status="autorizada").aggregate(
+            total=_Sum("valor_total")
+        )["total"]
+        return result or Decimal("0")
+
+    @property
+    def valor_disponivel(self):
+        """
+        Saldo financeiro disponível na ARP:
+          registrado − contratado − cedido_carona.
+        Não considera compromissos futuros do PCA.
+        """
+        return self.valor_total_registrado - self.valor_total_contratado - self.valor_cedido_carona
+
+    @property
+    def valor_comprometido_pca(self):
+        """
+        Valor comprometido por demandas aprovadas no PCA, calculado como:
+          Σ (quantidade_comprometida × valor_unitario_do_item).
+        Representa aquisições certas — não é saldo disponível.
+        """
+        result = self.vinculos_pca.aggregate(
+            total=models.Sum("quantidade_comprometida")
+        )["total"]
+        qtd = result or Decimal("0")
+        return qtd * self.valor_unitario
+
+    @property
+    def valor_disponivel_eventual(self):
+        """
+        Saldo financeiro não comprometido com PCA e ainda não contratado.
+        Fórmula: registrado − comprometido_pca − contratado − cedido_carona.
+        Exemplo: ARP R$ 120k − PCA R$ 50k − contratado R$ 60k = R$ 10k eventual.
+        """
+        return (
+            self.valor_total_registrado
+            - self.valor_comprometido_pca
+            - self.valor_total_contratado
+            - self.valor_cedido_carona
+        )
+
     @property
     def limite_carona_por_aderente(self):
         """
@@ -375,6 +477,24 @@ class ContratacaoDecorrente(models.Model):
         related_name="contratacoes",
     )
     numero_pedido = models.CharField(max_length=30)
+    numero_contrato = models.CharField(
+        max_length=30,
+        blank=True,
+        verbose_name="Número do contrato",
+        help_text=(
+            "Número formal do contrato decorrente desta ARP (ex: 123/2026). "
+            "Distinto do número do pedido — é o instrumento contratual assinado."
+        ),
+    )
+    exercicio = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Exercício",
+        help_text=(
+            "Ano fiscal em que a contratação foi emitida. "
+            "Permite calcular o saldo consumido por ano na ARP."
+        ),
+    )
     numero_sei = models.CharField(max_length=30, blank=True)
     quantidade = models.DecimalField(max_digits=14, decimal_places=4)
     valor_unitario = models.DecimalField(max_digits=14, decimal_places=2)
@@ -400,9 +520,16 @@ class ContratacaoDecorrente(models.Model):
         verbose_name = "Contratação Decorrente de ARP"
         verbose_name_plural = "Contratações Decorrentes de ARP"
     def __str__(self):
-        return f"Pedido {self.numero_pedido} — ARP {self.arp.numero_arp}"
+        ref = self.numero_contrato or self.numero_pedido
+        return f"{ref} — ARP {self.arp.numero_arp}"
+
     def save(self, *args, **kwargs):
-        """Debita automaticamente o saldo do item ao salvar."""
+        """
+        Debita o saldo do item ao criar e preenche `exercicio`
+        automaticamente a partir de `data_emissao` quando não informado.
+        """
+        if self.data_emissao and not self.exercicio:
+            self.exercicio = self.data_emissao.year
         if not self.pk:
             # Nova contratação — debita saldo
             self.item_arp.quantidade_contratada += self.quantidade
@@ -752,15 +879,70 @@ class ARPExterna(models.Model):
         related_name="arps_externas_criadas",
     )
     criado_em = models.DateTimeField(auto_now_add=True)
+
     class Meta:
         verbose_name = "ARP Externa (Carona Recebida)"
         verbose_name_plural = "ARPs Externas (Caronas Recebidas)"
         ordering = ["-data_inicio_vigencia"]
+
     def __str__(self):
         return f"ARP {self.numero_arp_origem} — {self.orgao_gerenciador_nome[:40]}"
+
     @property
     def saldo_remanescente(self):
         return self.quantidade_autorizada - self.quantidade_utilizada
+
     @property
     def valor_utilizado(self):
         return self.quantidade_utilizada * self.valor_unitario
+
+
+# ---------------------------------------------------------------------------
+# Vínculo ARP ↔ Unidade Requisitante
+# ---------------------------------------------------------------------------
+
+class VinculoARPUnidade(models.Model):
+    """
+    Associa uma ARP a uma ou mais Unidades Requisitantes,
+    indicando o papel de cada unidade:
+
+    - gestora   : unidade responsável pela gestão/controle da ARP
+                  (autoriza empenhos, monitora saldo, responde pela ata)
+    - demandante: unidade que usa a ARP mas não a gerencia
+                  (faz pedidos, recebe material, não autoriza empenhos)
+
+    Exemplos:
+        ARP material de consumo → CAA (gestora)
+        ARP manutenção predial  → CPPT (gestora)
+        ARP combustível         → CAA (gestora), NUPS (demandante)
+    """
+    PAPEL = [
+        ("gestora",    "Gestora — responsável pela ata"),
+        ("demandante", "Demandante — usuária da ata"),
+    ]
+
+    arp = models.ForeignKey(
+        AtaRegistroPrecos,
+        on_delete=models.CASCADE,
+        related_name="vinculos_unidades",
+    )
+    unidade = models.ForeignKey(
+        "core.UnidadeRequisitante",
+        on_delete=models.CASCADE,
+        related_name="vinculos_arp",
+    )
+    papel = models.CharField(max_length=15, choices=PAPEL, default="gestora")
+    observacoes = models.TextField(blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Vínculo ARP × Unidade"
+        verbose_name_plural = "Vínculos ARP × Unidades"
+        unique_together = ("arp", "unidade")
+        ordering = ["papel", "unidade__sigla"]
+
+    def __str__(self):
+        return (
+            f"ARP {self.arp.numero_arp} → {self.unidade.sigla} "
+            f"({self.get_papel_display()})"
+        )

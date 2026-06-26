@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "apps.juridico",
     "apps.pncp",
     "apps.notificacoes",
+    "apps.siafe",
 ]
 
 MIDDLEWARE = [
@@ -138,3 +139,13 @@ LIMITE_DISPENSA_OBRAS = config("LIMITE_DISPENSA_OBRAS", default=100_000, cast=in
 # ------------------------------------------------------------------
 COMPRASNET_CONTRATOS_CPF = config("COMPRASNET_CONTRATOS_CPF", default="")
 COMPRASNET_CONTRATOS_SENHA = config("COMPRASNET_CONTRATOS_SENHA", default="")
+
+# ------------------------------------------------------------------
+# SIAFE-PI — Sistema Integrado de Administração Financeira do Piauí
+# API: https://tesouro.sefaz.pi.gov.br/siafe-api/swagger-ui.html
+# ------------------------------------------------------------------
+SIAFE_BASE_URL = config("SIAFE_BASE_URL", default="https://tesouro.sefaz.pi.gov.br/siafe-api")
+SIAFE_USUARIO = config("SIAFE_USUARIO", default="")
+SIAFE_SENHA = config("SIAFE_SENHA", default="")
+# TTL do token em cache (segundos). Token SIAFE expira em ~60 min; usamos 50 min por segurança.
+SIAFE_TOKEN_TTL_SECONDS = config("SIAFE_TOKEN_TTL_SECONDS", default=3000, cast=int)

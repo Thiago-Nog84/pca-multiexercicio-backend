@@ -1,18 +1,174 @@
 {% extends "base.html" %}
-{% block title %}Relatorios PCA {{ pca.exercicio }}{% endblock %}
+{% block nav_relatorios %}active{% endblock %}
+{% block title %}Relatórios — PCA {{ pca.exercicio }}{% endblock %}
+
 {% block content %}
-<div class="container-fluid py-4">
-  <div class="d-flex align-items-center gap-3 mb-4">
+<style>
+  .rel-card {
+    position: relative;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    transition: box-shadow .25s ease, transform .25s ease, border-color .25s ease;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .rel-card:hover {
+    box-shadow: 0 20px 40px rgba(155,35,53,.12);
+    transform: translateY(-4px);
+    border-color: rgba(155,35,53,.35);
+  }
+  .rel-card-strip {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--mppi-vermelho);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform .3s ease;
+  }
+  .rel-card:hover .rel-card-strip { transform: scaleX(1); }
+
+  .rel-icon {
+    width: 48px; height: 48px;
+    border-radius: 10px;
+    background: rgba(155,35,53,.08);
+    color: var(--mppi-vermelho);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: background .25s, color .25s, transform .25s;
+  }
+  .rel-card:hover .rel-icon {
+    background: var(--mppi-vermelho);
+    color: #fff;
+    transform: scale(1.1);
+  }
+
+  .rel-card h5 {
+    font-size: .85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: #1e293b;
+    line-height: 1.3;
+    transition: color .2s;
+  }
+  .rel-card:hover h5 { color: var(--mppi-vermelho); }
+
+  .rel-card p {
+    font-size: .8rem;
+    color: #64748b;
+    line-height: 1.6;
+    text-align: justify;
+    flex-grow: 1;
+    margin: 0;
+  }
+
+  .rel-footer {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 1rem;
+    margin-top: 1.25rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: .5rem;
+  }
+
+  .btn-csv {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px;
+    font-size: .7rem; font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid rgba(155,35,53,.3);
+    color: var(--mppi-vermelho);
+    background: #fff;
+    text-decoration: none;
+    transition: background .2s, color .2s;
+  }
+  .btn-csv:hover { background: var(--mppi-vermelho); color: #fff; }
+
+  .btn-html {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px;
+    font-size: .7rem; font-weight: 600;
+    border-radius: 6px;
+    border: none;
+    background: var(--mppi-vermelho);
+    color: #fff;
+    text-decoration: none;
+    transition: background .2s, box-shadow .2s;
+  }
+  .btn-html:hover { background: var(--mppi-vermelho-escuro); color: #fff; box-shadow: 0 4px 12px rgba(155,35,53,.25); }
+
+  .filtros-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .filtro-label {
+    font-size: .65rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: 3px;
+    display: block;
+  }
+  .filtro-select {
+    font-size: .8rem;
+    height: 34px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 0 8px;
+    color: #334155;
+    background: #fff;
+    min-width: 110px;
+  }
+  .filtro-select:focus { outline: none; border-color: var(--mppi-vermelho); box-shadow: 0 0 0 2px rgba(155,35,53,.15); }
+  .btn-filtrar {
+    height: 34px; padding: 0 16px;
+    font-size: .75rem; font-weight: 600;
+    border-radius: 6px;
+    border: none;
+    background: var(--mppi-vermelho);
+    color: #fff;
+    cursor: pointer;
+    align-self: flex-end;
+  }
+  .btn-filtrar:hover { background: var(--mppi-vermelho-escuro); }
+  .btn-limpar {
+    height: 34px; padding: 0 12px;
+    font-size: .75rem; font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #64748b;
+    cursor: pointer;
+    align-self: flex-end;
+    text-decoration: none;
+    display: inline-flex; align-items: center;
+  }
+  .btn-limpar:hover { border-color: #94a3b8; color: #334155; }
+</style>
+
+<div class="container-fluid py-4" style="max-width:1300px">
+
+  <!-- Cabecalho -->
+  <div class="d-flex align-items-center gap-3 mb-1">
     <a href="{% url 'pca:dashboard' %}" class="btn btn-sm btn-outline-secondary">
       <i class="bi bi-arrow-left"></i>
     </a>
     <div>
-      <h4 class="mb-0 fw-semibold">Relatorios</h4>
-      <small class="text-muted">PCA {{ pca.exercicio|default:"—" }}</small>
+      <h4 class="mb-0 fw-bold" style="font-size:1.15rem">Relatórios</h4>
+      <p class="text-muted mb-0" style="font-size:.8rem">Geração e exportação de relatórios — PCA {{ pca.exercicio|default:"—" }}</p>
     </div>
     {% if todos_pcas.count > 1 %}
-    <form method="get" class="ms-auto d-flex gap-2 align-items-center">
-      <select name="exercicio" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+    <form method="get" class="ms-auto d-flex align-items-center gap-2">
+      <label class="filtro-label mb-0">Exercício:</label>
+      <select name="exercicio" class="filtro-select" onchange="this.form.submit()">
         {% for p in todos_pcas %}
         <option value="{{ p.exercicio }}" {% if p == pca %}selected{% endif %}>PCA {{ p.exercicio }}</option>
         {% endfor %}
@@ -21,121 +177,218 @@
     {% endif %}
   </div>
 
+  <!-- Painel de Filtros -->
+  <div class="filtros-card mt-3">
+    <div class="fw-semibold mb-3" style="font-size:.9rem">Filtros</div>
+    <form method="get" id="filtrosForm">
+      {% if pca %}<input type="hidden" name="exercicio" value="{{ pca.exercicio }}">{% endif %}
+      <div class="d-flex flex-wrap gap-3 align-items-end">
+
+        <div>
+          <span class="filtro-label">Setor Requisitante:</span>
+          <select name="setor" class="filtro-select">
+            <option value="">Todos</option>
+            {% for s in setores %}<option value="{{ s.sigla }}" {% if request.GET.setor == s.sigla %}selected{% endif %}>{{ s.sigla }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <span class="filtro-label">Fonte Orçamentária (UO):</span>
+          <select name="uo" class="filtro-select">
+            <option value="">Todas</option>
+            <option value="PGJ" {% if request.GET.uo == "PGJ" %}selected{% endif %}>PGJ</option>
+            <option value="FMMP" {% if request.GET.uo == "FMMP" %}selected{% endif %}>FMMP</option>
+            <option value="FEPDC" {% if request.GET.uo == "FEPDC" %}selected{% endif %}>FEPDC</option>
+          </select>
+        </div>
+
+        <div>
+          <span class="filtro-label">Tipo de Contratação:</span>
+          <select name="tipo" class="filtro-select">
+            <option value="">Todos</option>
+            <option value="material" {% if request.GET.tipo == "material" %}selected{% endif %}>Material</option>
+            <option value="servico" {% if request.GET.tipo == "servico" %}selected{% endif %}>Serviço</option>
+            <option value="obra" {% if request.GET.tipo == "obra" %}selected{% endif %}>Obra</option>
+          </select>
+        </div>
+
+        <div>
+          <span class="filtro-label">Modalidade:</span>
+          <select name="modalidade" class="filtro-select">
+            <option value="">Todas</option>
+            <option value="pregao_eletronico">Pregão Eletrônico</option>
+            <option value="dispensa">Dispensa</option>
+            <option value="inexigibilidade">Inexigibilidade</option>
+            <option value="concorrencia">Concorrência</option>
+            <option value="renovacao">Renovação</option>
+          </select>
+        </div>
+
+        <div>
+          <span class="filtro-label">Status:</span>
+          <select name="status" class="filtro-select">
+            <option value="">Todos</option>
+            <option value="planejado">Planejado</option>
+            <option value="em_execucao">Em Execução</option>
+            <option value="concluido">Concluído</option>
+            <option value="suspenso">Suspenso</option>
+          </select>
+        </div>
+
+        <button type="submit" class="btn-filtrar">
+          <i class="bi bi-funnel me-1"></i>Aplicar
+        </button>
+        <a href="{% url 'pca:relatorios' %}{% if pca %}?exercicio={{ pca.exercicio }}{% endif %}" class="btn-limpar">
+          <i class="bi bi-x me-1"></i>Limpar
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Grid de Cards -->
   <div class="row g-3">
+
     <!-- 1. Base Completa -->
     <div class="col-md-6 col-xl-4">
-      <div class="card h-100 border-0 shadow-sm">
-        <div class="card-body">
-          <div class="d-flex align-items-center gap-2 mb-2">
-            <span class="fs-4"><i class="bi bi-table text-primary"></i></span>
-            <h6 class="mb-0 fw-semibold">Base Completa</h6>
+      <div class="rel-card p-4 h-100">
+        <div class="rel-card-strip"></div>
+        <div>
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="rel-icon">
+              <i class="bi bi-table fs-5"></i>
+            </div>
+            <h5 class="mb-0">Gerencial — Base de Dados Completa</h5>
           </div>
-          <p class="text-muted small mb-3">Todos os itens do PCA com todos os campos — descricao, valores, prazos, modalidade, status.</p>
-          <div class="d-flex gap-2">
-            <a href="{% url 'pca:rel_base_completa' %}?formato=csv&exercicio={{ pca.exercicio }}"
-               class="btn btn-sm btn-outline-primary">
-              <i class="bi bi-download me-1"></i>CSV
-            </a>
-            <a href="{% url 'pca:rel_base_completa' %}?formato=html&exercicio={{ pca.exercicio }}"
-               class="btn btn-sm btn-outline-secondary" target="_blank">
-              <i class="bi bi-printer me-1"></i>Imprimir
-            </a>
-          </div>
+          <p>Relatório analítico com a consolidação detalhada de todas as demandas cadastradas no sistema, incluindo informações de planejamento, execução, valores, setores, status e demais atributos operacionais. Instrumento essencial para auditorias, consultas institucionais e análise gerencial do PCA.</p>
+        </div>
+        <div class="rel-footer">
+          <a href="{% url 'pca:rel_base_completa' %}?formato=csv{% if pca %}&exercicio={{ pca.exercicio }}{% endif %}{{ filtros_qs }}" class="btn-csv">
+            <i class="bi bi-file-earmark-spreadsheet"></i>Gerar CSV
+          </a>
+          <a href="{% url 'pca:rel_base_completa' %}?formato=html{% if pca %}&exercicio={{ pca.exercicio }}{% endif %}{{ filtros_qs }}" class="btn-html" target="_blank">
+            <i class="bi bi-file-earmark-text"></i>Visualizar
+          </a>
         </div>
       </div>
     </div>
 
     <!-- 2. Orcamento Setorial -->
     <div class="col-md-6 col-xl-4">
-      <div class="card h-100 border-0 shadow-sm">
-        <div class="card-body">
-          <div class="d-flex align-items-center gap-2 mb-2">
-            <span class="fs-4"><i class="bi bi-pie-chart-fill text-success"></i></span>
-            <h6 class="mb-0 fw-semibold">Orcamento Setorial</h6>
+      <div class="rel-card p-4 h-100">
+        <div class="rel-card-strip"></div>
+        <div>
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="rel-icon">
+              <i class="bi bi-currency-dollar fs-5"></i>
+            </div>
+            <h5 class="mb-0">Orçamento — Extrato Consolidado Setorial</h5>
           </div>
-          <p class="text-muted small mb-3">Teto aprovado (PGJ/FMMP/FEPDC) vs comprometido por setor, com saldo e percentual de utilizacao.</p>
-          <div class="d-flex gap-2">
-            <a href="{% url 'pca:rel_orcamento_setorial' %}?formato=csv&exercicio={{ pca.exercicio }}"
-               class="btn btn-sm btn-outline-primary">
-              <i class="bi bi-download me-1"></i>CSV
-            </a>
-            <a href="{% url 'pca:rel_orcamento_setorial' %}?formato=html&exercicio={{ pca.exercicio }}"
-               class="btn btn-sm btn-outline-secondary" target="_blank">
-              <i class="bi bi-printer me-1"></i>Imprimir
-            </a>
-          </div>
+          <p>Relatório financeiro que organiza os valores planejados, executados e disponíveis por setor requisitante ou unidade responsável, permitindo a leitura consolidada da situação orçamentária do PCA. É um instrumento de apoio à gestão financeira, ao controle de saldos e à identificação de desvios entre planejamento e execução.</p>
+        </div>
+        <div class="rel-footer">
+          <a href="{% url 'pca:rel_orcamento_setorial' %}?formato=csv{% if pca %}&exercicio={{ pca.exercicio }}{% endif %}" class="btn-csv">
+            <i class="bi bi-file-earmark-spreadsheet"></i>Gerar CSV
+          </a>
+          <a href="{% url 'pca:rel_orcamento_setorial' %}?formato=html{% if pca %}&exercicio={{ pca.exercicio }}{% endif %}" class="btn-html" target="_blank">
+            <i class="bi bi-file-earmark-text"></i>Visualizar
+          </a>
         </div>
       </div>
     </div>
 
     <!-- 3. Prazos Criticos -->
     <div class="col-md-6 col-xl-4">
-      <div class="card h-100 border-0 shadow-sm">
-        <div class="card-body">
-          <div class="d-flex align-items-center gap-2 mb-2">
-            <span class="fs-4"><i class="bi bi-calendar-x text-danger"></i></span>
-            <h6 class="mb-0 fw-semibold">Prazos Criticos</h6>
+      <div class="rel-card p-4 h-100">
+        <div class="rel-card-strip"></div>
+        <div>
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="rel-icon">
+              <i class="bi bi-calendar-x fs-5"></i>
+            </div>
+            <h5 class="mb-0">Riscos — Prazos Críticos e Alertas</h5>
           </div>
-          <p class="text-muted small mb-3">Itens vencidos e com conclusao prevista nos proximos 120 dias. Exclui suspensos e concluidos.</p>
-          <div class="d-flex gap-2">
-            <a href="{% url 'pca:rel_prazos_criticos' %}?formato=csv&exercicio={{ pca.exercicio }}"
-               class="btn btn-sm btn-outline-primary">
-              <i class="bi bi-download me-1"></i>CSV
-            </a>
-            <a href="{% url 'pca:rel_prazos_criticos' %}?formato=html&exercicio={{ pca.exercicio }}"
-               class="btn btn-sm btn-outline-secondary" target="_blank">
-              <i class="bi bi-printer me-1"></i>Imprimir
-            </a>
-          </div>
+          <p>Relatório voltado ao monitoramento das contratações em risco de atraso ou não execução, com destaque para prazos vencidos, demandas próximas do vencimento e contratações que exigem providências imediatas. Essencial para a tomada de decisões preventivas e o controle da regularidade do PCA.</p>
+        </div>
+        <div class="rel-footer">
+          <a href="{% url 'pca:rel_prazos_criticos' %}?formato=csv{% if pca %}&exercicio={{ pca.exercicio }}{% endif %}{{ filtros_qs }}" class="btn-csv">
+            <i class="bi bi-file-earmark-spreadsheet"></i>Gerar CSV
+          </a>
+          <a href="{% url 'pca:rel_prazos_criticos' %}?formato=html{% if pca %}&exercicio={{ pca.exercicio }}{% endif %}{{ filtros_qs }}" class="btn-html" target="_blank">
+            <i class="bi bi-file-earmark-text"></i>Visualizar
+          </a>
         </div>
       </div>
     </div>
 
-    <!-- 4. Demandas Suspensas -->
+    <!-- 4. Suspensas -->
     <div class="col-md-6 col-xl-4">
-      <div class="card h-100 border-0 shadow-sm">
-        <div class="card-body">
-          <div class="d-flex align-items-center gap-2 mb-2">
-            <span class="fs-4"><i class="bi bi-pause-circle text-warning"></i></span>
-            <h6 class="mb-0 fw-semibold">Demandas Suspensas</h6>
+      <div class="rel-card p-4 h-100">
+        <div class="rel-card-strip"></div>
+        <div>
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="rel-icon">
+              <i class="bi bi-pause-circle fs-5"></i>
+            </div>
+            <h5 class="mb-0">Demandas Suspensas e Retidas</h5>
           </div>
-          <p class="text-muted small mb-3">Todos os itens com status "suspenso" — valor retido, setor, tipo e eventual item pai.</p>
-          <div class="d-flex gap-2">
-            <a href="{% url 'pca:rel_suspensas' %}?formato=csv&exercicio={{ pca.exercicio }}"
-               class="btn btn-sm btn-outline-primary">
-              <i class="bi bi-download me-1"></i>CSV
-            </a>
-            <a href="{% url 'pca:rel_suspensas' %}?formato=html&exercicio={{ pca.exercicio }}"
-               class="btn btn-sm btn-outline-secondary" target="_blank">
-              <i class="bi bi-printer me-1"></i>Imprimir
-            </a>
-          </div>
+          <p>Relatório que apresenta as demandas total ou parcialmente suspensas, com visão do impacto dessas interrupções no planejamento, nos valores reservados e na execução global do PCA. Útil para rastrear processos segregados, analisar o que foi retirado do fluxo principal e manter transparência sobre as demandas que ficaram temporariamente fora da contabilidade ativa.</p>
+        </div>
+        <div class="rel-footer">
+          <a href="{% url 'pca:rel_suspensas' %}?formato=csv{% if pca %}&exercicio={{ pca.exercicio }}{% endif %}{{ filtros_qs }}" class="btn-csv">
+            <i class="bi bi-file-earmark-spreadsheet"></i>Gerar CSV
+          </a>
+          <a href="{% url 'pca:rel_suspensas' %}?formato=html{% if pca %}&exercicio={{ pca.exercicio }}{% endif %}{{ filtros_qs }}" class="btn-html" target="_blank">
+            <i class="bi bi-file-earmark-text"></i>Visualizar
+          </a>
         </div>
       </div>
     </div>
 
     <!-- 5. Por Modalidade -->
     <div class="col-md-6 col-xl-4">
-      <div class="card h-100 border-0 shadow-sm">
-        <div class="card-body">
-          <div class="d-flex align-items-center gap-2 mb-2">
-            <span class="fs-4"><i class="bi bi-bar-chart-steps text-info"></i></span>
-            <h6 class="mb-0 fw-semibold">Resumo por Modalidade</h6>
+      <div class="rel-card p-4 h-100">
+        <div class="rel-card-strip"></div>
+        <div>
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="rel-icon">
+              <i class="bi bi-bar-chart-steps fs-5"></i>
+            </div>
+            <h5 class="mb-0">Estratégico — Resumo por Modalidade</h5>
           </div>
-          <p class="text-muted small mb-3">Quantidade de itens e valor total agrupados por modalidade de contratacao e fonte orcamentaria.</p>
-          <div class="d-flex gap-2">
-            <a href="{% url 'pca:rel_modalidade' %}?formato=csv&exercicio={{ pca.exercicio }}"
-               class="btn btn-sm btn-outline-primary">
-              <i class="bi bi-download me-1"></i>CSV
-            </a>
-            <a href="{% url 'pca:rel_modalidade' %}?formato=html&exercicio={{ pca.exercicio }}"
-               class="btn btn-sm btn-outline-secondary" target="_blank">
-              <i class="bi bi-printer me-1"></i>Imprimir
-            </a>
-          </div>
+          <p>Relatório de inteligência contratual que consolida as demandas agrupadas por modalidade de contratação e fonte orçamentária, oferecendo uma visão estratégica da composição do PCA. Permite identificar a distribuição do planejamento entre Pregão, Dispensa, Inexigibilidade, Renovações e demais modalidades previstas.</p>
+        </div>
+        <div class="rel-footer">
+          <a href="{% url 'pca:rel_modalidade' %}?formato=csv{% if pca %}&exercicio={{ pca.exercicio }}{% endif %}" class="btn-csv">
+            <i class="bi bi-file-earmark-spreadsheet"></i>Gerar CSV
+          </a>
+          <a href="{% url 'pca:rel_modalidade' %}?formato=html{% if pca %}&exercicio={{ pca.exercicio }}{% endif %}" class="btn-html" target="_blank">
+            <i class="bi bi-file-earmark-text"></i>Visualizar
+          </a>
         </div>
       </div>
     </div>
-  </div>
+
+    <!-- 6. Conformidade (placeholder) -->
+    <div class="col-md-6 col-xl-4">
+      <div class="rel-card p-4 h-100" style="opacity:.6">
+        <div class="rel-card-strip"></div>
+        <div>
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="rel-icon">
+              <i class="bi bi-shield-check fs-5"></i>
+            </div>
+            <h5 class="mb-0">Auditoria — Conformidade Licitatória</h5>
+          </div>
+          <p>Relatório de controle e verificação documental das demandas do PCA, com foco na conformidade dos processos com os requisitos legais, administrativos e operacionais da contratação pública. Verifica documentação instrucional, prazos de publicação e itens sem DFD ou ETP vinculados.</p>
+        </div>
+        <div class="rel-footer">
+          <span style="font-size:.72rem;color:#94a3b8;align-self:center">
+            <i class="bi bi-clock me-1"></i>Em desenvolvimento
+          </span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /row -->
 </div>
 {% endblock %}

@@ -25,21 +25,33 @@
           </span>
         {% endif %}
       </h5>
-      {% if arp.esta_vigente %}
-        <span class="badge badge-vigente fs-6">Vigente</span>
-        {% if arp.prorrogada %}
-          <span class="badge-prorrogada ms-2">
-            <i class="bi bi-arrow-repeat me-1"></i>Prorrogada
-            {% if not arp.quantitativos_renovados %}s/ renov. quantitativos{% endif %}
-          </span>
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        {% if arp.esta_vigente %}
+          <span class="badge badge-vigente fs-6">Vigente</span>
+          {% if arp.prorrogada %}
+            <span class="badge-prorrogada ms-1">
+              <i class="bi bi-arrow-repeat me-1"></i>Prorrogada
+              {% if not arp.quantitativos_renovados %}s/ renov. quantitativos{% endif %}
+            </span>
+          {% endif %}
+        {% elif arp.status == 'suspensa' %}
+          <span class="badge badge-suspensa fs-6">Suspensa</span>
+        {% elif arp.status == 'cancelada' %}
+          <span class="badge badge-cancelada fs-6">Cancelada</span>
+        {% else %}
+          <span class="badge badge-encerrada fs-6">Encerrada</span>
         {% endif %}
-      {% elif arp.status == 'suspensa' %}
-        <span class="badge badge-suspensa fs-6">Suspensa</span>
-      {% elif arp.status == 'cancelada' %}
-        <span class="badge badge-cancelada fs-6">Cancelada</span>
-      {% else %}
-        <span class="badge badge-encerrada fs-6">Encerrada</span>
-      {% endif %}
+
+        {% if arp.link_documento_mppi %}
+          <a href="{{ arp.link_documento_mppi }}"
+             target="_blank"
+             rel="noopener noreferrer"
+             class="btn btn-sm btn-outline-primary ms-2"
+             title="Abrir texto integral da ARP em nova aba">
+            <i class="bi bi-file-earmark-pdf me-1"></i>Ver texto da ARP
+          </a>
+        {% endif %}
+      </div>
     </div>
   </div>
   <div class="card-body">
@@ -116,6 +128,20 @@
           <tr>
             <th class="text-muted fw-normal">SEI</th>
             <td>{{ arp.numero_sei }}</td>
+          </tr>
+          {% endif %}
+          {% if arp.link_documento_mppi %}
+          <tr>
+            <th class="text-muted fw-normal">Documento</th>
+            <td>
+              <a href="{{ arp.link_documento_mppi }}"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 class="text-primary text-decoration-none small">
+                <i class="bi bi-file-earmark-pdf me-1"></i>Texto integral da ARP
+                <i class="bi bi-box-arrow-up-right ms-1" style="font-size:.7rem;"></i>
+              </a>
+            </td>
           </tr>
           {% endif %}
         </table>

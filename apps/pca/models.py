@@ -149,6 +149,7 @@ class ItemPCA(models.Model):
 
     STATUS = [
         ("nao_iniciado", "Não Iniciado"),
+        ("pendente_validacao", "Pendente de Validação"),
         ("iniciado", "Iniciado"),
         ("em_diligencia", "Em Diligência"),
         ("em_andamento", "Em Andamento"),
@@ -165,6 +166,19 @@ class ItemPCA(models.Model):
     )
     dfd = models.ForeignKey(DocumentoFormalizacaoDemanda, on_delete=models.CASCADE, related_name="itens")
     numero_item = models.PositiveIntegerField()
+
+    # Suspensão
+    TIPO_SUSPENSAO = [
+        ("total", "Total"),
+        ("parcial", "Parcial"),
+    ]
+    tipo_suspensao = models.CharField(
+        max_length=10,
+        choices=TIPO_SUSPENSAO,
+        blank=True,
+        null=True,
+        help_text="Preenchido quando status=suspenso: total ou parcial",
+    )
 
     # Suspensão parcial (Pai/Filha)
     item_pai = models.ForeignKey(

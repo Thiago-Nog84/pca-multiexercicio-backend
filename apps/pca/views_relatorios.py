@@ -12,6 +12,7 @@ from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views import View
 
+from apps.core.models import UnidadeRequisitante
 from .models import DocumentoFormalizacaoDemanda, ItemPCA, OrcamentoPlanejado, PlanoContratacaoAnual
 
 
@@ -30,8 +31,20 @@ class RelatoriosView(View):
 
     def get(self, request):
         todos_pcas = PlanoContratacaoAnual.objects.order_by("-exercicio")
-        pca = _pca_default(todos_pcas)
-        context = {"pca": pca, "todos_pcas": todos_pcas}
+        exercicio = request.GET.get("exercicio")
+        pca = PlanoContratacaoAnual.objects.filter(exercicio=exercicio).first() if exercicio else _pca_default(todos_pcas)
+        setores = UnidadeRequisitante.objects.order_by("sigla")
+
+        # Repassa filtros como query string para os links dos botoes
+        filtros = {k: v for k, v in request.GET.items() if k in ("setor", "uo", "tipo", "modalidade", "status") and v}
+        filtros_qs = "".join(f"&{k}={v}" for k, v in filtros.items())
+
+        context = {
+            "pca": pca,
+            "todos_pcas": todos_pcas,
+            "setores": setores,
+            "filtros_qs": filtros_qs,
+        }
         return render(request, self.template_name, context)
 
 

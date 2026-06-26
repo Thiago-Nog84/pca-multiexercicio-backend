@@ -27,6 +27,54 @@
   {% endfor %}
 {% endif %}
 
+<!-- ═══ PAINEL: Clonar PCA Completo ═══ -->
+<div class="card border-0 shadow-sm mb-4" style="border-left: 4px solid var(--mppi-vermelho) !important;">
+  <div class="card-body">
+    <div class="d-flex align-items-start gap-3">
+      <div style="background:rgba(155,35,53,.08);border-radius:10px;padding:10px;flex-shrink:0">
+        <i class="bi bi-files fs-4" style="color:var(--mppi-vermelho)"></i>
+      </div>
+      <div class="flex-grow-1">
+        <h6 class="fw-bold mb-1">Clonar PCA {{ pca_atual.exercicio }} completo para {{ proximo_exercicio }}</h6>
+        <p class="text-muted mb-2" style="font-size:.83rem">
+          Copia <strong>todos</strong> os itens (ativos e suspensos) do PCA {{ pca_atual.exercicio }}
+          para o PCA {{ proximo_exercicio }}, criando automaticamente os DFDs por setor.
+          Os itens chegam com status <em>Não Iniciado</em> (ou <em>Suspenso</em>, se já estavam suspensos),
+          prontos para validação pelo setor requisitante.
+          Itens já clonados não são duplicados.
+        </p>
+        <form method="post" action="{% url 'pca:clonar_pca' %}"
+              onsubmit="return confirm('Confirma a clonagem de TODOS os itens do PCA {{ pca_atual.exercicio }} para o PCA {{ proximo_exercicio }}?')">
+          {% csrf_token %}
+          <input type="hidden" name="pca_origem_id" value="{{ pca_atual.pk }}">
+          <div class="d-flex align-items-center gap-3 flex-wrap">
+            <div>
+              <label class="form-label mb-1" style="font-size:.75rem;font-weight:600">Destino</label>
+              <select name="pca_destino_id" class="form-select form-select-sm" style="width:auto">
+                {% for p in todos_pcas %}
+                  {% if p.exercicio != pca_atual.exercicio %}
+                    <option value="{{ p.pk }}">PCA {{ p.exercicio }}</option>
+                  {% endif %}
+                {% endfor %}
+                <option value="novo_{{ proximo_exercicio }}">Criar PCA {{ proximo_exercicio }}</option>
+              </select>
+            </div>
+            <div class="d-flex align-items-center gap-2 pt-3">
+              <input class="form-check-input" type="checkbox" name="so_ativos" id="chk_so_ativos" value="1">
+              <label class="form-check-label" for="chk_so_ativos" style="font-size:.8rem">Excluir suspensos</label>
+            </div>
+            <div class="pt-3">
+              <button type="submit" class="btn btn-sm" style="background:var(--mppi-vermelho);color:#fff;font-weight:600">
+                <i class="bi bi-files me-1"></i>Clonar agora
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% if not itens %}
   <div class="card">
     <div class="card-body text-center text-muted py-5">

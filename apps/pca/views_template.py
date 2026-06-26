@@ -356,3 +356,121 @@ class OrcamentoView(View):
             "setores_sem_orc": sorted(setores_sem_orc),
         }
         return render(request, self.template_name, context)
+
+
+# --- Clonar PCA completo -------------------------------------------------------
+
+@method_decorator(login_required, name="dispatch")
+class ClonarPCAView(View):
+    """
+    Clona todos os itens de um PCA de origem para um PCA de destino.
+    Cria o PCA de destino se necessario.
+    """
+
+    def post(self, request):
+        pca_origem_id = request.POST.get("pca_origem_id")
+        pca_destino_id = request.POST.get("pca_destino_id", "")
+        so_ativos = bool(request.POST.get("so_ativos"))
+
+        pca_origem = get_object_or_404(PlanoContratacaoAnual, pk=pca_origem_id)
+        proximo_exercicio = pca_origem.exercicio + 1
+
+        # Destino: existente ou novo
+        if pca_destino_id.startswith("novo_"):
+            exercicio_novo = int(pca_destino_id.split("_")[1])
+            pca_destino, criado = PlanoContratacaoAnual.objects.get_or_create(
+                orgao=pca_origem.orgao,
+                exercicio=exercicio_novo,
+                defaults={"status": "coleta"},
+            )
+        else:
+            pca_destino = get_object_or_404(PlanoContratacaoAnual, pk=pca_destino_id)
+
+        qs = ItemPCA.objects.filter(dfd__pca=pca_origem).select_related(
+            "dfd", "dfd__unidade", "item_catalogo"
+        )
+        if so_ativos:
+            qs = qs.exclude(status="suspenso")
+
+        CAMPOS = [
+            "item_catalogo", "classificacao_continuidade", "categoria",
+            "codigo_catmat_catser", "descricao", "unidade_fornecimento",
+            "quantidade_estimada", "valor_unitario_estimado", "valor_total_estimado",
+            "tipo_demanda", "modalidade", "normativo", "unidade_orcamentaria",
+            "is_srp", "numero_lote_pca", "tipo_suspensao",
+        ]
+
+        criados = ignorados = 0
+        dfds_cache = {}
+
+        with transaction.atomic():
+            for item in qs.order_by("dfd__unidade__sigla", "numero_item"):
+                ja_existe = ItemPCA.objects.filter(
+                    origem_item=item, dfd__pca=pca_destino
+                ).exists()
+                if ja_existe:
+                    ignorados += 1
+                    continue
+
+                unidade = item.dfd.unidade
+                if unidade.pk not in dfds_cache:
+                    dfd_num = f"DFD-{pca_destino.exercicio}-{unidade.sigla}"
+                    dfd_destino, _ = DocumentoFormalizacaoDemanda.objects.get_or_create(
+                        pca=pca_destino,
+                        unidade=unidade,
+                        numero_dfd=dfd_num,
+                        defaults={
+                            "descricao_objeto": (
+                                f"Demandas de {unidade.sigla} — PCA {pca_destino.exercicio} "
+                                f"(importadas do PCA {pca_origem.exercicio})"
+                            ),
+                            "justificativa": (
+                                f"Clonagem automatica do PCA {pca_origem.exercicio}. "
+                                f"Setor deve validar cada item."
+                            ),
+                            "prazo_necessidade": datetime.date(pca_destino.exercicio, 12, 31),
+                            "grau_prioridade": item.dfd.grau_prioridade,
+                            "status": "rascunho",
+                            "requisitante": request.user,
+                        },
+                    )
+                    dfds_cache[unidade.pk] = dfd_destino
+
+                dfd_destino = dfds_cache[unidade.pk]
+                ultimo = (
+                    ItemPCA.objects.filter(dfd=dfd_destino)
+                    .aggregate(m=Max("numero_item"))["m"]
+                ) or 0
+
+                status_destino = "suspenso" if item.status == "suspenso" else "pendente_validacao"
+
+                kwargs = {field: getattr(item, field) for field in CAMPOS}
+                kwargs.update({
+                    "dfd": dfd_destino,
+                    "numero_item": ultimo + 1,
+                    "origem_item": item,
+                    "status": status_destino,
+                    "observacoes": (
+                        f"Importado do PCA {pca_origem.exercicio} ({item.codigo_pca}). "
+                        f"Pendente de validacao pelo setor requisitante."
+                    ),
+                    "data_pretendida_conclusao": None,
+                    "data_envio_pgea": None,
+                    "data_finalizacao_licitacao": None,
+                    "data_conclusao_efetiva": None,
+                    "valor_empenhado": 0,
+                })
+                ItemPCA.objects.create(**kwargs)
+                criados += 1
+
+        msg = (
+            f"{criados} item(ns) clonado(s) com sucesso para o PCA {pca_destino.exercicio}."
+        )
+        if ignorados:
+            msg += f" {ignorados} ja existia(m) e foram ignorados."
+        if criados:
+            messages.success(request, msg)
+        else:
+            messages.warning(request, f"Nenhum item novo: {msg}")
+
+        return redirect("pca:renovacao")

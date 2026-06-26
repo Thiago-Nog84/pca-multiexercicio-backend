@@ -322,6 +322,14 @@
       <i class="bi bi-list-task"></i>
       <span class="link-text">Demandas (DFDs)</span>
     </a>
+    <a href="{% url 'pca:suspensas' %}" class="sidebar-link {% block nav_suspensas %}{% endblock %}">
+      <i class="bi bi-pause-circle"></i>
+      <span class="link-text">Demandas Suspensas</span>
+    </a>
+    <a href="{% url 'pca:validar_demandas' 2027 %}" class="sidebar-link {% block nav_validar %}{% endblock %}">
+      <i class="bi bi-clipboard2-check"></i>
+      <span class="link-text">Validar Demandas 2027</span>
+    </a>
     <a href="{% url 'planejamento:dashboard' %}" class="sidebar-link {% block nav_planejamento %}{% endblock %}">
       <i class="bi bi-file-earmark-text"></i>
       <span class="link-text">ETPs e TRs</span>
@@ -355,6 +363,23 @@
     <a href="{% url 'juridico:dashboard' %}" class="sidebar-link {% block nav_juridico %}{% endblock %}">
       <i class="bi bi-briefcase"></i>
       <span class="link-text">Pareceres Jurídicos</span>
+    </a>
+
+    <div class="sidebar-divider"></div>
+
+    <!-- Relatórios -->
+    <div class="sidebar-section-label">Relatórios</div>
+    <a href="{% url 'pca:relatorios' %}" class="sidebar-link {% block nav_relatorios %}{% endblock %}">
+      <i class="bi bi-file-earmark-bar-graph"></i>
+      <span class="link-text">Relatórios PCA</span>
+    </a>
+    <a href="{% url 'pca:prazos' %}" class="sidebar-link {% block nav_prazos %}{% endblock %}">
+      <i class="bi bi-calendar-check"></i>
+      <span class="link-text">Controle de Prazos</span>
+    </a>
+    <a href="{% url 'pca:riscos' %}" class="sidebar-link {% block nav_riscos %}{% endblock %}">
+      <i class="bi bi-exclamation-triangle"></i>
+      <span class="link-text">Riscos e Pendências</span>
     </a>
 
   </div>

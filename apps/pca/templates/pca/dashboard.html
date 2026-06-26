@@ -14,8 +14,8 @@
 
 <!-- Status PCA -->
 {% if pca %}
-<div class="alert alert-info d-flex align-items-center gap-2 py-2 mb-4" style="border-radius:10px;">
-  <i class="bi bi-info-circle-fill fs-5"></i>
+<div class="d-flex align-items-center gap-2 py-2 px-3 mb-4" style="border-radius:10px;background:var(--mppi-vermelho-escuro);color:#fff;border:none;">
+  <i class="bi bi-info-circle-fill fs-5" style="color:rgba(255,255,255,.8)"></i>
   <div>
     <strong>Status do PCA {{ pca.exercicio }}:</strong>
     {{ pca.get_status_display }}

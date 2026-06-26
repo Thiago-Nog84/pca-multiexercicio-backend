@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+{% block nav_suspensas %}active{% endblock %}
+{% block title %}Demandas Suspensas — PCA {{ pca.exercicio }}{% endblock %}
+
+{% block content %}
+<style>
+  .kpi-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1.1rem 1.4rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .kpi-icon {
+    width: 46px; height: 46px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 1.2rem;
+  }
+  .kpi-num { font-size: 1.5rem; font-weight: 700; line-height: 1; color: #1e293b; }
+  .kpi-lbl { font-size: .72rem; color: #64748b; margin-top: 2px; }
+
+  .setor-bar-wrap { background: #f1f5f9; border-radius: 4px; height: 6px; flex: 1; }
+  .setor-bar-fill { background: var(--mppi-vermelho); border-radius: 4px; height: 6px; transition: width .4s; }
+
+  .badge-total { background: #fee2e2; color: #991b1b; font-size: .68rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+  .badge-parcial { background: #fef3c7; color: #92400e; font-size: .68rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+  .badge-nd { background: #f1f5f9; color: #475569; font-size: .68rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+
+  .filtros-row {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    align-items: flex-end;
+  }
+  .filtro-label { font-size: .65rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em; display: block; margin-bottom: 3px; }
+  .filtro-input {
+    height: 34px; font-size: .8rem;
+    border: 1px solid #e2e8f0; border-radius: 6px;
+    padding: 0 10px; color: #334155; background: #fff;
+  }
+  .filtro-input:focus { outline: none; border-color: var(--mppi-vermelho); box-shadow: 0 0 0 2px rgba(155,35,53,.12); }
+
+  .data-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+  .data-table th {
+    background: #1e3a5f; color: #fff;
+    padding: 8px 10px; text-align: left; font-size: .72rem; font-weight: 600;
+    position: sticky; top: 0; z-index: 1;
+  }
+  .data-table td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  .data-table tr:hover td { background: #fef2f2; }
+  .cod { font-family: monospace; font-size: .75rem; color: #64748b; }
+  .desc-cell { max-width: 320px; }
+  .desc-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .valor-cell { text-align: right; font-variant-numeric: tabular-nums; }
+</style>
+
+<div class="container-fluid py-4" style="max-width:1400px">
+
+  <!-- Cabecalho -->
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <a href="{% url 'pca:dashboard' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left"></i>
+    </a>
+    <div>
+      <h4 class="mb-0 fw-bold" style="font-size:1.15rem">
+        <i class="bi bi-pause-circle me-2" style="color:var(--mppi-vermelho)"></i>Demandas Suspensas
+      </h4>
+      <p class="text-muted mb-0" style="font-size:.8rem">Demandas total ou parcialmente sobrestadas — PCA {{ pca.exercicio|default:"—" }}</p>
+    </div>
+    {% if todos_pcas.count > 1 %}
+    <form method="get" class="ms-auto d-flex align-items-center gap-2">
+      <label class="filtro-label mb-0">Exercício:</label>
+      <select name="exercicio" class="filtro-input" style="width:auto" onchange="this.form.submit()">
+        {% for p in todos_pcas %}
+        <option value="{{ p.exercicio }}" {% if p == pca %}selected{% endif %}>PCA {{ p.exercicio }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    {% endif %}
+  </div>
+
+  <!-- KPIs -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:#fee2e2;color:#dc2626">
+          <i class="bi bi-pause-circle-fill"></i>
+        </div>
+        <div>
+          <div class="kpi-num">{{ qtd_total }}</div>
+          <div class="kpi-lbl">Itens Suspensos</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:#fef3c7;color:#d97706">
+          <i class="bi bi-scissors"></i>
+        </div>
+        <div>
+          <div class="kpi-num" style="font-size:1.1rem">R$ {{ valor_retido|floatformat:0 }}</div>
+          <div class="kpi-lbl">Valor Total Retido</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:#fee2e2;color:#dc2626">
+          <i class="bi bi-x-circle"></i>
+        </div>
+        <div>
+          <div class="kpi-num">{{ qtd_total_tipo }}</div>
+          <div class="kpi-lbl">Sobrestamento Total</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="kpi-card">
+        <div class="kpi-icon" style="background:#fef3c7;color:#d97706">
+          <i class="bi bi-dash-circle"></i>
+        </div>
+        <div>
+          <div class="kpi-num">{{ qtd_parcial_tipo }}</div>
+          <div class="kpi-lbl">Sobrestamento Parcial</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <!-- Tabela principal -->
+    <div class="col-lg-9">
+
+      <!-- Filtros -->
+      <form method="get" class="filtros-row mb-3">
+        {% if pca %}<input type="hidden" name="exercicio" value="{{ pca.exercicio }}">{% endif %}
+        <div>
+          <span class="filtro-label">Buscar</span>
+          <input type="text" name="q" value="{{ filtros.q }}" placeholder="Código ou descrição..." class="filtro-input" style="width:200px">
+        </div>
+        <div>
+          <span class="filtro-label">Setor</span>
+          <select name="setor" class="filtro-input">
+            <option value="">Todos</option>
+            {% for s in setores %}<option value="{{ s.sigla }}" {% if filtros.setor == s.sigla %}selected{% endif %}>{{ s.sigla }}</option>{% endfor %}
+          </select>
+        </div>
+        <div>
+          <span class="filtro-label">Fonte (UO)</span>
+          <select name="uo" class="filtro-input">
+            <option value="">Todas</option>
+            <option value="pgj" {% if filtros.uo == "pgj" %}selected{% endif %}>PGJ</option>
+            <option value="fmmp" {% if filtros.uo == "fmmp" %}selected{% endif %}>FMMP</option>
+            <option value="fepdc" {% if filtros.uo == "fepdc" %}selected{% endif %}>FEPDC</option>
+          </select>
+        </div>
+        <div>
+          <span class="filtro-label">Tipo Suspensão</span>
+          <select name="tipo" class="filtro-input">
+            <option value="">Todos</option>
+            <option value="total" {% if filtros.tipo == "total" %}selected{% endif %}>Total</option>
+            <option value="parcial" {% if filtros.tipo == "parcial" %}selected{% endif %}>Parcial</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-sm" style="height:34px;background:var(--mppi-vermelho);color:#fff;border:none;border-radius:6px;padding:0 14px;font-size:.75rem;font-weight:600">
+          <i class="bi bi-funnel me-1"></i>Filtrar
+        </button>
+        <a href="{% url 'pca:suspensas' %}{% if pca %}?exercicio={{ pca.exercicio }}{% endif %}" class="btn btn-sm btn-outline-secondary" style="height:34px;font-size:.75rem">
+          <i class="bi bi-x me-1"></i>Limpar
+        </a>
+      </form>
+
+      <!-- Tabela -->
+      <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
+        <div style="overflow-x:auto;max-height:600px">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Setor</th>
+                <th>UO</th>
+                <th style="min-width:280px">Descrição</th>
+                <th>Tipo</th>
+                <th style="text-align:right">Valor Retido</th>
+                <th>Item Pai</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for item in itens %}
+              <tr>
+                <td class="cod">{{ item.codigo_pca }}</td>
+                <td><strong>{{ item.dfd.unidade.sigla }}</strong></td>
+                <td>{{ item.get_unidade_orcamentaria_display }}</td>
+                <td class="desc-cell">
+                  <span class="desc-text" title="{{ item.descricao }}">{{ item.descricao }}</span>
+                </td>
+                <td>
+                  {% if item.tipo_suspensao == "total" %}
+                    <span class="badge-total">Total</span>
+                  {% elif item.tipo_suspensao == "parcial" %}
+                    <span class="badge-parcial">Parcial</span>
+                  {% else %}
+                    <span class="badge-nd">—</span>
+                  {% endif %}
+                </td>
+                <td class="valor-cell">R$ {{ item.valor_total_estimado|floatformat:2 }}</td>
+                <td class="cod">{% if item.item_pai %}{{ item.item_pai.codigo_pca }}{% else %}—{% endif %}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="7" style="text-align:center;padding:32px;color:#94a3b8">
+                <i class="bi bi-check-circle fs-4 d-block mb-1"></i>
+                Nenhuma demanda suspensa encontrada.
+              </td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if itens %}
+        <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:8px 14px;font-size:.75rem;color:#64748b;display:flex;justify-content:space-between">
+          <span>{{ qtd_total }} item(ns) suspenso(s)</span>
+          <span>Valor retido total: <strong>R$ {{ valor_retido|floatformat:2 }}</strong></span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Sidebar: por setor -->
+    <div class="col-lg-3">
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:1.1rem">
+        <div class="fw-semibold mb-3" style="font-size:.85rem">Valor retido por setor</div>
+        {% for s in por_setor %}
+        <div class="mb-3">
+          <div class="d-flex justify-content-between mb-1" style="font-size:.75rem">
+            <span class="fw-semibold">{{ s.dfd__unidade__sigla }}</span>
+            <span class="text-muted">{{ s.qtd }} it. &middot; R$ {{ s.valor|floatformat:0 }}</span>
+          </div>
+          {% if valor_retido > 0 %}
+          <div class="setor-bar-wrap">
+            <div class="setor-bar-fill" style="width:{% widthratio s.valor valor_retido 100 %}%"></div>
+          </div>
+          {% endif %}
+        </div>
+        {% empty %}
+          <p class="text-muted" style="font-size:.8rem">Sem dados.</p>
+        {% endfor %}
+      </div>
+
+      <!-- Exportar -->
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:1.1rem;margin-top:.75rem">
+        <div class="fw-semibold mb-2" style="font-size:.85rem">Exportar</div>
+        <a href="{% url 'pca:rel_suspensas' %}?formato=csv{% if pca %}&exercicio={{ pca.exercicio }}{% endif %}"
+           class="d-flex align-items-center gap-2 text-decoration-none mb-2"
+           style="font-size:.78rem;color:var(--mppi-vermelho);font-weight:600">
+          <i class="bi bi-file-earmark-spreadsheet"></i> Gerar CSV
+        </a>
+        <a href="{% url 'pca:rel_suspensas' %}?formato=html{% if pca %}&exercicio={{ pca.exercicio }}{% endif %}"
+           class="d-flex align-items-center gap-2 text-decoration-none"
+           style="font-size:.78rem;color:var(--mppi-vermelho);font-weight:600" target="_blank">
+          <i class="bi bi-printer"></i> Imprimir / PDF
+        </a>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,628 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Validar Demandas PCA {{ exercicio }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+  {# ── Cabeçalho ── #}
+  <div class="d-flex align-items-center gap-3 mb-3">
+    <div class="rounded-circle d-flex align-items-center justify-content-center"
+         style="width:48px;height:48px;background:rgba(155,35,53,.1);">
+      <i class="bi bi-clipboard2-check fs-4" style="color:var(--mppi-vermelho);"></i>
+    </div>
+    <div>
+      <h4 class="mb-0 fw-bold">Validação de Demandas — PCA {{ exercicio }}</h4>
+      <small class="text-muted">
+        Itens importados do PCA {{ exercicio|add:"-1" }} aguardando confirmação.
+        Confirme, edite valores, vincule à ARP, suspenda ou exclua cada item.
+      </small>
+    </div>
+    <div class="ms-auto d-flex gap-2">
+      <a href="{% url 'pca:renovacao' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Renovação
+      </a>
+    </div>
+  </div>
+
+  {# ── KPIs ── #}
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body p-3">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <i class="bi bi-hourglass-split text-warning fs-5"></i>
+            <span class="text-muted small">Pendentes</span>
+          </div>
+          <div class="fs-3 fw-bold text-warning">{{ qtd_pendentes }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body p-3">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <i class="bi bi-check-circle text-success fs-5"></i>
+            <span class="text-muted small">Confirmados</span>
+          </div>
+          <div class="fs-3 fw-bold text-success">{{ ja_confirmados }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body p-3">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <i class="bi bi-file-earmark-check fs-5 text-primary"></i>
+            <span class="text-muted small">Vinculados a ARP</span>
+          </div>
+          <div class="fs-3 fw-bold text-primary">{{ qtd_vinculados_arp }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body p-3">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <i class="bi bi-bar-chart fs-5 text-info"></i>
+            <span class="text-muted small">% Validado</span>
+          </div>
+          {% with total=qtd_pendentes|add:ja_confirmados %}
+          {% if total > 0 %}
+          <div class="fs-3 fw-bold text-info">
+            {{ ja_confirmados }}
+            <small class="fs-6 text-muted">/ {{ total }}</small>
+          </div>
+          <div class="progress mt-1" style="height:4px;">
+            <div class="progress-bar bg-info"
+                 style="width:{% widthratio ja_confirmados total 100 %}%"></div>
+          </div>
+          {% else %}
+          <div class="fs-3 fw-bold text-muted">—</div>
+          {% endif %}
+          {% endwith %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Filtros ── #}
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2 px-3">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label small mb-1">Setor</label>
+          <select name="setor" class="form-select form-select-sm">
+            <option value="">Todos os setores</option>
+            {% for s in setores %}
+            <option value="{{ s.sigla }}" {% if filtros.setor == s.sigla %}selected{% endif %}>
+              {{ s.sigla }} — {{ s.nome }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Busca</label>
+          <input type="text" name="q" value="{{ filtros.q }}"
+                 class="form-control form-control-sm" placeholder="Código ou descrição…">
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-funnel"></i> Filtrar
+          </button>
+          <a href="?" class="btn btn-sm btn-outline-secondary ms-1">
+            <i class="bi bi-x"></i> Limpar
+          </a>
+        </div>
+        {% if filtros.setor and qtd_pendentes > 0 %}
+        <div class="col-auto ms-auto">
+          <form method="post"
+                action="{% url 'pca:validar_acao' exercicio %}?setor={{ filtros.setor }}"
+                class="d-inline"
+                onsubmit="return confirm('Confirmar TODOS os {{ qtd_pendentes }} item(ns) do setor {{ filtros.setor }}?')">
+            {% csrf_token %}
+            <input type="hidden" name="acao" value="confirmar_todos">
+            <button type="submit" class="btn btn-sm btn-success">
+              <i class="bi bi-check-all"></i> Confirmar todos ({{ qtd_pendentes }})
+            </button>
+          </form>
+        </div>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+
+  {# ── Resumo por setor ── #}
+  {% if resumo_setores and not filtros.setor %}
+  <div class="mb-3">
+    <a class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" href="#resumoSetores">
+      <i class="bi bi-diagram-3"></i> Resumo por setor
+    </a>
+    <div class="collapse mt-2" id="resumoSetores">
+      <div class="d-flex flex-wrap gap-2">
+        {% for r in resumo_setores %}
+        <a href="?setor={{ r.dfd__unidade__sigla }}"
+           class="badge rounded-pill text-decoration-none"
+           style="background:rgba(155,35,53,.1);color:var(--mppi-vermelho);font-size:.85rem;padding:.45em .9em;">
+          {{ r.dfd__unidade__sigla }}
+          <span class="badge bg-danger ms-1">{{ r.qtd }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Mensagens flash ── #}
+  {% if messages %}
+  <div class="mb-2">
+    {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show py-2 mb-1" role="alert">
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# ── Tabela de itens ── #}
+  {% if pendentes %}
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width:110px">Código PCA</th>
+            <th style="width:80px">Setor</th>
+            <th>Descrição / ARP vinculada</th>
+            <th class="text-end" style="width:80px">Qtd.</th>
+            <th class="text-end" style="width:120px">Valor Unit.</th>
+            <th class="text-end" style="width:130px">Valor Total</th>
+            <th style="width:240px" class="text-center">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in pendentes %}
+          <tr id="row-{{ item.pk }}">
+            <td>
+              <code class="small">{{ item.codigo_pca|default:"—" }}</code>
+              {% if item.is_srp %}
+              <span class="badge bg-primary-subtle text-primary d-block mt-1" style="font-size:.65rem;">SRP</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge rounded-pill"
+                    style="background:rgba(155,35,53,.1);color:var(--mppi-vermelho);">
+                {{ item.dfd.unidade.sigla }}
+              </span>
+            </td>
+            <td>
+              <span class="d-block" style="max-width:320px;" title="{{ item.descricao }}">
+                {{ item.descricao|truncatechars:85 }}
+              </span>
+              <small class="text-muted">{{ item.get_modalidade_display }} · {{ item.get_tipo_demanda_display }}</small>
+              {% if item.origem_item %}
+              <br><small class="text-muted">
+                <i class="bi bi-arrow-return-right"></i>
+                Do PCA {{ item.origem_item.dfd.pca.exercicio }}: {{ item.origem_item.codigo_pca }}
+              </small>
+              {% endif %}
+              {# Vínculos ARP existentes #}
+              {% for vinculo in item.vinculos_arp.all %}
+              <div class="mt-1 d-flex align-items-center gap-1 flex-wrap">
+                <span class="badge bg-success-subtle text-success border border-success-subtle"
+                      style="font-size:.72rem;">
+                  <i class="bi bi-link-45deg"></i>
+                  ARP {{ vinculo.item_arp.arp.numero_arp }} · Item {{ vinculo.item_arp.numero_item }}
+                  · {{ vinculo.quantidade_comprometida }} {{ vinculo.item_arp.unidade_fornecimento }}
+                </span>
+                <form method="post"
+                      action="{% url 'pca:validar_vincular_arp' exercicio %}{% if filtros.setor %}?setor={{ filtros.setor }}{% endif %}"
+                      class="d-inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="acao_arp" value="desvincular">
+                  <input type="hidden" name="item_pca_id" value="{{ item.pk }}">
+                  <input type="hidden" name="item_arp_id" value="{{ vinculo.item_arp.pk }}">
+                  <button type="submit" class="btn btn-link btn-sm text-danger p-0 ms-1"
+                          title="Remover vínculo"
+                          onclick="return confirm('Remover vínculo com ARP {{ vinculo.item_arp.arp.numero_arp }}?')">
+                    <i class="bi bi-x-circle"></i>
+                  </button>
+                </form>
+              </div>
+              {% endfor %}
+            </td>
+            <td class="text-end">{{ item.quantidade_estimada|floatformat:2 }}</td>
+            <td class="text-end">R$ {{ item.valor_unitario_estimado|floatformat:2|intcomma }}</td>
+            <td class="text-end fw-semibold">R$ {{ item.valor_total_estimado|floatformat:2|intcomma }}</td>
+            <td class="text-center">
+              <div class="d-flex flex-wrap gap-1 justify-content-center">
+                {# Confirmar #}
+                <form method="post"
+                      action="{% url 'pca:validar_acao' exercicio %}{% if filtros.setor %}?setor={{ filtros.setor }}{% endif %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="acao" value="confirmar">
+                  <input type="hidden" name="item_id" value="{{ item.pk }}">
+                  <button type="submit" class="btn btn-success btn-sm" title="Confirmar">
+                    <i class="bi bi-check-lg"></i>
+                  </button>
+                </form>
+                {# Editar valores #}
+                <button type="button" class="btn btn-outline-primary btn-sm"
+                        title="Editar valores"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalEditar{{ item.pk }}">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                {# Vincular ARP #}
+                <button type="button" class="btn btn-outline-secondary btn-sm"
+                        title="Vincular a ARP vigente"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalARP{{ item.pk }}"
+                        data-item-id="{{ item.pk }}"
+                        data-exercicio="{{ exercicio }}">
+                  <i class="bi bi-link-45deg"></i>
+                </button>
+                {# Suspender #}
+                <button type="button" class="btn btn-outline-warning btn-sm"
+                        title="Suspender"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modalSuspender{{ item.pk }}">
+                  <i class="bi bi-pause-circle"></i>
+                </button>
+                {# Excluir #}
+                <form method="post"
+                      action="{% url 'pca:validar_acao' exercicio %}{% if filtros.setor %}?setor={{ filtros.setor }}{% endif %}"
+                      onsubmit="return confirm('Excluir {{ item.codigo_pca }} do PCA {{ exercicio }}?')">
+                  {% csrf_token %}
+                  <input type="hidden" name="acao" value="excluir">
+                  <input type="hidden" name="item_id" value="{{ item.pk }}">
+                  <button type="submit" class="btn btn-outline-danger btn-sm" title="Excluir">
+                    <i class="bi bi-trash3"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+
+          {# ── Modal Editar ── #}
+          <div class="modal fade" id="modalEditar{{ item.pk }}" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+              <div class="modal-content">
+                <div class="modal-header" style="border-bottom:3px solid var(--mppi-vermelho);">
+                  <h5 class="modal-title">
+                    <i class="bi bi-pencil-square me-2"></i>Editar — {{ item.codigo_pca|default:"item" }}
+                  </h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="post"
+                      action="{% url 'pca:validar_acao' exercicio %}{% if filtros.setor %}?setor={{ filtros.setor }}{% endif %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="acao" value="editar">
+                  <input type="hidden" name="item_id" value="{{ item.pk }}">
+                  <div class="modal-body">
+                    <div class="alert alert-info py-2 small mb-3">
+                      <i class="bi bi-info-circle me-1"></i>
+                      Ajuste quantidade e/ou valor. Ao salvar o item é <strong>confirmado</strong>.
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label fw-semibold">Descrição</label>
+                      <p class="form-control-plaintext bg-light rounded px-2 py-1 small">{{ item.descricao }}</p>
+                    </div>
+                    <div class="row g-3">
+                      <div class="col-md-6">
+                        <label class="form-label">Quantidade estimada</label>
+                        <input type="number" name="quantidade_estimada" step="0.01" min="0"
+                               class="form-control" value="{{ item.quantidade_estimada }}">
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label">Valor unitário (R$)</label>
+                        <input type="number" name="valor_unitario_estimado" step="0.01" min="0"
+                               class="form-control" value="{{ item.valor_unitario_estimado }}">
+                      </div>
+                    </div>
+                    {% if item.origem_item %}
+                    <div class="mt-3 p-2 rounded" style="background:rgba(155,35,53,.05);border-left:3px solid var(--mppi-vermelho);">
+                      <small class="text-muted">
+                        <strong>PCA {{ item.origem_item.dfd.pca.exercicio }}:</strong>
+                        Qtd {{ item.origem_item.quantidade_estimada }} ×
+                        R$ {{ item.origem_item.valor_unitario_estimado|floatformat:2 }} =
+                        R$ {{ item.origem_item.valor_total_estimado|floatformat:2 }}
+                      </small>
+                    </div>
+                    {% endif %}
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                      <i class="bi bi-check-circle me-1"></i> Salvar e Confirmar
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          {# ── Modal Vincular ARP ── #}
+          <div class="modal fade" id="modalARP{{ item.pk }}" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+              <div class="modal-content">
+                <div class="modal-header" style="border-bottom:3px solid #0d6efd;">
+                  <h5 class="modal-title">
+                    <i class="bi bi-link-45deg me-2 text-primary"></i>
+                    Vincular a ARP — {{ item.codigo_pca|default:"item" }}
+                  </h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                  <p class="text-muted small mb-3">
+                    <strong>Demanda:</strong> {{ item.descricao|truncatechars:120 }}<br>
+                    Selecione a ARP vigente e o item correspondente. O sistema validará automaticamente
+                    a disponibilidade de saldo.
+                  </p>
+
+                  {# Busca ARP #}
+                  <div class="input-group input-group-sm mb-3">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text"
+                           class="form-control arp-busca"
+                           data-item="{{ item.pk }}"
+                           placeholder="Buscar por número, objeto ou fornecedor…">
+                    <button type="button" class="btn btn-outline-primary btn-arp-buscar"
+                            data-item="{{ item.pk }}"
+                            data-exercicio="{{ exercicio }}">
+                      Buscar ARPs
+                    </button>
+                  </div>
+
+                  {# Resultado ARPs #}
+                  <div id="arps-resultado-{{ item.pk }}" class="d-none">
+                    <div id="arps-lista-{{ item.pk }}"></div>
+                  </div>
+
+                  {# Form vínculo (preenchido via JS) #}
+                  <form method="post"
+                        action="{% url 'pca:validar_vincular_arp' exercicio %}{% if filtros.setor %}?setor={{ filtros.setor }}{% endif %}"
+                        id="form-arp-{{ item.pk }}">
+                    {% csrf_token %}
+                    <input type="hidden" name="acao_arp" value="vincular">
+                    <input type="hidden" name="item_pca_id" value="{{ item.pk }}">
+                    <input type="hidden" name="item_arp_id" id="item_arp_id_{{ item.pk }}">
+                    <div id="form-arp-detalhe-{{ item.pk }}" class="d-none">
+                      <hr>
+                      <div class="alert alert-primary py-2 small" id="arp-selecionada-info-{{ item.pk }}"></div>
+                      <div class="row g-2 align-items-end">
+                        <div class="col-md-4">
+                          <label class="form-label">Quantidade comprometida</label>
+                          <input type="number" name="quantidade_comprometida"
+                                 id="qtd-arp-{{ item.pk }}"
+                                 step="0.01" min="0.01"
+                                 class="form-control"
+                                 value="{{ item.quantidade_estimada }}">
+                          <div class="form-text" id="saldo-info-{{ item.pk }}"></div>
+                        </div>
+                        <div class="col-auto">
+                          <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-link-45deg me-1"></i> Vincular
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {# ── Modal Suspender ── #}
+          <div class="modal fade" id="modalSuspender{{ item.pk }}" tabindex="-1">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <div class="modal-header border-warning">
+                  <h5 class="modal-title text-warning">
+                    <i class="bi bi-pause-circle me-2"></i>Suspender demanda
+                  </h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="post"
+                      action="{% url 'pca:validar_acao' exercicio %}{% if filtros.setor %}?setor={{ filtros.setor }}{% endif %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="acao" value="suspender">
+                  <input type="hidden" name="item_id" value="{{ item.pk }}">
+                  <div class="modal-body">
+                    <p>Suspendendo <strong>{{ item.codigo_pca|default:"esta demanda" }}</strong> no PCA {{ exercicio }}.</p>
+                    <label class="form-label">Tipo de suspensão</label>
+                    <div class="d-flex gap-3">
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="tipo_suspensao"
+                               id="tot{{ item.pk }}" value="total" checked>
+                        <label class="form-check-label" for="tot{{ item.pk }}">
+                          <span class="badge bg-danger">Total</span> — não será contratado
+                        </label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="radio" name="tipo_suspensao"
+                               id="par{{ item.pk }}" value="parcial">
+                        <label class="form-check-label" for="par{{ item.pk }}">
+                          <span class="badge bg-warning text-dark">Parcial</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                      <i class="bi bi-pause-circle me-1"></i> Suspender
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="text-center py-5">
+    <i class="bi bi-check2-all display-1 text-success opacity-50"></i>
+    <h5 class="mt-3">Nenhum item pendente de validação</h5>
+    <p class="text-muted">
+      {% if filtros.setor or filtros.q %}
+      Nenhum resultado para os filtros.
+      <a href="?">Ver todos</a>
+      {% else %}
+      Todos os itens do PCA {{ exercicio }} já foram validados.
+      {% endif %}
+    </p>
+    <a href="{% url 'pca:demandas' %}" class="btn btn-outline-primary mt-2">
+      <i class="bi bi-list-ul me-1"></i> Ver todas as demandas
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+
+{# ── JavaScript: busca de ARPs via JSON ── #}
+<script>
+document.querySelectorAll('.btn-arp-buscar').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const itemId = this.dataset.item;
+    const exercicio = this.dataset.exercicio;
+    const q = document.querySelector(`.arp-busca[data-item="${itemId}"]`).value;
+
+    // Passa o setor ativo para priorizar ARPs do setor no resultado
+    const urlParams = new URLSearchParams(window.location.search);
+    const setorAtivo = urlParams.get('setor') || '';
+    fetch(`/pca/validar/${exercicio}/arps-vigentes.json?q=${encodeURIComponent(q)}&setor=${encodeURIComponent(setorAtivo)}`, {
+      headers: {'X-Requested-With': 'XMLHttpRequest'}
+    })
+    .then(r => r.json())
+    .then(data => {
+      const container = document.getElementById(`arps-lista-${itemId}`);
+      const wrapper = document.getElementById(`arps-resultado-${itemId}`);
+      wrapper.classList.remove('d-none');
+
+      if (!data.arps.length) {
+        container.innerHTML = '<p class="text-muted text-center py-3">Nenhuma ARP vigente encontrada.</p>';
+        return;
+      }
+
+      let html = '<div class="accordion" id="accordionARP' + itemId + '">';
+      data.arps.forEach((arp, idx) => {
+        // Badge de setor: destaca ARPs do setor selecionado
+      const setorBadge = arp.eh_do_setor
+        ? '<span class="badge bg-primary me-1"><i class="bi bi-building"></i> Seu setor</span>'
+        : '';
+      // Unidades vinculadas
+      const vinculosStr = arp.vinculos.length
+        ? arp.vinculos.map(v => {
+            const cor = v.papel === 'gestora' ? 'bg-dark' : 'bg-secondary';
+            return `<span class="badge ${cor} bg-opacity-75 ms-1">${v.sigla}</span>`;
+          }).join('')
+        : '';
+
+      html += `
+        <div class="accordion-item border mb-1 rounded ${arp.eh_do_setor ? 'border-primary border-opacity-50' : ''}">
+          <h2 class="accordion-header">
+            <button class="accordion-button collapsed py-2 px-3 small fw-semibold" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#arpBody${itemId}_${idx}">
+              ${setorBadge}<span class="badge bg-success-subtle text-success me-1">Vigente</span>
+              ARP ${arp.numero_arp}
+              <span class="ms-1 text-muted fw-normal">— ${arp.fornecedor.substring(0,35)}</span>
+              ${vinculosStr}
+              <span class="ms-auto badge bg-secondary-subtle text-secondary">até ${arp.vigencia_fim}</span>
+            </button>
+          </h2>
+          <div id="arpBody${itemId}_${idx}" class="accordion-collapse collapse">
+            <div class="accordion-body py-2 px-3">
+              <p class="small text-muted mb-2">${arp.objeto.substring(0,160)}</p>
+              <table class="table table-sm table-hover mb-0">
+                <thead class="table-light"><tr>
+                  <th>Nº</th><th>Descrição</th><th>Unid.</th>
+                  <th class="text-end">Registrado</th>
+                  <th class="text-end">Comprometido</th>
+                  <th class="text-end">Disponível</th>
+                  <th class="text-end">Valor Unit.</th>
+                  <th></th>
+                </tr></thead>
+                <tbody>`;
+
+        arp.itens.forEach(it => {
+          const disponivel = it.qtd_disponivel;
+          const cls = disponivel <= 0 ? 'text-danger' : disponivel < it.qtd_registrada * 0.2 ? 'text-warning' : 'text-success';
+          html += `<tr>
+            <td>${it.numero}</td>
+            <td><span title="${it.descricao}">${it.descricao.substring(0,70)}</span></td>
+            <td>${it.unidade}</td>
+            <td class="text-end">${it.qtd_registrada}</td>
+            <td class="text-end">${it.qtd_comprometida_pca}</td>
+            <td class="text-end fw-bold ${cls}">${it.qtd_disponivel.toFixed(4)}</td>
+            <td class="text-end">R$ ${it.valor_unitario.toLocaleString('pt-BR',{minimumFractionDigits:2})}</td>
+            <td>
+              <button type="button" class="btn btn-sm btn-outline-primary btn-selecionar-item"
+                      ${disponivel <= 0 ? 'disabled title="Sem saldo disponível"' : ''}
+                      data-item-pca="${itemId}"
+                      data-item-arp-id="${it.id}"
+                      data-arp-num="${arp.numero_arp}"
+                      data-item-num="${it.numero}"
+                      data-desc="${it.descricao.substring(0,60)}"
+                      data-unidade="${it.unidade}"
+                      data-disponivel="${it.qtd_disponivel}"
+                      data-valor="${it.valor_unitario}">
+                Selecionar
+              </button>
+            </td>
+          </tr>`;
+        });
+
+        html += `</tbody></table></div></div></div>`;
+      });
+      html += '</div>';
+      container.innerHTML = html;
+
+      // Listener para botões Selecionar
+      container.querySelectorAll('.btn-selecionar-item').forEach(b => {
+        b.addEventListener('click', function() {
+          const pid = this.dataset.itemPca;
+          document.getElementById(`item_arp_id_${pid}`).value = this.dataset.itemArpId;
+          document.getElementById(`form-arp-detalhe-${pid}`).classList.remove('d-none');
+          document.getElementById(`arp-selecionada-info-${pid}`).innerHTML =
+            `<strong>Selecionado:</strong> ARP ${this.dataset.arpNum} · Item ${this.dataset.itemNum} — ${this.dataset.desc}` +
+            `<br><strong>Valor unit.:</strong> R$ ${parseFloat(this.dataset.valor).toLocaleString('pt-BR',{minimumFractionDigits:2})}` +
+            ` | <strong>Saldo disponível:</strong> ${parseFloat(this.dataset.disponivel).toFixed(2)} ${this.dataset.unidade}`;
+          document.getElementById(`saldo-info-${pid}`).textContent =
+            `Saldo: ${parseFloat(this.dataset.disponivel).toFixed(4)} ${this.dataset.unidade}`;
+        });
+      });
+    })
+    .catch(() => {
+      document.getElementById(`arps-lista-${itemId}`).innerHTML =
+        '<p class="text-danger">Erro ao buscar ARPs. Tente novamente.</p>';
+    });
+  });
+});
+
+// Trigger busca ao pressionar Enter no campo de busca
+document.querySelectorAll('.arp-busca').forEach(input => {
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      document.querySelector(`.btn-arp-buscar[data-item="${input.dataset.item}"]`).click();
+    }
+  });
+});
+
+// Ao abrir o modal de ARP, disparar busca automática (sem filtro)
+document.querySelectorAll('[id^="modalARP"]').forEach(modal => {
+  modal.addEventListener('shown.bs.modal', function() {
+    const itemId = this.id.replace('modalARP', '');
+    document.querySelector(`.btn-arp-buscar[data-item="${itemId}"]`).click();
+  });
+});
+</script>
+{% endblock %}
