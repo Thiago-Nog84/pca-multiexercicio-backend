@@ -127,6 +127,90 @@
   </div>
 </div>
 
+<!-- KPIs REGULATÓRIOS — CNMP / EMPENHO -->
+<div class="row g-3 mb-4">
+
+  <!-- Card Transparência CNMP -->
+  <div class="col-12 col-md-6">
+    <div class="card border-0 shadow-sm h-100 p-3"
+         style="border-left:4px solid {% if dias_ate_transparencia <= 3 %}#dc3545{% elif dias_ate_transparencia <= 7 %}#f59e0b{% else %}#0ea5e9{% endif %}!important;">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">
+            <i class="bi bi-send me-1"></i>Prazo Transparência (CNMP)
+          </div>
+          <div class="kpi-value mt-1
+               {% if dias_ate_transparencia <= 3 %}text-danger
+               {% elif dias_ate_transparencia <= 7 %}text-warning
+               {% else %}text-info{% endif %}">
+            {{ dias_ate_transparencia }} dia{{ dias_ate_transparencia|pluralize:"s" }}
+          </div>
+          <div class="kpi-sub">
+            Envio até {{ dia_10_prox|date:"d/m/Y" }} — Assessoria de Transparência
+          </div>
+        </div>
+        <div class="kpi-icon"
+             style="background:{% if dias_ate_transparencia <= 3 %}#fff5f5{% elif dias_ate_transparencia <= 7 %}#fffbeb{% else %}#f0f9ff{% endif %};">
+          <i class="bi bi-calendar-check
+             {% if dias_ate_transparencia <= 3 %}text-danger
+             {% elif dias_ate_transparencia <= 7 %}text-warning
+             {% else %}text-info{% endif %}"></i>
+        </div>
+      </div>
+      {% if dias_ate_transparencia <= 3 %}
+      <div class="alert alert-danger py-1 px-2 mb-0 mt-2 small border-0">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+        Prazo crítico — envie os dados hoje!
+      </div>
+      {% elif dias_ate_transparencia <= 7 %}
+      <div class="alert alert-warning py-1 px-2 mb-0 mt-2 small border-0">
+        <i class="bi bi-clock-fill me-1"></i>
+        Atenção: prazo se aproximando.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Card Ajustes de Empenho Pendentes -->
+  <div class="col-12 col-md-6">
+    <div class="card border-0 shadow-sm h-100 p-3"
+         style="border-left:4px solid {% if contratos_sem_empenho > 0 %}#f59e0b{% else %}#198754{% endif %}!important;">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">
+            <i class="bi bi-receipt me-1"></i>Ajustes de Empenho Pendentes
+          </div>
+          <div class="kpi-value mt-1
+               {% if contratos_sem_empenho > 0 %}text-warning{% else %}text-success{% endif %}">
+            {{ contratos_sem_empenho }}
+          </div>
+          <div class="kpi-sub">
+            {% if contratos_sem_empenho > 0 %}
+              Contrato{{ contratos_sem_empenho|pluralize:"s" }} vigente{{ contratos_sem_empenho|pluralize:"s" }} sem empenho vinculado
+            {% else %}
+              Todos os contratos vigentes têm empenho registrado
+            {% endif %}
+          </div>
+        </div>
+        <div class="kpi-icon"
+             style="background:{% if contratos_sem_empenho > 0 %}#fffbeb{% else %}#dcfce7{% endif %};">
+          <i class="bi bi-file-earmark-x
+             {% if contratos_sem_empenho > 0 %}text-warning{% else %}text-success{% endif %}"></i>
+        </div>
+      </div>
+      {% if contratos_sem_empenho > 0 %}
+      <div class="mt-2">
+        <a href="/admin/contratos/contrato/?status=vigente&valor_empenhado__exact=0"
+           class="btn btn-sm btn-outline-warning">
+          <i class="bi bi-search me-1"></i>Ver contratos
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
 <!-- ALERTAS DE VENCIMENTO -->
 {% if vencendo_30 or vencendo_90 or vencendo_120 or cc_venc_30 or ca_venc_30 %}
 <div class="card border-0 shadow-sm mb-4" style="border-left:4px solid #dc3545!important;">
@@ -589,16 +673,16 @@
           {% endif %}
         </div>
         <div class="d-flex gap-2 flex-wrap">
-          <a href="/api/siafe/nota-empenho/{{ hoje|date:"Y" }}/250101/"
-             class="btn btn-sm btn-outline-warning" target="_blank">
+          <a href="/siafe/nota-empenho/{{ hoje|date:"Y" }}/250101/"
+             class="btn btn-sm btn-outline-warning">
             <i class="bi bi-receipt me-1"></i>NEs PGJ
           </a>
-          <a href="/api/siafe/nota-empenho/{{ hoje|date:"Y" }}/250102/"
-             class="btn btn-sm btn-outline-warning" target="_blank">
+          <a href="/siafe/nota-empenho/{{ hoje|date:"Y" }}/250102/"
+             class="btn btn-sm btn-outline-warning">
             <i class="bi bi-receipt me-1"></i>NEs FUNDMPE
           </a>
-          <a href="/api/siafe/nota-empenho/{{ hoje|date:"Y" }}/250104/"
-             class="btn btn-sm btn-outline-warning" target="_blank">
+          <a href="/siafe/nota-empenho/{{ hoje|date:"Y" }}/250104/"
+             class="btn btn-sm btn-outline-warning">
             <i class="bi bi-receipt me-1"></i>NEs FPDC
           </a>
           <span class="text-muted small d-flex align-items-center">
@@ -613,7 +697,7 @@
           <div class="col-sm-4">
             <div class="bg-light rounded p-3 text-center">
               <div class="text-warning fw-bold" style="font-size:1.4rem;">
-                R$ {{ valor_empenhado|floatformat:2|intcomma }}
+                R$&nbsp;{{ valor_empenhado|floatformat:"2g" }}
               </div>
               <div class="text-muted small">Total Empenhado (SIAFE)</div>
             </div>
@@ -664,8 +748,8 @@
                   {{ c.numero_contrato }}
                 </td>
                 <td class="text-truncate" style="max-width:180px;">{{ c.contratado_razao_social }}</td>
-                <td class="text-end text-nowrap">R$ {{ c.valor_atual|floatformat:2|intcomma }}</td>
-                <td class="text-end text-nowrap fw-semibold">R$ {{ c.valor_empenhado|floatformat:2|intcomma }}</td>
+                <td class="text-end text-nowrap">R$&nbsp;{{ c.valor_atual|floatformat:"2g" }}</td>
+                <td class="text-end text-nowrap fw-semibold">R$&nbsp;{{ c.valor_empenhado|floatformat:"2g" }}</td>
                 <td>
                   {% widthratio c.valor_empenhado c.valor_atual 100 as exec_pct %}
                   <div class="d-flex align-items-center gap-1">
@@ -694,6 +778,39 @@
         {% endif %}
 
       </div>
+    </div>
+  </div>
+
+  <!-- GRÁFICOS -->
+  <div class="col-12">
+    <div class="row g-4">
+
+      <!-- Rosca: status dos contratos -->
+      <div class="col-12 col-md-5">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-header bg-white border-bottom py-3">
+            <i class="bi bi-pie-chart me-2 text-primary"></i>
+            <strong>Distribuição por Status</strong>
+          </div>
+          <div class="card-body d-flex align-items-center justify-content-center" style="min-height:280px;">
+            <canvas id="graficoStatus" style="max-height:260px;"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barras empilhadas: empenhado vs saldo (top 10) -->
+      <div class="col-12 col-md-7">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-header bg-white border-bottom py-3">
+            <i class="bi bi-bar-chart-steps me-2 text-warning"></i>
+            <strong>Execução vs Saldo — Top Contratos (R$)</strong>
+          </div>
+          <div class="card-body" style="min-height:280px;">
+            <canvas id="graficoExecucao" style="max-height:260px;"></canvas>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -765,4 +882,104 @@
   </div>
 
 </div>
+
+<!-- Chart.js — gráficos do dashboard -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
+        integrity="sha512-ZwR1/gSZM3ai6vCdI+LVF1zSq/5HznD3oD+sCoJrzXJ+yKogTopovMvbaPlEucAzt3RIEqAlXA1n3NC1QDTCQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+(function () {
+  // ── Dados do Django ────────────────────────────────────────────
+  const statusData    = {{ grafico_status|safe }};
+  const execucaoData  = {{ grafico_execucao|safe }};
+
+  // Formata valor em R$ abreviado (M / k)
+  function fmtR(v) {
+    if (v >= 1e6) return 'R$ ' + (v / 1e6).toFixed(1) + 'M';
+    if (v >= 1e3) return 'R$ ' + (v / 1e3).toFixed(0) + 'k';
+    return 'R$ ' + v.toFixed(0);
+  }
+
+  // ── Gráfico Rosca — Status ─────────────────────────────────────
+  const ctxStatus = document.getElementById('graficoStatus');
+  if (ctxStatus) {
+    new Chart(ctxStatus, {
+      type: 'doughnut',
+      data: {
+        labels: statusData.labels,
+        datasets: [{
+          data: statusData.data,
+          backgroundColor: statusData.cores,
+          borderWidth: 2,
+          borderColor: '#fff',
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 12, padding: 16, font: { size: 12 } } },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.label}: ${ctx.parsed} contrato${ctx.parsed !== 1 ? 's' : ''}`,
+            },
+          },
+        },
+        cutout: '62%',
+      },
+    });
+  }
+
+  // ── Gráfico Barras — Execução vs Saldo ────────────────────────
+  const ctxExec = document.getElementById('graficoExecucao');
+  if (ctxExec && execucaoData.labels.length) {
+    new Chart(ctxExec, {
+      type: 'bar',
+      data: {
+        labels: execucaoData.labels,
+        datasets: [
+          {
+            label: 'Empenhado',
+            data: execucaoData.empenhado,
+            backgroundColor: 'rgba(245,158,11,0.85)',
+            borderRadius: 3,
+            stack: 'total',
+          },
+          {
+            label: 'Saldo disponível',
+            data: execucaoData.saldo,
+            backgroundColor: 'rgba(16,185,129,0.65)',
+            borderRadius: 3,
+            stack: 'total',
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        indexAxis: 'y',
+        plugins: {
+          legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+          tooltip: {
+            callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtR(ctx.parsed.x)}` },
+          },
+        },
+        scales: {
+          x: {
+            stacked: true,
+            ticks: {
+              callback: fmtR,
+              font: { size: 10 },
+              maxTicksLimit: 6,
+            },
+            grid: { color: 'rgba(0,0,0,.05)' },
+          },
+          y: {
+            stacked: true,
+            ticks: { font: { size: 10 } },
+          },
+        },
+      },
+    });
+  }
+})();
+</script>
 {% endblock %}

@@ -139,7 +139,7 @@ class AtaRegistroPrecosDetailSerializer(serializers.ModelSerializer):
             "fornecedor_razao_social", "fornecedor_cnpj_cpf",
             "data_assinatura", "data_inicio_vigencia", "data_fim_vigencia",
             "status", "esta_vigente",
-            "processo_licitatorio", "numero_sei_arp",
+            "processo_licitatorio", "numero_sei",
             "usa_lotes", "link_documento_mppi",
             "observacoes", "criado_em",
             "itens",
@@ -154,7 +154,7 @@ class AtaRegistroPrecosWriteSerializer(serializers.ModelSerializer):
             "orgao_gerenciador", "numero_arp", "objeto", "modalidade_origem",
             "fornecedor_razao_social", "fornecedor_cnpj_cpf",
             "data_assinatura", "data_inicio_vigencia", "data_fim_vigencia",
-            "status", "processo_licitatorio", "numero_sei_arp",
+            "status", "processo_licitatorio", "numero_sei",
             "usa_lotes", "link_documento_mppi", "observacoes",
         ]
 

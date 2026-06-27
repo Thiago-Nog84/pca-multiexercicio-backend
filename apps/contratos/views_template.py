@@ -1,5 +1,6 @@
 """Views Django Templates — Módulo Contratos."""
 
+import json
 from datetime import date, timedelta
 
 from django.contrib.auth.decorators import login_required
@@ -81,6 +82,33 @@ class DashboardContratosView(View):
         )
 
         recentes = list(contratos.order_by("-criado_em")[:8])
+
+        # ── Prazo Transparência CNMP: dias até dia 10 do mês subsequente ──
+        if hoje.month == 12:
+            dia_10_prox = date(hoje.year + 1, 1, 10)
+        else:
+            dia_10_prox = date(hoje.year, hoje.month + 1, 10)
+        dias_ate_transparencia = (dia_10_prox - hoje).days
+
+        # ── Contratos vigentes sem empenho registrado ──────────────────────
+        contratos_sem_empenho = contratos.filter(
+            status="vigente", valor_empenhado=0
+        ).count()
+
+        # ── Dados para gráfico de rosca — distribuição por status ─────────
+        suspensos = contratos.filter(status="suspenso").count()
+        grafico_status = json.dumps({
+            "labels": ["Vigente", "Encerrado", "Rescindido", "Suspenso"],
+            "data": [vigentes_local, encerrados, rescindidos, suspensos],
+            "cores": ["#198754", "#6c757d", "#dc3545", "#f59e0b"],
+        })
+
+        # ── Dados para gráfico de barras — Empenhado vs Saldo (top 10) ───
+        grafico_execucao = json.dumps({
+            "labels": [c.numero_contrato for c in top_empenhados],
+            "empenhado": [float(c.valor_empenhado or 0) for c in top_empenhados],
+            "saldo": [float(c.saldo_disponivel or 0) for c in top_empenhados],
+        })
 
         # ── Contratos Comprasnet (importados) ─────────────────────────────
         if _tem_dados_externos:
@@ -191,5 +219,11 @@ class DashboardContratosView(View):
             # conciliação
             "nao_cadastrados": nao_cadastrados,
             "tem_dados_externos": _tem_dados_externos,
+            # novos: transparência, empenho pendente, gráficos
+            "dias_ate_transparencia": dias_ate_transparencia,
+            "dia_10_prox": dia_10_prox,
+            "contratos_sem_empenho": contratos_sem_empenho,
+            "grafico_status": grafico_status,
+            "grafico_execucao": grafico_execucao,
         }
         return render(request, self.template_name, context)

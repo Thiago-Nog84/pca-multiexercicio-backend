@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}NEs {{ codigo_ug }} — {{ exercicio }} | MPPI{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+  <a href="/contratos/" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Voltar
+  </a>
+  <div>
+    <h4 class="mb-0">
+      <i class="bi bi-receipt me-2 text-warning"></i>
+      Notas de Empenho — {{ exercicio }}
+    </h4>
+    <div class="text-muted small">{{ ug_nome }}</div>
+  </div>
+  <div class="ms-auto d-flex gap-2 flex-wrap">
+    <a href="/siafe/nota-empenho/{{ exercicio }}/250101/" class="btn btn-sm {% if codigo_ug == '250101' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+      PGJ
+    </a>
+    <a href="/siafe/nota-empenho/{{ exercicio }}/250102/" class="btn btn-sm {% if codigo_ug == '250102' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+      FUNDMPE
+    </a>
+    <a href="/siafe/nota-empenho/{{ exercicio }}/250104/" class="btn btn-sm {% if codigo_ug == '250104' %}btn-warning{% else %}btn-outline-warning{% endif %}">
+      FPDC
+    </a>
+  </div>
+</div>
+
+{% if erro %}
+  <div class="alert alert-danger d-flex align-items-center gap-2">
+    <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+    <div>
+      <strong>Erro ao consultar o SIAFE-PI</strong><br>
+      {{ erro }}
+    </div>
+  </div>
+{% else %}
+
+  <!-- KPIs -->
+  <div class="row g-3 mb-4">
+    <div class="col-sm-4">
+      <div class="card border-0 shadow-sm text-center py-3">
+        <div class="fw-bold text-warning" style="font-size:1.3rem;">
+          R$&nbsp;{{ total_empenhado|floatformat:"2g" }}
+        </div>
+        <div class="text-muted small">Total Empenhado</div>
+      </div>
+    </div>
+    <div class="col-sm-4">
+      <div class="card border-0 shadow-sm text-center py-3">
+        <div class="fw-bold text-danger" style="font-size:1.3rem;">
+          R$&nbsp;{{ total_anulado|floatformat:"2g" }}
+        </div>
+        <div class="text-muted small">Total Anulado</div>
+      </div>
+    </div>
+    <div class="col-sm-4">
+      <div class="card border-0 shadow-sm text-center py-3">
+        <div class="fw-bold text-success" style="font-size:1.3rem;">
+          R$&nbsp;{{ total_liquido|floatformat:"2g" }}
+        </div>
+        <div class="text-muted small">Saldo Líquido</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabela de NEs -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+      <span class="fw-semibold">
+        <i class="bi bi-table me-1 text-warning"></i>
+        {{ nes|length }} nota{{ nes|length|pluralize:"s" }} de empenho
+      </span>
+      <input type="text" id="filtro-ne" class="form-control form-control-sm w-auto"
+             placeholder="Filtrar..." style="min-width:180px;">
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0 small" id="tabela-nes">
+        <thead class="table-light">
+          <tr>
+            <th>Número NE</th>
+            <th>Data</th>
+            <th>Credor</th>
+            <th>Cód. Contrato</th>
+            <th>Tipo</th>
+            <th>Status</th>
+            <th class="text-end">Valor (R$)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ne in nes %}
+          <tr class="{% if ne.tipoAlteracaoNE == 'ANULACAO' %}table-danger{% endif %}">
+            <td class="text-nowrap font-monospace">
+              {{ ne.numero|default:ne.codNE|default:"—" }}
+            </td>
+            <td class="text-nowrap">
+              {% if ne.dataEmissao %}
+                {{ ne.dataEmissao|slice:":10" }}
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              <span title="{{ ne.cpfCnpjCredor|default:"" }}">
+                {{ ne.nomeCredor|default:"—"|truncatechars:40 }}
+              </span>
+            </td>
+            <td class="font-monospace">{{ ne.codContrato|default:"—" }}</td>
+            <td>
+              {% if ne.tipoAlteracaoNE == "ANULACAO" %}
+                <span class="badge bg-danger">Anulação</span>
+              {% elif ne.tipoAlteracaoNE and ne.tipoAlteracaoNE != "NENHUMA" %}
+                <span class="badge bg-secondary">{{ ne.tipoAlteracaoNE }}</span>
+              {% else %}
+                <span class="badge bg-success">Normal</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if ne.statusDocumento %}
+                <span class="badge bg-light text-dark border">{{ ne.statusDocumento }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td class="text-end text-nowrap {% if ne.tipoAlteracaoNE == 'ANULACAO' %}text-danger{% endif %}">
+              {% if ne.tipoAlteracaoNE == "ANULACAO" %}-{% endif %}
+              R$&nbsp;{{ ne.valor_decimal|floatformat:"2g" }}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">
+              Nenhuma nota de empenho encontrada para {{ exercicio }}.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+{% endif %}
+
+<script>
+document.getElementById('filtro-ne')?.addEventListener('input', function () {
+  const termo = this.value.toLowerCase();
+  document.querySelectorAll('#tabela-nes tbody tr').forEach(tr => {
+    tr.style.display = tr.textContent.toLowerCase().includes(termo) ? '' : 'none';
+  });
+});
+</script>
+{% endblock %}

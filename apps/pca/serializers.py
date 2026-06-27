@@ -33,9 +33,8 @@ class PlanoContratacaoAnualSerializer(serializers.ModelSerializer):
 
 class ItemPCASerializer(serializers.ModelSerializer):
     categoria_display = serializers.CharField(source="get_categoria_display", read_only=True)
-    tipo_contratacao_display = serializers.CharField(
-        source="get_tipo_contratacao_display", read_only=True
-    )
+    tipo_demanda_display = serializers.CharField(source="get_tipo_demanda_display", read_only=True)
+    modalidade_display = serializers.CharField(source="get_modalidade_display", read_only=True)
 
     class Meta:
         model = ItemPCA
@@ -49,19 +48,20 @@ class ItemPCASerializer(serializers.ModelSerializer):
             "unidade_fornecimento",
             "quantidade_estimada",
             "descricao",
-            "tipo_contratacao",
-            "tipo_contratacao_display",
+            "tipo_demanda",
+            "tipo_demanda_display",
+            "modalidade",
+            "modalidade_display",
             "valor_unitario_estimado",
             "valor_total_estimado",
             "data_vencimento_contrato_anterior",
             "data_pretendida_conclusao",
-            "item_dependente",
             "observacoes",
             "is_srp",
             "justificativa_srp",
             "etp",
         ]
-        read_only_fields = ["categoria_display", "tipo_contratacao_display"]
+        read_only_fields = ["categoria_display", "tipo_demanda_display", "modalidade_display"]
 
 
 class DocumentoFormalizacaoDemandaSerializer(serializers.ModelSerializer):

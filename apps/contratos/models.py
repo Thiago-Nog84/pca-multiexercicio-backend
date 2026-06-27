@@ -97,6 +97,16 @@ class Contrato(models.Model):
     data_fim_vigencia = models.DateField()
     data_publicacao_pncp = models.DateTimeField(null=True, blank=True)
 
+    # Unidade que originou a demanda
+    unidade_requisitante = models.ForeignKey(
+        "core.UnidadeRequisitante",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="contratos",
+        help_text="Unidade/setor que originou a demanda do contrato",
+    )
+
     # Vínculo com processo
     item_pca = models.ForeignKey(
         "pca.ItemPCA",
