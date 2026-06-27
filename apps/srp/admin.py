@@ -6,6 +6,8 @@ from .models import (
     ARPExterna,
     AtaRegistroPrecos,
     ContratacaoDecorrente,
+    ContratoARP,
+    ContratoComprasnet,
     ItemARP,
     VinculoARPUnidade,
     VinculoPCAItemARP,
@@ -134,3 +136,46 @@ admin.site.register(ContratacaoDecorrente)
 admin.site.register(AdesaoARP)
 admin.site.register(ARPExterna)
 admin.site.register(VinculoPCAItemARP)
+
+
+# ---------------------------------------------------------------------------
+# ContratoComprasnet
+# ---------------------------------------------------------------------------
+
+@admin.register(ContratoComprasnet)
+class ContratoComprasnetAdmin(admin.ModelAdmin):
+    list_display = (
+        "numero", "fornecedor_nome", "situacao", "valor_global",
+        "vigencia_inicio", "vigencia_fim", "importado_em",
+    )
+    list_filter = ("situacao", "modalidade", "categoria")
+    search_fields = ("numero", "fornecedor_nome", "fornecedor_cnpj", "objeto", "processo")
+    date_hierarchy = "vigencia_fim"
+    readonly_fields = ("importado_em", "contrato_comprasnet_id")
+    list_select_related = ("arp",)
+
+    @admin.display(description="Vigente?", boolean=True)
+    def esta_vigente_display(self, obj):
+        return obj.esta_vigente
+
+
+# ---------------------------------------------------------------------------
+# ContratoARP
+# ---------------------------------------------------------------------------
+
+@admin.register(ContratoARP)
+class ContratoARPAdmin(admin.ModelAdmin):
+    list_display = (
+        "numero_contrato", "contratado_nome", "uasg_contratante",
+        "valor_total", "data_inicio_vigencia", "data_fim_vigencia",
+        "is_carona", "importado_em",
+    )
+    list_filter = ("is_carona",)
+    search_fields = (
+        "numero_contrato", "contratado_nome", "contratado_cnpj",
+        "uasg_contratante", "nome_uasg_contratante",
+    )
+    date_hierarchy = "data_fim_vigencia"
+    readonly_fields = ("importado_em",)
+    list_select_related = ("arp",)
+    raw_id_fields = ("arp",)
