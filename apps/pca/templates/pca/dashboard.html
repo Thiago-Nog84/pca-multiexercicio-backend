@@ -1,55 +1,115 @@
 {% extends "base.html" %}
 {% load humanize %}
 
-{% block title %}PCA -- Visão Geral{% endblock %}
+{% block title %}PCA — Visão Geral{% endblock %}
 {% block nav_pca %}active{% endblock %}
 
 {% block content %}
-<div class="page-header mb-4">
-  <h1><i class="bi bi-clipboard2-check text-primary me-2"></i>Visão Geral -- PCA
-    {% if pca %}<span class="fs-4 text-muted ms-2">{{ pca.exercicio }}</span>{% endif %}
-  </h1>
-  <p>Panorama do Plano de Contratações Anuais do MPPI.</p>
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div>
+    <h1 class="mb-0">
+      <i class="bi bi-clipboard2-check text-primary me-2"></i>Acompanhamento do PCA
+      {% if pca %}<span class="fs-4 text-muted ms-2">{{ pca.exercicio }}</span>{% endif %}
+    </h1>
+    <p class="text-muted small mb-0">Plano de Contratações Anuais — MPPI &nbsp;·&nbsp; Atualizado em {{ hoje|date:"d/m/Y" }}</p>
+  </div>
+  {% if pca %}
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{% url 'pca:demandas' %}" class="btn btn-primary btn-sm">
+      <i class="bi bi-list-task me-1"></i>Ver demandas
+    </a>
+    <a href="{% url 'pca:relatorios' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-file-earmark-bar-graph me-1"></i>Relatórios
+    </a>
+    <div class="dropdown">
+      <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        <i class="bi bi-grid me-1"></i>Mais
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><a class="dropdown-item" href="{% url 'pca:riscos' %}"><i class="bi bi-exclamation-triangle me-2 text-danger"></i>Riscos</a></li>
+        <li><a class="dropdown-item" href="{% url 'pca:prazos' %}"><i class="bi bi-calendar-check me-2 text-warning"></i>Prazos</a></li>
+        <li><a class="dropdown-item" href="{% url 'pca:orcamento' %}"><i class="bi bi-wallet2 me-2 text-success"></i>Orçamento</a></li>
+        <li><a class="dropdown-item" href="{% url 'pca:renovacao' %}"><i class="bi bi-arrow-repeat me-2 text-info"></i>Renovar contínuos</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="{% url 'pca:suspensas' %}"><i class="bi bi-pause-circle me-2 text-secondary"></i>Demandas suspensas</a></li>
+      </ul>
+    </div>
+  </div>
+  {% endif %}
 </div>
 
-<!-- Status PCA -->
 {% if pca %}
-<div class="d-flex align-items-center gap-2 py-2 px-3 mb-4" style="border-radius:10px;background:var(--mppi-vermelho-escuro);color:#fff;border:none;">
-  <i class="bi bi-info-circle-fill fs-5" style="color:rgba(255,255,255,.8)"></i>
-  <div>
+<!-- Status Banner -->
+<div class="alert mb-4 py-2 px-3 d-flex align-items-center gap-3 border-0"
+     style="background:var(--mppi-vermelho-escuro);color:#fff;border-radius:10px;">
+  <i class="bi bi-info-circle-fill fs-5" style="opacity:.8"></i>
+  <div class="small">
     <strong>Status do PCA {{ pca.exercicio }}:</strong>
     {{ pca.get_status_display }}
     {% if pca.data_aprovacao_pgj %}
-      -- Aprovado em {{ pca.data_aprovacao_pgj|date:"d/m/Y" }}
+      &nbsp;·&nbsp; Aprovado em {{ pca.data_aprovacao_pgj|date:"d/m/Y" }}
     {% endif %}
   </div>
-  <div class="d-flex gap-2 ms-auto flex-wrap">
-    <a href="{% url 'pca:relatorios' %}" class="btn btn-sm btn-outline-light" style="border-color:#86efac;color:#86efac;">
-      <i class="bi bi-file-earmark-bar-graph me-1"></i>Relatorios
-    </a>
-    <a href="{% url 'pca:riscos' %}" class="btn btn-sm btn-outline-light" style="border-color:#fca5a5;color:#fca5a5;">
-      <i class="bi bi-exclamation-triangle me-1"></i>Riscos
-    </a>
-    <a href="{% url 'pca:prazos' %}" class="btn btn-sm btn-outline-light">
-      <i class="bi bi-calendar-check me-1"></i>Prazos
-    </a>
-    <a href="{% url 'pca:orcamento' %}" class="btn btn-sm btn-outline-light">
-      <i class="bi bi-wallet2 me-1"></i>Orcamento
-    </a>
-    <a href="{% url 'pca:renovacao' %}" class="btn btn-sm btn-outline-light">
-      <i class="bi bi-arrow-repeat me-1"></i>Renovar continuos
-    </a>
-    <a href="{% url 'pca:demandas' %}" class="btn btn-sm btn-primary">
-      <i class="bi bi-list-task me-1"></i>Ver demandas
-    </a>
+</div>
+
+<!-- PAINEL DE ALERTAS -->
+{% if atrasados or vencendo_30 or sem_prazo or suspensos %}
+<div class="card border-0 shadow-sm mb-4" style="border-left:4px solid #dc3545!important;">
+  <div class="card-body py-3">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <i class="bi bi-bell-fill text-danger fs-5"></i>
+      <span class="fw-semibold text-danger">Alertas — Atenção necessária</span>
+    </div>
+    <div class="row g-2">
+      {% if atrasados %}
+      <div class="col-6 col-md-3">
+        <a href="{% url 'pca:prazos' %}" class="text-decoration-none">
+          <div class="rounded p-2 text-center" style="background:#fff5f5;border:1px solid #fecaca;">
+            <div class="fs-4 fw-bold text-danger">{{ atrasados }}</div>
+            <div class="small text-danger"><i class="bi bi-exclamation-circle me-1"></i>Atrasada{{ atrasados|pluralize:"s" }}</div>
+          </div>
+        </a>
+      </div>
+      {% endif %}
+      {% if vencendo_30 %}
+      <div class="col-6 col-md-3">
+        <a href="{% url 'pca:prazos' %}" class="text-decoration-none">
+          <div class="rounded p-2 text-center" style="background:#fffbeb;border:1px solid #fde68a;">
+            <div class="fs-4 fw-bold text-warning">{{ vencendo_30 }}</div>
+            <div class="small text-warning"><i class="bi bi-clock me-1"></i>Vence em 30 dias</div>
+          </div>
+        </a>
+      </div>
+      {% endif %}
+      {% if sem_prazo %}
+      <div class="col-6 col-md-3">
+        <a href="{% url 'pca:demandas' %}" class="text-decoration-none">
+          <div class="rounded p-2 text-center" style="background:#f0f9ff;border:1px solid #bae6fd;">
+            <div class="fs-4 fw-bold text-info">{{ sem_prazo }}</div>
+            <div class="small text-info"><i class="bi bi-calendar-x me-1"></i>Sem prazo definido</div>
+          </div>
+        </a>
+      </div>
+      {% endif %}
+      {% if suspensos %}
+      <div class="col-6 col-md-3">
+        <a href="{% url 'pca:suspensas' %}" class="text-decoration-none">
+          <div class="rounded p-2 text-center" style="background:#fafafa;border:1px solid #e5e7eb;">
+            <div class="fs-4 fw-bold text-secondary">{{ suspensos }}</div>
+            <div class="small text-secondary"><i class="bi bi-pause-circle me-1"></i>Suspensa{{ suspensos|pluralize:"s" }}</div>
+          </div>
+        </a>
+      </div>
+      {% endif %}
+    </div>
   </div>
 </div>
 {% endif %}
 
-<!-- KPIs -->
+<!-- KPIs PRINCIPAIS -->
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
-    <div class="card kpi-card h-100 p-3">
+    <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
       <div class="d-flex align-items-start justify-content-between">
         <div>
           <div class="kpi-label">Total de Demandas</div>
@@ -63,12 +123,12 @@
     </div>
   </div>
   <div class="col-6 col-md-3">
-    <div class="card kpi-card h-100 p-3">
+    <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
       <div class="d-flex align-items-start justify-content-between">
         <div>
           <div class="kpi-label">Valor PCA Estimado</div>
-          <div class="kpi-value mt-1" style="font-size:1.1rem;">R$ {{ valor_total|floatformat:"2g" }}</div>
-          <div class="kpi-sub">Total estimado</div>
+          <div class="kpi-value mt-1" style="font-size:1rem;">R$&nbsp;{{ valor_total|floatformat:"2g" }}</div>
+          <div class="kpi-sub text-muted">total das demandas</div>
         </div>
         <div class="kpi-icon" style="background:#dcfce7;">
           <i class="bi bi-cash-coin text-success"></i>
@@ -77,105 +137,137 @@
     </div>
   </div>
   <div class="col-6 col-md-3">
-    <div class="card kpi-card h-100 p-3">
+    <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
       <div class="d-flex align-items-start justify-content-between">
         <div>
           <div class="kpi-label">Valor Empenhado</div>
-          <div class="kpi-value mt-1" style="font-size:1.1rem;">R$ {{ valor_empenhado|floatformat:"2g" }}</div>
+          <div class="kpi-value mt-1" style="font-size:1rem;">R$&nbsp;{{ valor_empenhado|floatformat:"2g" }}</div>
           <div class="kpi-sub">{{ pct_executado }}% do estimado</div>
         </div>
         <div class="kpi-icon" style="background:#fef9c3;">
           <i class="bi bi-graph-up-arrow text-warning"></i>
         </div>
       </div>
-      <div class="progress prog-bar-sm mt-2">
+      <div class="progress mt-2" style="height:4px;">
         <div class="progress-bar bg-warning" style="width:{{ pct_executado }}%"></div>
       </div>
     </div>
   </div>
   <div class="col-6 col-md-3">
-    <div class="card kpi-card h-100 p-3">
+    <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
       <div class="d-flex align-items-start justify-content-between">
         <div>
-          <div class="kpi-label">Concluidas</div>
+          <div class="kpi-label">Concluídas</div>
           <div class="kpi-value mt-1">{{ concluidos }}</div>
-          <div class="kpi-sub">{{ em_andamento }} em andamento · {{ suspensos }} suspensos</div>
+          <div class="kpi-sub">{{ em_andamento }} em andamento · {{ suspensos }} suspenso{{ suspensos|pluralize:"s" }}</div>
         </div>
         <div class="kpi-icon" style="background:#dcfce7;">
           <i class="bi bi-check-circle text-success"></i>
         </div>
       </div>
+      {% if total_itens %}
+      <div class="progress mt-2" style="height:4px;">
+        <div class="progress-bar bg-success" style="width:{% widthratio concluidos total_itens 100 %}%"></div>
+      </div>
+      {% endif %}
     </div>
   </div>
 </div>
 
-<div class="row g-4">
-  <!-- Distribuição por status -->
-  <div class="col-md-4">
-    <div class="card h-100">
-      <div class="card-header bg-white border-bottom py-3">
-        <i class="bi bi-pie-chart me-2 text-primary"></i>Demandas por Status
+<!-- FUNIL / PIPELINE DE INSTRUCAO CONTRATUAL -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-bottom py-3">
+    <i class="bi bi-funnel me-2 text-primary"></i>
+    <strong>Pipeline de Instrução Contratual</strong>
+    <span class="text-muted small ms-2">— fluxo das demandas por fase</span>
+  </div>
+  <div class="card-body py-3">
+    <div class="row g-2 text-center">
+      <div class="col">
+        <div class="rounded p-2 h-100" style="background:#f8fafc;border:1px solid #e2e8f0;">
+          <div class="small text-muted mb-1"><i class="bi bi-hourglass me-1"></i>Não iniciado</div>
+          <div class="fs-5 fw-bold text-secondary">{{ nao_iniciados }}</div>
+          {% if total_itens %}<div class="progress mt-1" style="height:3px;"><div class="progress-bar bg-secondary" style="width:{% widthratio nao_iniciados total_itens 100 %}%"></div></div>{% endif %}
+        </div>
       </div>
-      <div class="card-body p-0">
-        <table class="table table-sm mb-0">
-          <thead class="table-light">
-            <tr>
-              <th>Status</th>
-              <th class="text-end">Qtd</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for s in por_status %}
-            <tr>
-              <td>
-                <span class="badge rounded-pill
-                  {% if s.status == 'concluido' %}bg-success
-                  {% elif s.status == 'suspenso' %}bg-warning text-dark
-                  {% elif s.status == 'em_andamento' %}bg-primary
-                  {% elif s.status == 'iniciado' %}bg-info text-dark
-                  {% elif s.status == 'em_diligencia' %}bg-secondary
-                  {% else %}bg-light text-dark border{% endif %}"
-                  style="font-size:.7rem;">
-                  {{ s.status|cut:"_"|capfirst }}
-                </span>
-              </td>
-              <td class="text-end fw-bold">{{ s.qtd }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="2" class="text-muted text-center py-3">Sem dados</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <div class="col-auto d-flex align-items-center text-muted" style="font-size:.8rem;">›</div>
+      <div class="col">
+        <div class="rounded p-2 h-100" style="background:#fefce8;border:1px solid #fde68a;">
+          <div class="small text-muted mb-1"><i class="bi bi-clipboard-check me-1"></i>Pend. validação</div>
+          <div class="fs-5 fw-bold text-warning">{{ pendentes_validacao }}</div>
+          {% if total_itens %}<div class="progress mt-1" style="height:3px;"><div class="progress-bar bg-warning" style="width:{% widthratio pendentes_validacao total_itens 100 %}%"></div></div>{% endif %}
+        </div>
       </div>
+      <div class="col-auto d-flex align-items-center text-muted" style="font-size:.8rem;">›</div>
+      <div class="col">
+        <div class="rounded p-2 h-100" style="background:#eff6ff;border:1px solid #bfdbfe;">
+          <div class="small text-muted mb-1"><i class="bi bi-play-circle me-1"></i>Em instrução</div>
+          <div class="fs-5 fw-bold text-primary">{{ em_andamento }}</div>
+          {% if total_itens %}<div class="progress mt-1" style="height:3px;"><div class="progress-bar bg-primary" style="width:{% widthratio em_andamento total_itens 100 %}%"></div></div>{% endif %}
+        </div>
+      </div>
+      <div class="col-auto d-flex align-items-center text-muted" style="font-size:.8rem;">›</div>
+      <div class="col">
+        <div class="rounded p-2 h-100" style="background:#fdf4ff;border:1px solid #e9d5ff;">
+          <div class="small text-muted mb-1"><i class="bi bi-search me-1"></i>Em diligência</div>
+          <div class="fs-5 fw-bold" style="color:#7c3aed;">{{ em_diligencia }}</div>
+          {% if total_itens %}<div class="progress mt-1" style="height:3px;"><div class="progress-bar" style="background:#7c3aed;width:{% widthratio em_diligencia total_itens 100 %}%"></div></div>{% endif %}
+        </div>
+      </div>
+      <div class="col-auto d-flex align-items-center text-muted" style="font-size:.8rem;">›</div>
+      <div class="col">
+        <div class="rounded p-2 h-100" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+          <div class="small text-muted mb-1"><i class="bi bi-check2-circle me-1"></i>Concluído</div>
+          <div class="fs-5 fw-bold text-success">{{ concluidos }}</div>
+          {% if total_itens %}<div class="progress mt-1" style="height:3px;"><div class="progress-bar bg-success" style="width:{% widthratio concluidos total_itens 100 %}%"></div></div>{% endif %}
+        </div>
+      </div>
+      {% if suspensos %}
+      <div class="col-auto d-flex align-items-center text-muted" style="font-size:.8rem;">·</div>
+      <div class="col">
+        <div class="rounded p-2 h-100" style="background:#f9fafb;border:1px solid #d1d5db;">
+          <div class="small text-muted mb-1"><i class="bi bi-pause-circle me-1"></i>Suspenso</div>
+          <div class="fs-5 fw-bold text-secondary">{{ suspensos }}</div>
+          {% if total_itens %}<div class="progress mt-1" style="height:3px;"><div class="progress-bar bg-secondary" style="width:{% widthratio suspensos total_itens 100 %}%"></div></div>{% endif %}
+        </div>
+      </div>
+      {% endif %}
     </div>
   </div>
+</div>
 
-  <!-- Distribuição por categoria -->
+<!-- LINHA 3: CATEGORIAS + MODALIDADES + URGENTES -->
+<div class="row g-4 mb-4">
+  <!-- Por categoria -->
   <div class="col-md-4">
-    <div class="card h-100">
+    <div class="card border-0 shadow-sm h-100">
       <div class="card-header bg-white border-bottom py-3">
-        <i class="bi bi-tags me-2 text-primary"></i>Por Categoria
+        <i class="bi bi-tags me-2 text-primary"></i><strong>Por Categoria</strong>
       </div>
       <div class="card-body p-0">
         <table class="table table-sm mb-0">
           <thead class="table-light">
             <tr>
-              <th>Categoria</th>
-              <th class="text-end">Qtd</th>
-              <th class="text-end">Valor</th>
+              <th style="font-size:.75rem;">Categoria</th>
+              <th class="text-end" style="font-size:.75rem;">Qtd</th>
+              <th class="text-end" style="font-size:.75rem;">Valor (R$)</th>
             </tr>
           </thead>
           <tbody>
             {% for c in por_categoria %}
             <tr>
-              <td style="font-size:.8rem;">{{ c.categoria|capfirst }}</td>
-              <td class="text-end">{{ c.qtd }}</td>
-              <td class="text-end text-muted" style="font-size:.75rem;">
-                R$ {{ c.valor|floatformat:"0g" }}
+              <td style="font-size:.8rem;">
+                {% if c.categoria == "material" %}<i class="bi bi-box me-1 text-muted"></i>Material
+                {% elif c.categoria == "servico" %}<i class="bi bi-tools me-1 text-muted"></i>Serviço
+                {% elif c.categoria == "obras" %}<i class="bi bi-building me-1 text-muted"></i>Obras
+                {% elif c.categoria == "solucao_ti" %}<i class="bi bi-cpu me-1 text-muted"></i>TIC
+                {% else %}<i class="bi bi-tag me-1 text-muted"></i>{{ c.categoria|capfirst }}{% endif %}
               </td>
+              <td class="text-end fw-semibold" style="font-size:.8rem;">{{ c.qtd }}</td>
+              <td class="text-end text-muted" style="font-size:.75rem;">{% if c.valor %}{{ c.valor|floatformat:"0g" }}{% else %}—{% endif %}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="3" class="text-muted text-center py-3">Sem dados</td></tr>
+            <tr><td colspan="3" class="text-center text-muted py-3">Sem dados</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -183,28 +275,183 @@
     </div>
   </div>
 
-  <!-- Distribuição por modalidade -->
+  <!-- Por modalidade -->
   <div class="col-md-4">
-    <div class="card h-100">
+    <div class="card border-0 shadow-sm h-100">
       <div class="card-header bg-white border-bottom py-3">
-        <i class="bi bi-hammer me-2 text-primary"></i>Por Modalidade
+        <i class="bi bi-hammer me-2 text-primary"></i><strong>Por Modalidade</strong>
+      </div>
+      <div class="card-body">
+        {% for m in por_modalidade %}
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span style="font-size:.78rem;">
+            {% if m.modalidade == "pregao_eletronico" %}Pregão Eletrônico
+            {% elif m.modalidade == "dispensa" %}Dispensa (art. 75)
+            {% elif m.modalidade == "inexigibilidade" %}Inexigibilidade (art. 74)
+            {% elif m.modalidade == "arp_propria" %}ARP Própria
+            {% elif m.modalidade == "arp_carona" %}ARP Carona
+            {% elif m.modalidade == "concorrencia" %}Concorrência
+            {% else %}{{ m.modalidade|cut:"_"|capfirst }}{% endif %}
+          </span>
+          <span class="badge bg-primary rounded-pill" style="font-size:.7rem;">{{ m.qtd }}</span>
+        </div>
+        {% if total_itens %}
+        <div class="progress mb-2" style="height:4px;">
+          <div class="progress-bar
+            {% if m.modalidade == "arp_propria" or m.modalidade == "arp_carona" %}bg-info
+            {% elif m.modalidade == "pregao_eletronico" %}bg-primary
+            {% elif m.modalidade == "dispensa" or m.modalidade == "inexigibilidade" %}bg-warning
+            {% else %}bg-secondary{% endif %}"
+            style="width:{% widthratio m.qtd total_itens 100 %}%">
+          </div>
+        </div>
+        {% endif %}
+        {% empty %}
+        <p class="text-muted text-center py-3">Sem dados</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Próximas a vencer -->
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-clock-history me-2 text-danger"></i><strong>Próximas a Vencer</strong>
+      </div>
+      <div class="card-body p-0">
+        {% if urgentes %}
+        <ul class="list-group list-group-flush">
+          {% for item in urgentes %}
+          <li class="list-group-item px-3 py-2">
+            <div class="d-flex justify-content-between align-items-start">
+              <div style="min-width:0;">
+                <a href="{% url 'pca:item_detalhe' item.pk %}" class="text-decoration-none fw-semibold"
+                   style="font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:180px;"
+                   title="{{ item.descricao }}">
+                  {{ item.descricao|truncatechars:38 }}
+                </a>
+                <span class="text-muted" style="font-size:.7rem;">{{ item.dfd.unidade.sigla }}</span>
+              </div>
+              <div class="text-end ms-2 flex-shrink-0">
+                <div class="small fw-bold {% if item.data_pretendida_conclusao < hoje %}text-danger{% else %}text-muted{% endif %}">
+                  {{ item.data_pretendida_conclusao|date:"d/m/Y" }}
+                </div>
+                <div class="text-muted" style="font-size:.65rem;">{{ item.data_pretendida_conclusao|timeuntil }}</div>
+              </div>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        <div class="px-3 py-2 border-top">
+          <a href="{% url 'pca:prazos' %}" class="small text-primary">Ver todos os prazos →</a>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+          <i class="bi bi-calendar-check fs-3 d-block mb-2"></i>
+          Nenhum prazo crítico
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LINHA 4: SRP + EXECUCAO FINANCEIRA + UO -->
+<div class="row g-4 mb-4">
+  <!-- SRP -->
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-card-list me-2 text-info"></i><strong>Sistema de Registro de Preços</strong>
+      </div>
+      <div class="card-body">
+        <div class="row g-3 text-center">
+          <div class="col-6">
+            <div class="p-2 rounded" style="background:#f0f9ff;border:1px solid #bae6fd;">
+              <div class="fs-4 fw-bold text-info">{{ itens_srp }}</div>
+              <div class="small text-muted">Itens SRP</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="p-2 rounded" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+              <div class="fw-bold text-success" style="font-size:.9rem;">R$&nbsp;{{ valor_srp|floatformat:"0g" }}</div>
+              <div class="small text-muted">Valor SRP</div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-3 text-center">
+          <a href="{% url 'srp:dashboard' %}" class="btn btn-sm btn-outline-info">
+            <i class="bi bi-box-arrow-up-right me-1"></i>Acessar módulo SRP
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Execução financeira -->
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-bar-chart-line me-2 text-success"></i><strong>Execução Financeira</strong>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <div class="d-flex justify-content-between small mb-1">
+            <span class="text-muted">Valor estimado</span>
+            <span class="fw-semibold">R$&nbsp;{{ valor_total|floatformat:"2g" }}</span>
+          </div>
+          <div class="progress" style="height:8px;"><div class="progress-bar bg-light border" style="width:100%"></div></div>
+        </div>
+        <div class="mb-3">
+          <div class="d-flex justify-content-between small mb-1">
+            <span class="text-success">Empenhado ({{ pct_executado }}%)</span>
+            <span class="fw-semibold text-success">R$&nbsp;{{ valor_empenhado|floatformat:"2g" }}</span>
+          </div>
+          <div class="progress" style="height:8px;"><div class="progress-bar bg-success" style="width:{{ pct_executado }}%"></div></div>
+        </div>
+        <div>
+          <div class="d-flex justify-content-between small mb-1">
+            <span class="text-muted">Disponível</span>
+            <span class="fw-semibold text-muted">R$&nbsp;{{ valor_disponivel|floatformat:"2g" }}</span>
+          </div>
+          <div class="progress" style="height:8px;">
+            <div class="progress-bar bg-secondary" style="width:{% if valor_total %}{% widthratio valor_disponivel valor_total 100 %}{% else %}0{% endif %}%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Por unidade orçamentária -->
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-building me-2 text-primary"></i><strong>Por Unidade Orçamentária</strong>
       </div>
       <div class="card-body p-0">
         <table class="table table-sm mb-0">
           <thead class="table-light">
             <tr>
-              <th>Modalidade</th>
-              <th class="text-end">Qtd</th>
+              <th style="font-size:.75rem;">UO</th>
+              <th class="text-end" style="font-size:.75rem;">Qtd</th>
+              <th class="text-end" style="font-size:.75rem;">Valor (R$)</th>
             </tr>
           </thead>
           <tbody>
-            {% for m in por_modalidade %}
+            {% for uo in por_uo %}
             <tr>
-              <td style="font-size:.8rem;">{{ m.modalidade|cut:"_"|capfirst }}</td>
-              <td class="text-end fw-bold">{{ m.qtd }}</td>
+              <td style="font-size:.8rem;">
+                {% if uo.unidade_orcamentaria == "pgj" %}PGJ
+                {% elif uo.unidade_orcamentaria == "fmmp" %}FMMP
+                {% elif uo.unidade_orcamentaria == "fepdc" %}FEPDC
+                {% else %}{{ uo.unidade_orcamentaria|upper }}{% endif %}
+              </td>
+              <td class="text-end" style="font-size:.8rem;">{{ uo.qtd }}</td>
+              <td class="text-end text-muted" style="font-size:.75rem;">{% if uo.valor %}{{ uo.valor|floatformat:"0g" }}{% else %}—{% endif %}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="2" class="text-muted text-center py-3">Sem dados</td></tr>
+            <tr><td colspan="3" class="text-center text-muted py-3">Sem dados</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -213,11 +460,88 @@
   </div>
 </div>
 
-{% if not pca %}
+<!-- INSTRUCAO CONTRATUAL — ETAPAS -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+    <span>
+      <i class="bi bi-patch-check me-2 text-success"></i>
+      <strong>Instrução Contratual — Etapas do Processo</strong>
+    </span>
+    <a href="{% url 'pca:riscos' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-exclamation-triangle me-1"></i>Ver riscos
+    </a>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-3">
+        <div class="d-flex align-items-start gap-2">
+          <i class="bi bi-1-circle-fill text-primary mt-1 flex-shrink-0"></i>
+          <div>
+            <div class="fw-semibold small">Planejamento</div>
+            <div class="text-muted" style="font-size:.75rem;">DFD · ETP · Mapa de Riscos · Pesquisa de Preços</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="d-flex align-items-start gap-2">
+          <i class="bi bi-2-circle-fill text-warning mt-1 flex-shrink-0"></i>
+          <div>
+            <div class="fw-semibold small">Instrução do Processo</div>
+            <div class="text-muted" style="font-size:.75rem;">TR/PB · Minutas contratuais · Parecer jurídico · PGEA</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="d-flex align-items-start gap-2">
+          <i class="bi bi-3-circle-fill text-info mt-1 flex-shrink-0"></i>
+          <div>
+            <div class="fw-semibold small">Licitação / Contratação</div>
+            <div class="text-muted" style="font-size:.75rem;">Publicação PNCP · Fase externa · Adjudicação / Homologação</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="d-flex align-items-start gap-2">
+          <i class="bi bi-4-circle-fill text-success mt-1 flex-shrink-0"></i>
+          <div>
+            <div class="fw-semibold small">Execução e Gestão</div>
+            <div class="text-muted" style="font-size:.75rem;">Empenho · Liquidação · Pagamento · Gestão contratual</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <hr class="my-3">
+    <div class="row g-2">
+      <div class="col-auto">
+        <a href="{% url 'pca:demandas' %}?status=nao_iniciado" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-hourglass me-1"></i>Não iniciadas ({{ nao_iniciados }})
+        </a>
+      </div>
+      <div class="col-auto">
+        <a href="{% url 'pca:validar_demandas' pca.exercicio %}" class="btn btn-sm btn-outline-warning">
+          <i class="bi bi-clipboard-check me-1"></i>Validar demandas
+        </a>
+      </div>
+      <div class="col-auto">
+        <a href="{% url 'pca:prazos' %}" class="btn btn-sm btn-outline-danger">
+          <i class="bi bi-calendar-event me-1"></i>Controle de prazos
+        </a>
+      </div>
+      <div class="col-auto">
+        <a href="{% url 'pca:relatorios' %}" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-file-earmark-bar-graph me-1"></i>Relatórios
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% else %}
 <div class="alert alert-warning mt-4">
   <i class="bi bi-exclamation-triangle me-2"></i>
-  Nenhum Plano de Contratacoes Anual cadastrado ainda. Acesse o
+  Nenhum Plano de Contratações Anual cadastrado ainda. Acesse o
   <a href="/admin/pca/planocontratacaoanual/add/" class="alert-link">Admin</a> para criar o primeiro PCA.
 </div>
 {% endif %}
+
 {% endblock %}

@@ -5,6 +5,7 @@ Todos os endpoints exigem autenticação JWT (IsAuthenticated).
 As consultas são registradas em SiafeLogConsulta para auditoria.
 """
 
+import functools
 import time
 import logging
 
@@ -34,6 +35,7 @@ def _log(endpoint: str, parametros: dict, sucesso: bool, status_http: int,
 
 def _exec(view_func):
     """Decorator interno: executa a consulta ao SIAFE, registra log e trata erros."""
+    @functools.wraps(view_func)
     def wrapper(self, request, *args, **kwargs):
         t0 = time.monotonic()
         try:

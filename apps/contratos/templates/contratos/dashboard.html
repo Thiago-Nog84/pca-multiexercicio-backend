@@ -573,37 +573,126 @@
 <!-- LINHA 6: PAINEL SIAFE + RESUMO NORMAS -->
 <div class="row g-4 mb-4">
 
-  <!-- SIAFE live -->
-  <div class="col-md-6">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-header bg-white border-bottom py-3">
-        <i class="bi bi-boxes me-2 text-warning"></i><strong>SIAFE — Consulta Financeira</strong>
+  <!-- SIAFE — Execução Orçamentária -->
+  <div class="col-12">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <i class="bi bi-graph-up-arrow me-2 text-warning"></i>
+          <strong>Execução Orçamentária — SIAFE-PI</strong>
+          {% if ultima_sync_siafe %}
+            <span class="text-muted small ms-2">
+              Sincronizado em {{ ultima_sync_siafe|date:"d/m/Y H:i" }}
+            </span>
+          {% else %}
+            <span class="badge bg-secondary ms-2">Não sincronizado</span>
+          {% endif %}
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="/api/siafe/nota-empenho/{{ hoje|date:"Y" }}/250101/"
+             class="btn btn-sm btn-outline-warning" target="_blank">
+            <i class="bi bi-receipt me-1"></i>NEs PGJ
+          </a>
+          <a href="/api/siafe/nota-empenho/{{ hoje|date:"Y" }}/250102/"
+             class="btn btn-sm btn-outline-warning" target="_blank">
+            <i class="bi bi-receipt me-1"></i>NEs FUNDMPE
+          </a>
+          <a href="/api/siafe/nota-empenho/{{ hoje|date:"Y" }}/250104/"
+             class="btn btn-sm btn-outline-warning" target="_blank">
+            <i class="bi bi-receipt me-1"></i>NEs FPDC
+          </a>
+          <span class="text-muted small d-flex align-items-center">
+            <code class="ms-1">manage.py atualizar_execucao_siafe</code>
+          </span>
+        </div>
       </div>
       <div class="card-body">
-        <p class="text-muted small mb-3">
-          Consulte diretamente a API do SIAFE-PI para dados de execução orçamentária e contratos registrados no SEFAZ.
-        </p>
-        <div class="d-flex flex-wrap gap-2">
-          <a href="/api/siafe/contratos/{{ hoje|date:"Y" }}/lista/"
-             class="btn btn-sm btn-outline-warning" target="_blank">
-            <i class="bi bi-list-check me-1"></i>Listar contratos {{ hoje|date:"Y" }}
-          </a>
-          <a href="/api/siafe/nota-empenho/{{ hoje|date:"Y" }}/926092/"
-             class="btn btn-sm btn-outline-warning" target="_blank">
-            <i class="bi bi-receipt me-1"></i>Empenhos {{ hoje|date:"Y" }}
-          </a>
-          <a href="/api/siafe/nota-empenho/{{ hoje|date:"Y" }}/926092/{{ hoje|date:"n" }}/"
-             class="btn btn-sm btn-outline-secondary" target="_blank">
-            <i class="bi bi-calendar3 me-1"></i>Empenhos mês atual
-          </a>
+
+        <!-- KPIs execução -->
+        <div class="row g-3 mb-4">
+          <div class="col-sm-4">
+            <div class="bg-light rounded p-3 text-center">
+              <div class="text-warning fw-bold" style="font-size:1.4rem;">
+                R$ {{ valor_empenhado|floatformat:2|intcomma }}
+              </div>
+              <div class="text-muted small">Total Empenhado (SIAFE)</div>
+            </div>
+          </div>
+          <div class="col-sm-4">
+            <div class="bg-light rounded p-3 text-center">
+              <div class="fw-bold" style="font-size:1.4rem;">
+                {{ pct_empenhado }}%
+              </div>
+              <div class="text-muted small">% do valor contratual vigente</div>
+              <div class="progress mt-2" style="height:6px;">
+                <div class="progress-bar {% if pct_empenhado >= 90 %}bg-danger{% elif pct_empenhado >= 70 %}bg-warning{% else %}bg-success{% endif %}"
+                     style="width:{{ pct_empenhado }}%;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-4">
+            <div class="bg-light rounded p-3 text-center">
+              <div class="fw-bold" style="font-size:1.4rem;">{{ com_execucao }}</div>
+              <div class="text-muted small">Contratos com empenho vinculado</div>
+            </div>
+          </div>
         </div>
-        <hr class="my-3">
-        <div class="small text-muted">
-          <i class="bi bi-info-circle me-1"></i>
-          Para sincronizar contratos do SIAFE com o banco local, use
-          <code>manage.py sincronizar_contratos_comprasnet</code> (dados Comprasnet) ou
-          consulte a API SIAFE diretamente para conciliação.
+
+        <!-- Tabela top empenhados -->
+        {% if top_empenhados %}
+        <h6 class="text-muted mb-2" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;">
+          Top contratos por valor empenhado
+        </h6>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0" style="font-size:.82rem;">
+            <thead class="table-light">
+              <tr>
+                <th>Contrato</th>
+                <th>Contratado</th>
+                <th class="text-end">Valor Contratual</th>
+                <th class="text-end">Empenhado</th>
+                <th style="width:120px;">Execução</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in top_empenhados %}
+              {% with pct=c.valor_empenhado|floatformat:0 %}
+              {% if c.valor_atual %}
+              <tr>
+                <td>
+                  <span class="badge bg-secondary me-1">{{ c.orgao.sigla }}</span>
+                  {{ c.numero_contrato }}
+                </td>
+                <td class="text-truncate" style="max-width:180px;">{{ c.contratado_razao_social }}</td>
+                <td class="text-end text-nowrap">R$ {{ c.valor_atual|floatformat:2|intcomma }}</td>
+                <td class="text-end text-nowrap fw-semibold">R$ {{ c.valor_empenhado|floatformat:2|intcomma }}</td>
+                <td>
+                  {% widthratio c.valor_empenhado c.valor_atual 100 as exec_pct %}
+                  <div class="d-flex align-items-center gap-1">
+                    <div class="progress flex-grow-1" style="height:6px;">
+                      <div class="progress-bar {% if exec_pct >= 90 %}bg-danger{% elif exec_pct >= 70 %}bg-warning{% else %}bg-success{% endif %}"
+                           style="width:{% if exec_pct > 100 %}100{% else %}{{ exec_pct }}{% endif %}%;"></div>
+                    </div>
+                    <small class="text-muted">{{ exec_pct }}%</small>
+                  </div>
+                </td>
+              </tr>
+              {% endif %}
+              {% endwith %}
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+          <i class="bi bi-cloud-slash" style="font-size:2rem;"></i>
+          <p class="mt-2 mb-0 small">
+            Nenhum dado de execução disponível.<br>
+            Execute <code>manage.py atualizar_execucao_siafe</code> para sincronizar.
+          </p>
+        </div>
+        {% endif %}
+
       </div>
     </div>
   </div>

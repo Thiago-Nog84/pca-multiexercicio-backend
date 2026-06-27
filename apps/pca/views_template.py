@@ -3,6 +3,7 @@ Views Django Templates - Modulo PCA
 """
 
 import datetime
+from datetime import timedelta
 
 
 def _pca_default(todos_pcas):
@@ -63,9 +64,55 @@ class DashboardPCAView(View):
             .order_by("-qtd")
         )
 
-        suspensos   = itens.filter(status="suspenso").count()
-        concluidos  = itens.filter(status="concluido").count()
+        suspensos    = itens.filter(status="suspenso").count()
+        concluidos   = itens.filter(status="concluido").count()
         em_andamento = itens.filter(status__in=["em_andamento", "iniciado"]).count()
+        nao_iniciados       = itens.filter(status="nao_iniciado").count()
+        pendentes_validacao = itens.filter(status="pendente_validacao").count()
+        em_diligencia       = itens.filter(status="em_diligencia").count()
+
+        # ---------- alertas de prazo ----------
+        hoje = datetime.date.today()
+        ativos = itens.exclude(status__in=["concluido", "suspenso"])
+        atrasados   = ativos.filter(data_pretendida_conclusao__lt=hoje).count()
+        vencendo_30 = ativos.filter(
+            data_pretendida_conclusao__gte=hoje,
+            data_pretendida_conclusao__lte=hoje + timedelta(days=30),
+        ).count()
+        vencendo_90 = ativos.filter(
+            data_pretendida_conclusao__gte=hoje,
+            data_pretendida_conclusao__lte=hoje + timedelta(days=90),
+        ).count()
+        sem_prazo   = ativos.filter(data_pretendida_conclusao__isnull=True).count()
+
+        # ---------- SRP ----------
+        itens_srp  = itens.filter(is_srp=True).count()
+        valor_srp  = itens.filter(is_srp=True).aggregate(
+            total=Sum("valor_total_estimado")
+        )["total"] or 0
+
+        # ---------- por unidade orçamentária ----------
+        por_uo = list(
+            itens.values("unidade_orcamentaria")
+            .annotate(qtd=Count("id"), valor=Sum("valor_total_estimado"))
+            .order_by("-valor")
+        )
+
+        # ---------- por tipo de demanda ----------
+        por_tipo = list(
+            itens.values("tipo_demanda")
+            .annotate(qtd=Count("id"))
+            .order_by("-qtd")
+        )
+
+        # ---------- 5 itens mais urgentes (vencendo em breve, ativos) ----------
+        urgentes = list(
+            ativos.filter(data_pretendida_conclusao__isnull=False)
+            .select_related("dfd__unidade")
+            .order_by("data_pretendida_conclusao")[:5]
+        )
+
+        pct_executado = int((valor_empenhado / valor_total * 100) if valor_total else 0)
 
         context = {
             "pca": pca,
@@ -73,13 +120,30 @@ class DashboardPCAView(View):
             "total_itens": total_itens,
             "valor_total": valor_total,
             "valor_empenhado": valor_empenhado,
-            "pct_executado": int((valor_empenhado / valor_total * 100) if valor_total else 0),
+            "valor_disponivel": (valor_total or 0) - (valor_empenhado or 0),
+            "pct_executado": pct_executado,
             "suspensos": suspensos,
             "concluidos": concluidos,
             "em_andamento": em_andamento,
+            "nao_iniciados": nao_iniciados,
+            "pendentes_validacao": pendentes_validacao,
+            "em_diligencia": em_diligencia,
             "por_status": list(por_status),
             "por_categoria": list(por_categoria),
             "por_modalidade": list(por_modalidade),
+            # alertas
+            "hoje": hoje,
+            "atrasados": atrasados,
+            "vencendo_30": vencendo_30,
+            "vencendo_90": vencendo_90,
+            "sem_prazo": sem_prazo,
+            # srp
+            "itens_srp": itens_srp,
+            "valor_srp": valor_srp,
+            # distribuições extras
+            "por_uo": por_uo,
+            "por_tipo": por_tipo,
+            "urgentes": urgentes,
         }
         return render(request, self.template_name, context)
 

@@ -2,7 +2,7 @@ from django.urls import path
 
 from . import views
 from .views_contratos import (
-    ContratoDetalheView, ContratosPaginadoView, ContratoConsultaView,
+    ContratosUGView, ContratoDetalheView, ContratosPaginadoView, ContratoConsultaView,
     ConvenioDetalheView, ConveniosPaginadoView,
 )
 from .views_execucao import (
@@ -57,6 +57,8 @@ urlpatterns = [
          views.SaldoContabilMensalView.as_view(), name="saldo-contabil-mensal"),
 
     # --- CONTRATOS E CONVENIOS ---
+    path("contratos/<int:exercicio>/ug/<str:codigo_ug>/",
+         ContratosUGView.as_view(), name="contratos-por-ug"),
     path("contratos/<int:exercicio>/<str:codigo_contrato>/",
          ContratoDetalheView.as_view(), name="contrato-detalhe"),
     path("contratos/<int:exercicio>/lista/",

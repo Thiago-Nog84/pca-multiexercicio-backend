@@ -224,6 +224,14 @@ class SiafeClient:
     # Contratos e Convênios
     # ------------------------------------------------------------------
 
+    def contratos_por_ug(self, exercicio: int, codigo_ug: str) -> list:
+        """
+        GET /contrato/{exercicio}/{codigoUG}
+        Lista todos os contratos de uma UG no exercício.
+        Mesmo padrão do nota-empenho por UG.
+        """
+        return self._get(f"/contrato/{exercicio}/{codigo_ug}")
+
     def contrato(self, exercicio: int, codigo_contrato: str) -> dict:
         """
         GET /contrato/{exercicio}/{codigoContrato}
@@ -235,15 +243,19 @@ class SiafeClient:
     def contratos_paginado(self, exercicio: int, pagina: int = 1, total_por_pagina: int = 50, filtros: dict = None) -> dict:
         """
         POST /contrato/{exercicio}/{pagina}/{totalRegistroPagina}
-        Listagem paginada de contratos do exercício com filtros opcionais.
+        Body requerido: { "nomeContrato": "...", "numeroOriginal": "..." }
+        Campos opcionais: numeroContrato.
+        Não filtra por UG — use consultar_contrato para busca por contratante.
         """
         return self._post(f"/contrato/{exercicio}/{pagina}/{total_por_pagina}", filtros or {})
 
     def consultar_contrato(self, exercicio: int, filtros: dict) -> dict:
         """
         POST /contrato/consulta/{exercicio}
-        Consulta por código do contrato ou número original.
-        filtros: { "codigoContrato": "...", "numeroOriginal": "..." }
+        Consulta contratos por identificador.
+        Campos requeridos: codigoContratante (UG), codigoContratado (CNPJ/CPF fornecedor), numeroOriginal.
+        Campo opcional: codigo (código automático SIAFE).
+        Exemplo: { "codigoContratante": "926092", "codigoContratado": "12345678000190", "numeroOriginal": "00001/2026" }
         """
         return self._post(f"/contrato/consulta/{exercicio}", filtros)
 

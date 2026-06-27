@@ -41,8 +41,23 @@ class DashboardContratosView(View):
         vencendo_90  = contratos.filter(status="vigente", data_fim_vigencia__range=(hoje, d90)).count()
         vencendo_120 = contratos.filter(status="vigente", data_fim_vigencia__range=(hoje, d120)).count()
 
-        valor_local     = contratos.filter(status="vigente").aggregate(v=Sum("valor_atual"))["v"] or 0
+        valor_local      = contratos.filter(status="vigente").aggregate(v=Sum("valor_atual"))["v"] or 0
         saldo_disponivel = contratos.filter(status="vigente").aggregate(v=Sum("saldo_disponivel"))["v"] or 0
+        valor_empenhado  = contratos.filter(status="vigente").aggregate(v=Sum("valor_empenhado"))["v"] or 0
+        pct_empenhado    = round(float(valor_empenhado) / float(valor_local) * 100, 1) if valor_local else 0
+        com_execucao     = contratos.filter(valor_empenhado__gt=0).count()
+        ultima_sync_siafe = (
+            contratos.filter(ultima_atualizacao_siafe__isnull=False)
+            .order_by("-ultima_atualizacao_siafe")
+            .values_list("ultima_atualizacao_siafe", flat=True)
+            .first()
+        )
+
+        # Top contratos por valor empenhado (para tabela de execução)
+        top_empenhados = list(
+            contratos.filter(valor_empenhado__gt=0)
+            .order_by("-valor_empenhado")[:10]
+        )
 
         por_tipo = list(
             contratos.filter(status="vigente")
@@ -147,6 +162,12 @@ class DashboardContratosView(View):
             "alertas_ti": alertas_ti,
             "alertas_outros": alertas_outros,
             "recentes": recentes,
+            # execução orçamentária SIAFE
+            "valor_empenhado": valor_empenhado,
+            "pct_empenhado": pct_empenhado,
+            "com_execucao": com_execucao,
+            "top_empenhados": top_empenhados,
+            "ultima_sync_siafe": ultima_sync_siafe,
             # comprasnet
             "total_comprasnet": total_comprasnet,
             "ativos_comprasnet": ativos_comprasnet,

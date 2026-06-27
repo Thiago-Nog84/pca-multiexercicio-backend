@@ -69,6 +69,28 @@ class Contrato(models.Model):
         help_text="Saldo restante após ordens de fornecimento / medições",
     )
 
+    # Código automático SIAFE (número interno de 8 dígitos, ex: 26100674)
+    # Usado para cruzar com codContrato das Notas de Empenho
+    codigo_siafe = models.CharField(
+        max_length=12,
+        blank=True,
+        db_index=True,
+        help_text="Número automático do contrato no SIAFE-PI (ex: 26100674)",
+    )
+
+    # Execução orçamentária (sincronizado do SIAFE via atualizar_execucao_siafe)
+    valor_empenhado = models.DecimalField(
+        max_digits=16,
+        decimal_places=2,
+        default=0,
+        help_text="Total empenhado no SIAFE vinculado a este contrato",
+    )
+    ultima_atualizacao_siafe = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Última sincronização com o SIAFE-PI",
+    )
+
     # Vigência
     data_assinatura = models.DateField()
     data_inicio_vigencia = models.DateField()
