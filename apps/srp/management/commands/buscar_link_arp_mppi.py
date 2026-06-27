@@ -152,10 +152,21 @@ def _raspar_paginas_clc(session: requests.Session, stdout) -> dict[tuple[str, st
 # Fallback: catálogo WordPress REST API
 # ---------------------------------------------------------------------------
 
-def _baixar_catalogo_wp(session: requests.Session, stdout) -> dict[tuple[str, str], str]:
-    """Pagina a WP REST API e indexa todos os PDFs com padrão ARP-N-YYYY."""
+def _baixar_catalogo_wp(
+    session: requests.Session,
+    stdout,
+    *,
+    parar_apos_n_sem_novidade: int = 50,
+) -> dict[tuple[str, str], str]:
+    """
+    Pagina a WP REST API e indexa todos os PDFs com padrão ARP-N-YYYY.
+
+    Para automaticamente após `parar_apos_n_sem_novidade` páginas consecutivas
+    sem nenhuma ARP nova — evita varrer centenas de páginas desnecessárias.
+    """
     catalogo: dict[tuple[str, str], str] = {}
     pagina = 1
+    paginas_sem_novidade = 0
     stdout.write("  Fallback: baixando catálogo via WordPress REST API...")
 
     while True:
@@ -173,6 +184,7 @@ def _baixar_catalogo_wp(session: requests.Session, stdout) -> dict[tuple[str, st
                 break
 
             total_pag = int(resp.headers.get("X-WP-TotalPages", 1))
+            antes = len(catalogo)
             for item in itens:
                 url = item.get("source_url", "")
                 m = RE_ARP_FNAME.search(url.split("/")[-1])
@@ -181,7 +193,18 @@ def _baixar_catalogo_wp(session: requests.Session, stdout) -> dict[tuple[str, st
                     if chave not in catalogo:
                         catalogo[chave] = url
 
+            if len(catalogo) > antes:
+                paginas_sem_novidade = 0
+            else:
+                paginas_sem_novidade += 1
+
             stdout.write(f"    Página {pagina}/{total_pag} — {len(catalogo)} ARPs indexadas")
+
+            if paginas_sem_novidade >= parar_apos_n_sem_novidade:
+                stdout.write(
+                    f"    ⏹ Early-exit: {parar_apos_n_sem_novidade} páginas sem novidade — encerrando busca."
+                )
+                break
             if pagina >= total_pag:
                 break
             pagina += 1

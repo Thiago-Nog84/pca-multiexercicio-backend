@@ -391,6 +391,7 @@ class VinculoPCAItemARP(models.Model):
     criado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
+        blank=True,
         on_delete=models.SET_NULL,
         related_name="vinculos_pca_arp_criados",
     )
