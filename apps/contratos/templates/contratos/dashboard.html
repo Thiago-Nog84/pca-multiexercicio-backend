@@ -5,25 +5,72 @@
 {% block nav_contratos %}active{% endblock %}
 
 {% block content %}
-<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
-  <div class="page-header">
-    <h1><i class="bi bi-file-earmark-ruled text-primary me-2"></i>Contratos Administrativos</h1>
-    <p>Gestão dos contratos celebrados pelo MPPI (Lei 14.133/2021).</p>
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div>
+    <h1 class="mb-0">
+      <i class="bi bi-file-earmark-ruled text-primary me-2"></i>Contratos Administrativos
+    </h1>
+    <p class="text-muted small mb-0">
+      Gestão integrada — MPPI (Lei 14.133/2021) &nbsp;·&nbsp; Atualizado em {{ hoje|date:"d/m/Y" }}
+    </p>
   </div>
-  <a href="/admin/contratos/contrato/add/" class="btn btn-primary btn-sm">
-    <i class="bi bi-plus-lg me-1"></i>Novo Contrato
-  </a>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="/admin/contratos/contrato/add/" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>Novo contrato
+    </a>
+    <div class="dropdown">
+      <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+        <i class="bi bi-cloud-download me-1"></i>Sincronizar
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li>
+          <h6 class="dropdown-header small">Management Commands</h6>
+        </li>
+        <li>
+          <span class="dropdown-item-text small text-muted px-3">
+            <code>manage.py sincronizar_contratos_comprasnet --uasg 926092</code>
+          </span>
+        </li>
+        <li>
+          <span class="dropdown-item-text small text-muted px-3">
+            <code>manage.py importar_contratos_arp --uasg 926092</code>
+          </span>
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="/api/siafe/contratos/{{ hoje|date:"Y" }}/lista/" target="_blank">
+          <i class="bi bi-boxes me-2 text-info"></i>SIAFE — contratos do exercício
+        </a></li>
+      </ul>
+    </div>
+    <a href="/admin/contratos/contrato/" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-list-ul me-1"></i>Ver todos
+    </a>
+  </div>
 </div>
 
-<!-- KPIs -->
+<!-- ALERTA: contratos Comprasnet sem cadastro local -->
+{% if nao_cadastrados %}
+<div class="alert alert-warning d-flex align-items-center gap-2 py-2 mb-4 border-0 shadow-sm" role="alert"
+     style="border-left:4px solid #f59e0b!important;border-radius:8px;">
+  <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
+  <div class="small">
+    <strong>{{ nao_cadastrados }} contrato{{ nao_cadastrados|pluralize:"s" }}</strong>
+    ativo{{ nao_cadastrados|pluralize:"s" }} no Comprasnet não
+    {{ nao_cadastrados|pluralize:"está,estão" }} cadastrado{{ nao_cadastrados|pluralize:"s" }} no sistema local.
+    <a href="/admin/srp/contratocomprasnet/?situacao=Ativo" class="alert-link ms-1">Ver lista →</a>
+  </div>
+</div>
+{% endif %}
+
+<!-- KPIs PRINCIPAIS — CONSOLIDADO -->
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
-    <div class="card kpi-card h-100 p-3">
+    <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
       <div class="d-flex align-items-start justify-content-between">
         <div>
-          <div class="kpi-label">Total de Contratos</div>
-          <div class="kpi-value mt-1">{{ total }}</div>
-          <div class="kpi-sub">{{ vigentes }} vigente{{ vigentes|pluralize:"s" }}</div>
+          <div class="kpi-label">Contratos Locais</div>
+          <div class="kpi-value mt-1">{{ total_local }}</div>
+          <div class="kpi-sub">{{ vigentes_local }} vigente{{ vigentes_local|pluralize:"s" }}</div>
         </div>
         <div class="kpi-icon" style="background:#e8f0fb;">
           <i class="bi bi-file-earmark-ruled text-primary"></i>
@@ -32,128 +79,281 @@
     </div>
   </div>
   <div class="col-6 col-md-3">
-    <div class="card kpi-card h-100 p-3">
+    <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
       <div class="d-flex align-items-start justify-content-between">
         <div>
-          <div class="kpi-label">Vencendo em 90 dias</div>
-          <div class="kpi-value mt-1 {% if vencendo_90 > 0 %}text-warning{% endif %}">
-            {{ vencendo_90 }}
-          </div>
-          <div class="kpi-sub">{{ vencendo_30 }} nos próximos 30 dias</div>
-        </div>
-        <div class="kpi-icon" style="background:#fef9c3;">
-          <i class="bi bi-clock-history text-warning"></i>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card kpi-card h-100 p-3">
-      <div class="d-flex align-items-start justify-content-between">
-        <div>
-          <div class="kpi-label">Alerta Crítico</div>
-          <div class="kpi-value mt-1 {% if vencendo_30 > 0 %}text-danger{% endif %}">
-            {{ vencendo_30 }}
-          </div>
-          <div class="kpi-sub">Vencendo em ≤ 30 dias</div>
-        </div>
-        <div class="kpi-icon" style="background:#fee2e2;">
-          <i class="bi bi-exclamation-triangle text-danger"></i>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card kpi-card h-100 p-3">
-      <div class="d-flex align-items-start justify-content-between">
-        <div>
-          <div class="kpi-label">Tipos</div>
-          <div class="kpi-value mt-1">{{ por_tipo|length }}</div>
-          <div class="kpi-sub">categorias distintas</div>
+          <div class="kpi-label">Valor Vigente (local)</div>
+          <div class="kpi-value mt-1" style="font-size:.95rem;">R$&nbsp;{{ valor_local|floatformat:"2g" }}</div>
+          <div class="kpi-sub">Saldo: R$&nbsp;{{ saldo_disponivel|floatformat:"0g" }}</div>
         </div>
         <div class="kpi-icon" style="background:#dcfce7;">
-          <i class="bi bi-tags text-success"></i>
+          <i class="bi bi-cash-coin text-success"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">Comprasnet (importado)</div>
+          <div class="kpi-value mt-1">{{ total_comprasnet }}</div>
+          <div class="kpi-sub">{{ ativos_comprasnet }} ativos · {{ inativos_comprasnet }} inativos</div>
+        </div>
+        <div class="kpi-icon" style="background:#f0f9ff;">
+          <i class="bi bi-cloud-check text-info"></i>
+        </div>
+      </div>
+      {% if ultima_importacao_cc %}
+      <div class="text-muted mt-1" style="font-size:.65rem;">
+        <i class="bi bi-clock me-1"></i>Sync: {{ ultima_importacao_cc|date:"d/m/Y H:i" }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">Contratos de ARP</div>
+          <div class="kpi-value mt-1">{{ total_contratos_arp }}</div>
+          <div class="kpi-sub">{{ proprios_arp }} próprios · {{ caronas_cedidas }} carona{{ caronas_cedidas|pluralize:"s" }}</div>
+        </div>
+        <div class="kpi-icon" style="background:#fdf4ff;">
+          <i class="bi bi-diagram-3 text-purple" style="color:#7c3aed;"></i>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<div class="row g-4">
-  <!-- Alertas de vencimento -->
-  {% if alertas %}
-  <div class="col-md-5">
-    <div class="card h-100">
-      <div class="card-header bg-white border-bottom py-3">
-        <i class="bi bi-alarm text-danger me-2"></i>Contratos a Vencer (90 dias)
+<!-- ALERTAS DE VENCIMENTO -->
+{% if vencendo_30 or vencendo_90 or vencendo_120 or cc_venc_30 or ca_venc_30 %}
+<div class="card border-0 shadow-sm mb-4" style="border-left:4px solid #dc3545!important;">
+  <div class="card-body py-3">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <i class="bi bi-alarm-fill text-danger fs-5"></i>
+      <span class="fw-semibold text-danger">Alertas de Vigência</span>
+      <span class="text-muted small ms-1">— Contratos próximos do vencimento</span>
+    </div>
+    <div class="row g-2">
+      {% if vencendo_30 %}
+      <div class="col-6 col-md-2">
+        <div class="rounded p-2 text-center" style="background:#fff5f5;border:1px solid #fecaca;">
+          <div class="fs-4 fw-bold text-danger">{{ vencendo_30 }}</div>
+          <div class="small text-danger"><i class="bi bi-exclamation-circle me-1"></i>≤ 30 dias</div>
+          <div style="font-size:.65rem;" class="text-muted">locais</div>
+        </div>
+      </div>
+      {% endif %}
+      {% if vencendo_90 %}
+      <div class="col-6 col-md-2">
+        <div class="rounded p-2 text-center" style="background:#fffbeb;border:1px solid #fde68a;">
+          <div class="fs-4 fw-bold text-warning">{{ vencendo_90 }}</div>
+          <div class="small text-warning"><i class="bi bi-clock me-1"></i>≤ 90 dias</div>
+          <div style="font-size:.65rem;" class="text-muted">locais</div>
+        </div>
+      </div>
+      {% endif %}
+      {% if vencendo_120 %}
+      <div class="col-6 col-md-2">
+        <div class="rounded p-2 text-center" style="background:#fdf4ff;border:1px solid #e9d5ff;">
+          <div class="fs-4 fw-bold" style="color:#7c3aed;">{{ vencendo_120 }}</div>
+          <div class="small" style="color:#7c3aed;"><i class="bi bi-clock-history me-1"></i>≤ 120 dias</div>
+          <div style="font-size:.65rem;" class="text-muted">TI (Res. CNMP 283)</div>
+        </div>
+      </div>
+      {% endif %}
+      {% if cc_venc_30 %}
+      <div class="col-6 col-md-2">
+        <div class="rounded p-2 text-center" style="background:#f0f9ff;border:1px solid #bae6fd;">
+          <div class="fs-4 fw-bold text-info">{{ cc_venc_30 }}</div>
+          <div class="small text-info"><i class="bi bi-cloud me-1"></i>≤ 30 dias</div>
+          <div style="font-size:.65rem;" class="text-muted">Comprasnet</div>
+        </div>
+      </div>
+      {% endif %}
+      {% if ca_venc_30 %}
+      <div class="col-6 col-md-2">
+        <div class="rounded p-2 text-center" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+          <div class="fs-4 fw-bold text-success">{{ ca_venc_30 }}</div>
+          <div class="small text-success"><i class="bi bi-diagram-3 me-1"></i>≤ 30 dias</div>
+          <div style="font-size:.65rem;" class="text-muted">Contr. ARP</div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- LINHA 2: CONTRATOS LOCAIS DETALHADOS -->
+<div class="row g-4 mb-4">
+
+  <!-- Alertas TI (Res. CNMP 283/2024 — alerta em 120 dias) -->
+  {% if alertas_ti %}
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-cpu me-2" style="color:#7c3aed;"></i><strong>Contratos TI — Alerta 120 dias</strong></span>
+        <span class="badge" style="background:#7c3aed;font-size:.7rem;">Res. CNMP 283/2024, art. 39</span>
       </div>
       <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover table-sm mb-0">
-            <thead class="table-light">
-              <tr>
-                <th>Contrato</th>
-                <th>Fornecedor</th>
-                <th class="text-center">Vencimento</th>
-                <th class="text-center">Dias</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for c in alertas %}
-              {% with dias=c.data_fim_vigencia|timeuntil %}
-              <tr>
-                <td class="fw-bold font-monospace" style="font-size:.8rem;">
-                  {{ c.numero_contrato }}
-                </td>
-                <td style="font-size:.8rem; max-width:140px;">
-                  <span class="text-truncate d-block" title="{{ c.contratado_razao_social|default:'' }}">
-                    {{ c.contratado_razao_social|default:"—"|truncatechars:25 }}
-                  </span>
-                </td>
-                <td class="text-center" style="font-size:.8rem;">
-                  {{ c.data_fim_vigencia|date:"d/m/Y" }}
-                </td>
-                <td class="text-center">
-                  {% with d=c.data_fim_vigencia|timeuntil:hoje %}
-                  <span class="badge rounded-pill
-                    {% if c.data_fim_vigencia <= hoje %}bg-danger
-                    {% elif c.data_fim_vigencia|date:"U"|add:0 <= hoje|date:"U"|add:2592000 %}bg-danger
-                    {% else %}bg-warning text-dark{% endif %}
-                    " style="font-size:.68rem;">
-                    {{ c.data_fim_vigencia|timeuntil }}
-                  </span>
-                  {% endwith %}
-                </td>
-              </tr>
-              {% endwith %}
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="font-size:.75rem;">Contrato</th>
+              <th style="font-size:.75rem;">Contratado</th>
+              <th class="text-center" style="font-size:.75rem;">Vencimento</th>
+              <th class="text-center" style="font-size:.75rem;">Dias</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in alertas_ti %}
+            <tr>
+              <td class="font-monospace fw-bold" style="font-size:.78rem;">{{ c.numero_contrato }}</td>
+              <td style="font-size:.75rem;">{{ c.contratado_razao_social|truncatechars:22 }}</td>
+              <td class="text-center" style="font-size:.75rem;">{{ c.data_fim_vigencia|date:"d/m/Y" }}</td>
+              <td class="text-center">
+                <span class="badge rounded-pill {% if c.dias_para_vencimento <= 30 %}bg-danger{% elif c.dias_para_vencimento <= 60 %}bg-warning text-dark{% else %}bg-secondary{% endif %}"
+                      style="font-size:.65rem;">
+                  {{ c.dias_para_vencimento }}d
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
   {% endif %}
 
-  <!-- Distribuição por tipo -->
-  <div class="col-md-{% if alertas %}4{% else %}5{% endif %}">
-    <div class="card h-100">
+  <!-- Alertas outros (90 dias) -->
+  {% if alertas_outros %}
+  <div class="col-md-{% if alertas_ti %}6{% else %}12{% endif %}">
+    <div class="card border-0 shadow-sm h-100">
       <div class="card-header bg-white border-bottom py-3">
-        <i class="bi bi-pie-chart me-2 text-primary"></i>Vigentes por Tipo
+        <i class="bi bi-alarm me-2 text-danger"></i><strong>A Vencer — 90 dias</strong>
       </div>
       <div class="card-body p-0">
         <table class="table table-sm mb-0">
           <thead class="table-light">
-            <tr><th>Tipo</th><th class="text-end">Qtd</th></tr>
+            <tr>
+              <th style="font-size:.75rem;">Contrato</th>
+              <th style="font-size:.75rem;">Contratado</th>
+              <th class="text-center" style="font-size:.75rem;">Tipo</th>
+              <th class="text-center" style="font-size:.75rem;">Dias</th>
+            </tr>
           </thead>
           <tbody>
-            {% for t in por_tipo %}
+            {% for c in alertas_outros %}
             <tr>
-              <td style="font-size:.82rem;">{{ t.tipo|cut:"_"|capfirst }}</td>
-              <td class="text-end fw-bold">{{ t.qtd }}</td>
+              <td class="font-monospace fw-bold" style="font-size:.78rem;">{{ c.numero_contrato }}</td>
+              <td style="font-size:.75rem;">{{ c.contratado_razao_social|truncatechars:20 }}</td>
+              <td class="text-center" style="font-size:.7rem;">
+                <span class="badge bg-light text-dark border" style="font-size:.65rem;">
+                  {{ c.get_tipo_display|truncatechars:18 }}
+                </span>
+              </td>
+              <td class="text-center">
+                <span class="badge rounded-pill {% if c.dias_para_vencimento <= 30 %}bg-danger{% elif c.dias_para_vencimento <= 60 %}bg-warning text-dark{% else %}bg-secondary{% endif %}"
+                      style="font-size:.65rem;">
+                  {{ c.dias_para_vencimento }}d
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- LINHA 3: DISTRIBUIÇÃO + CONTRATOS LOCAIS RECENTES -->
+<div class="row g-4 mb-4">
+
+  <!-- Por tipo -->
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-pie-chart me-2 text-primary"></i><strong>Vigentes por Tipo</strong>
+      </div>
+      <div class="card-body">
+        {% for t in por_tipo %}
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span style="font-size:.78rem;">
+            {% if t.tipo == "servico_continuo" %}<i class="bi bi-arrow-repeat me-1 text-muted"></i>Serv. Contínuo
+            {% elif t.tipo == "fornecimento" %}<i class="bi bi-box me-1 text-muted"></i>Fornecimento
+            {% elif t.tipo == "servico_nao_continuo" %}<i class="bi bi-tools me-1 text-muted"></i>Serv. não contínuo
+            {% elif t.tipo == "obra" %}<i class="bi bi-building me-1 text-muted"></i>Obras
+            {% elif t.tipo == "solucao_ti" %}<i class="bi bi-cpu me-1 text-muted"></i>Solução TI
+            {% elif t.tipo == "locacao" %}<i class="bi bi-house me-1 text-muted"></i>Locação
+            {% else %}<i class="bi bi-tag me-1 text-muted"></i>{{ t.tipo|cut:"_"|capfirst }}{% endif %}
+          </span>
+          <span class="badge bg-primary rounded-pill" style="font-size:.7rem;">{{ t.qtd }}</span>
+        </div>
+        {% if t.valor %}
+        <div class="text-end text-muted mb-2" style="font-size:.65rem;">R$&nbsp;{{ t.valor|floatformat:"0g" }}</div>
+        {% endif %}
+        {% if vigentes_local %}
+        <div class="progress mb-2" style="height:3px;">
+          <div class="progress-bar bg-primary" style="width:{% widthratio t.qtd vigentes_local 100 %}%"></div>
+        </div>
+        {% endif %}
+        {% empty %}
+        <p class="text-muted text-center py-3">Sem contratos locais cadastrados</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Contratos locais recentes -->
+  <div class="col-md-8">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-file-earmark-ruled me-2 text-primary"></i><strong>Contratos Locais — Recentes</strong></span>
+        <a href="/admin/contratos/contrato/" class="btn btn-sm btn-outline-secondary">Ver todos</a>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-hover table-sm mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="font-size:.75rem;">Nº Contrato</th>
+              <th style="font-size:.75rem;">Contratado</th>
+              <th class="text-end" style="font-size:.75rem;">Valor atual</th>
+              <th class="text-center" style="font-size:.75rem;">Vencimento</th>
+              <th class="text-center" style="font-size:.75rem;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in recentes %}
+            <tr>
+              <td class="font-monospace fw-bold text-primary" style="font-size:.78rem;">{{ c.numero_contrato }}</td>
+              <td style="font-size:.75rem;">{{ c.contratado_razao_social|truncatechars:28 }}</td>
+              <td class="text-end text-muted" style="font-size:.75rem;">R$&nbsp;{{ c.valor_atual|floatformat:"0g" }}</td>
+              <td class="text-center" style="font-size:.75rem;">{{ c.data_fim_vigencia|date:"d/m/Y" }}</td>
+              <td class="text-center">
+                <span class="badge rounded-pill
+                  {% if c.status == 'vigente' %}bg-success
+                  {% elif c.status == 'suspenso' %}bg-warning text-dark
+                  {% elif c.status == 'rescindido' %}bg-danger
+                  {% else %}bg-light text-dark border{% endif %}"
+                  style="font-size:.65rem;">
+                  {{ c.get_status_display }}
+                </span>
+              </td>
             </tr>
             {% empty %}
-            <tr><td colspan="2" class="text-muted text-center py-3">Sem contratos cadastrados</td></tr>
+            <tr>
+              <td colspan="5" class="text-center text-muted py-4">
+                <i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum contrato cadastrado.
+                <br><a href="/admin/contratos/contrato/add/" class="btn btn-sm btn-primary mt-2">Cadastrar primeiro contrato</a>
+              </td>
+            </tr>
             {% endfor %}
           </tbody>
         </table>
@@ -161,45 +361,319 @@
     </div>
   </div>
 
-  <!-- Recentes -->
-  <div class="col-md-{% if alertas %}3{% else %}7{% endif %}">
-    <div class="card h-100">
+</div>
+
+<!-- LINHA 4: COMPRASNET IMPORTADOS -->
+{% if total_comprasnet %}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+    <span>
+      <i class="bi bi-cloud-check me-2 text-info"></i>
+      <strong>Comprasnet — Contratos Importados</strong>
+      <span class="badge bg-info ms-2" style="font-size:.7rem;">UASG 926092</span>
+    </span>
+    <div class="d-flex align-items-center gap-3">
+      {% if ultima_importacao_cc %}
+      <span class="text-muted" style="font-size:.7rem;">
+        <i class="bi bi-clock me-1"></i>Sync: {{ ultima_importacao_cc|date:"d/m/Y H:i" }}
+      </span>
+      {% endif %}
+      <a href="/admin/srp/contratocomprasnet/" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-list-ul me-1"></i>Admin
+      </a>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-md-3">
+        <div class="rounded p-2 text-center" style="background:#f0f9ff;border:1px solid #bae6fd;">
+          <div class="fs-5 fw-bold text-info">{{ ativos_comprasnet }}</div>
+          <div class="small text-muted">Ativos</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="rounded p-2 text-center" style="background:#fafafa;border:1px solid #e5e7eb;">
+          <div class="fs-5 fw-bold text-secondary">{{ inativos_comprasnet }}</div>
+          <div class="small text-muted">Inativos</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="rounded p-2 text-center" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+          <div class="fw-bold text-success" style="font-size:.9rem;">R$&nbsp;{{ valor_comprasnet|floatformat:"0g" }}</div>
+          <div class="small text-muted">Valor global (ativos)</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        {% if nao_cadastrados %}
+        <div class="rounded p-2 text-center" style="background:#fff5f5;border:1px solid #fecaca;">
+          <div class="fs-5 fw-bold text-danger">{{ nao_cadastrados }}</div>
+          <div class="small text-danger">Sem cadastro local</div>
+        </div>
+        {% else %}
+        <div class="rounded p-2 text-center" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+          <div class="fs-5 fw-bold text-success"><i class="bi bi-check2-circle"></i></div>
+          <div class="small text-muted">Todos conciliados</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    <!-- Comprasnet: a vencer -->
+    {% if comprasnet_vencendo %}
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="font-size:.75rem;">Nº Contrato</th>
+            <th style="font-size:.75rem;">Fornecedor</th>
+            <th style="font-size:.75rem;">Modalidade</th>
+            <th class="text-end" style="font-size:.75rem;">Valor global</th>
+            <th class="text-center" style="font-size:.75rem;">Vigência fim</th>
+            <th class="text-center" style="font-size:.75rem;">Dias</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in comprasnet_vencendo %}
+          <tr>
+            <td class="font-monospace fw-semibold" style="font-size:.78rem;">{{ c.numero }}</td>
+            <td style="font-size:.75rem;">{{ c.fornecedor_nome|truncatechars:24 }}</td>
+            <td style="font-size:.7rem;" class="text-muted">{{ c.modalidade|truncatechars:20 }}</td>
+            <td class="text-end text-muted" style="font-size:.75rem;">R$&nbsp;{{ c.valor_global|floatformat:"0g" }}</td>
+            <td class="text-center" style="font-size:.75rem;">{{ c.vigencia_fim|date:"d/m/Y" }}</td>
+            <td class="text-center">
+              {% with d=c.vigencia_fim|timeuntil %}
+              <span class="badge rounded-pill
+                {% if c.vigencia_fim <= hoje %}bg-danger
+                {% elif cc_venc_30 and c.vigencia_fim <= hoje|date:"Y-m-d" %}bg-warning text-dark
+                {% else %}bg-secondary{% endif %}"
+                style="font-size:.65rem;">
+                {{ c.vigencia_fim|timeuntil }}
+              </span>
+              {% endwith %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted text-center py-3 mb-0">
+      <i class="bi bi-calendar-check me-2"></i>Nenhum contrato Comprasnet vencendo nos próximos 90 dias.
+    </p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- LINHA 5: CONTRATOS DECORRENTES DE ARP -->
+{% if total_contratos_arp %}
+<div class="row g-4 mb-4">
+
+  <!-- Contratos próprios do MPPI via ARP -->
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm h-100">
       <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
-        <span><i class="bi bi-clock-history me-2 text-primary"></i>Recentes</span>
-        <a href="/admin/contratos/contrato/" class="btn btn-sm btn-outline-secondary">Ver todos</a>
+        <span>
+          <i class="bi bi-diagram-3 me-2" style="color:#7c3aed;"></i>
+          <strong>Contratações Próprias via ARP</strong>
+        </span>
+        <span class="badge rounded-pill" style="background:#7c3aed;font-size:.7rem;">{{ proprios_arp }}</span>
       </div>
       <div class="card-body p-0">
-        <table class="table table-hover table-sm mb-0">
+        {% if contratos_arp_recentes %}
+        <table class="table table-sm mb-0">
           <thead class="table-light">
-            <tr><th>Nº Contrato</th><th>Tipo</th><th class="text-center">Status</th></tr>
+            <tr>
+              <th style="font-size:.75rem;">Contrato</th>
+              <th style="font-size:.75rem;">Fornecedor</th>
+              <th class="text-end" style="font-size:.75rem;">Valor</th>
+              <th class="text-center" style="font-size:.75rem;">Venc.</th>
+            </tr>
           </thead>
           <tbody>
-            {% for c in recentes %}
+            {% for c in contratos_arp_recentes %}
             <tr>
-              <td class="fw-bold font-monospace text-primary" style="font-size:.8rem;">
-                {{ c.numero_contrato }}
-              </td>
-              <td style="font-size:.78rem;">{{ c.get_tipo_display|truncatechars:28 }}</td>
+              <td class="font-monospace fw-semibold" style="font-size:.75rem;">{{ c.numero_contrato }}</td>
+              <td style="font-size:.72rem;">{{ c.contratado_nome|truncatechars:20 }}</td>
+              <td class="text-end text-muted" style="font-size:.72rem;">R$&nbsp;{{ c.valor_total|floatformat:"0g" }}</td>
               <td class="text-center">
-                <span class="badge rounded-pill
-                  {% if c.status == 'vigente' %}bg-success
-                  {% elif c.status == 'suspenso' %}bg-warning text-dark
-                  {% elif c.status == 'rescindido' %}bg-danger
-                  {% else %}bg-light text-dark border{% endif %}
-                  " style="font-size:.68rem;">
-                  {{ c.get_status_display }}
+                {% if c.data_fim_vigencia %}
+                <span class="badge {% if not c.esta_vigente %}bg-secondary{% else %}bg-success{% endif %}"
+                      style="font-size:.6rem;">
+                  {{ c.data_fim_vigencia|date:"d/m/Y" }}
                 </span>
+                {% else %}—{% endif %}
               </td>
             </tr>
-            {% empty %}
-            <tr><td colspan="3" class="text-muted text-center py-4">
-              <i class="bi bi-inbox fs-3 d-block mb-2"></i>Nenhum contrato cadastrado.
-            </td></tr>
             {% endfor %}
           </tbody>
         </table>
+        <div class="px-3 py-2 border-top">
+          <a href="/admin/srp/contratoarp/?is_carona__exact=0" class="small text-primary">
+            Ver todos ({{ proprios_arp }}) →
+          </a>
+        </div>
+        {% else %}
+        <p class="text-muted text-center py-4 mb-0">Nenhuma contratação própria via ARP registrada.</p>
+        {% endif %}
       </div>
     </div>
   </div>
+
+  <!-- Caronas cedidas -->
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+        <span>
+          <i class="bi bi-share me-2 text-info"></i>
+          <strong>Caronas Cedidas</strong>
+          <span class="text-muted small ms-1">— outros órgãos na ARP do MPPI</span>
+        </span>
+        <span class="badge bg-info rounded-pill" style="font-size:.7rem;">{{ caronas_cedidas }}</span>
+      </div>
+      <div class="card-body p-0">
+        {% if caronas_recentes %}
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="font-size:.75rem;">Contrato</th>
+              <th style="font-size:.75rem;">Órgão aderente</th>
+              <th class="text-end" style="font-size:.75rem;">Valor</th>
+              <th class="text-center" style="font-size:.75rem;">ARP</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in caronas_recentes %}
+            <tr>
+              <td class="font-monospace fw-semibold" style="font-size:.75rem;">{{ c.numero_contrato }}</td>
+              <td style="font-size:.72rem;">{{ c.nome_uasg_contratante|truncatechars:22|default:c.uasg_contratante }}</td>
+              <td class="text-end text-muted" style="font-size:.72rem;">R$&nbsp;{{ c.valor_total|floatformat:"0g" }}</td>
+              <td class="text-center">
+                <a href="{% url 'srp:arp_detalhe' c.arp.pk %}" class="badge bg-info text-decoration-none"
+                   style="font-size:.6rem;">{{ c.arp.numero_arp }}</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="px-3 py-2 border-top">
+          <a href="/admin/srp/contratoarp/?is_carona__exact=1" class="small text-primary">
+            Ver todas ({{ caronas_cedidas }}) →
+          </a>
+        </div>
+        {% else %}
+        <p class="text-muted text-center py-4 mb-0">Nenhuma carona cedida registrada.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endif %}
+
+<!-- LINHA 6: PAINEL SIAFE + RESUMO NORMAS -->
+<div class="row g-4 mb-4">
+
+  <!-- SIAFE live -->
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-boxes me-2 text-warning"></i><strong>SIAFE — Consulta Financeira</strong>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">
+          Consulte diretamente a API do SIAFE-PI para dados de execução orçamentária e contratos registrados no SEFAZ.
+        </p>
+        <div class="d-flex flex-wrap gap-2">
+          <a href="/api/siafe/contratos/{{ hoje|date:"Y" }}/lista/"
+             class="btn btn-sm btn-outline-warning" target="_blank">
+            <i class="bi bi-list-check me-1"></i>Listar contratos {{ hoje|date:"Y" }}
+          </a>
+          <a href="/api/siafe/nota-empenho/{{ hoje|date:"Y" }}/926092/"
+             class="btn btn-sm btn-outline-warning" target="_blank">
+            <i class="bi bi-receipt me-1"></i>Empenhos {{ hoje|date:"Y" }}
+          </a>
+          <a href="/api/siafe/nota-empenho/{{ hoje|date:"Y" }}/926092/{{ hoje|date:"n" }}/"
+             class="btn btn-sm btn-outline-secondary" target="_blank">
+            <i class="bi bi-calendar3 me-1"></i>Empenhos mês atual
+          </a>
+        </div>
+        <hr class="my-3">
+        <div class="small text-muted">
+          <i class="bi bi-info-circle me-1"></i>
+          Para sincronizar contratos do SIAFE com o banco local, use
+          <code>manage.py sincronizar_contratos_comprasnet</code> (dados Comprasnet) ou
+          consulte a API SIAFE diretamente para conciliação.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Referências normativas de gestão contratual -->
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-book me-2 text-success"></i><strong>Referências Normativas</strong>
+      </div>
+      <div class="card-body">
+        <div class="row g-2">
+          <div class="col-6">
+            <div class="d-flex gap-2 align-items-start">
+              <i class="bi bi-check2 text-success mt-1 flex-shrink-0"></i>
+              <div style="font-size:.75rem;">
+                <div class="fw-semibold">Contrato</div>
+                <div class="text-muted">arts. 89–107 NLLC · Ato PGJ 1414/2024</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="d-flex gap-2 align-items-start">
+              <i class="bi bi-check2 text-success mt-1 flex-shrink-0"></i>
+              <div style="font-size:.75rem;">
+                <div class="fw-semibold">Serv. Contínuos</div>
+                <div class="text-muted">24–120 meses · Ato PGJ 1415/2024</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="d-flex gap-2 align-items-start">
+              <i class="bi bi-check2 text-success mt-1 flex-shrink-0"></i>
+              <div style="font-size:.75rem;">
+                <div class="fw-semibold">TI (fiscalização)</div>
+                <div class="text-muted">Quadripartite · Res. CNMP 283/2024, art. 36</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="d-flex gap-2 align-items-start">
+              <i class="bi bi-check2 text-success mt-1 flex-shrink-0"></i>
+              <div style="font-size:.75rem;">
+                <div class="fw-semibold">Eficácia PNCP</div>
+                <div class="text-muted">Publicação obrigatória · art. 174 NLLC</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="d-flex gap-2 align-items-start">
+              <i class="bi bi-check2 text-success mt-1 flex-shrink-0"></i>
+              <div style="font-size:.75rem;">
+                <div class="fw-semibold">Aditivos</div>
+                <div class="text-muted">art. 124 NLLC · 25% obras · 50% demais</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="d-flex gap-2 align-items-start">
+              <i class="bi bi-check2 text-success mt-1 flex-shrink-0"></i>
+              <div style="font-size:.75rem;">
+                <div class="fw-semibold">Alerta vigência TI</div>
+                <div class="text-muted">120 dias antes do vencimento (Res. CNMP 283)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 {% endblock %}
