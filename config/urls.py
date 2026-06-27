@@ -14,6 +14,7 @@ urlpatterns = [
     # API REST
     path("api/core/", include("apps.core.urls")),
     path("api/siafe/", include(("apps.siafe.urls", "siafe"))),
+    path("api/srp/",  include("apps.srp.api_urls")),
 
     # Django Templates - modulos PCA
     path("pca/",          include(("apps.pca.urls",          "pca"))),
