@@ -89,6 +89,13 @@ class Command(BaseCommand):
             n_itens = len(itens)
             valor = c.valor_atual or c.valor_inicial or Decimal("0")
 
+            if not valor or valor == Decimal("0"):
+                self.stdout.write(
+                    self.style.WARNING(f"  [SKIP] {c.numero_contrato} — valor=0, verifique o contrato no admin")
+                )
+                pulados += 1
+                continue
+
             if not sobrescrever:
                 if ContratacaoDecorrente.objects.filter(
                     arp=arp, numero_pedido=c.numero_contrato
@@ -129,6 +136,16 @@ class Command(BaseCommand):
                 qtd = _calcular_quantidade(valor, item.valor_unitario)
                 vl_total = (qtd * item.valor_unitario).quantize(Decimal("0.01"))
                 confianca = f"BAIXA ({n_itens} itens, score={score:.2f})"
+
+            if qtd == 0:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"  [SKIP qtd=0] {c.numero_contrato} → ARP {arp.numero_arp} "
+                        f"item={item.numero_item} | valor={valor} < unitario={item.valor_unitario}"
+                    )
+                )
+                pulados += 1
+                continue
 
             self.stdout.write(
                 f"  [{confianca}] {c.numero_contrato} → ARP {arp.numero_arp} "
