@@ -191,7 +191,7 @@ class ItemARP(models.Model):
         help_text="Banco de preços de referência utilizado (SINAPI, ORSE, CATMAT, etc.)",
     )
     descricao = models.TextField()
-    unidade_fornecimento = models.CharField(max_length=30)
+    unidade_fornecimento = models.CharField(max_length=30, blank=True)
     quantidade_registrada = models.DecimalField(max_digits=14, decimal_places=4)
     valor_unitario = models.DecimalField(max_digits=14, decimal_places=2)
     # Integração API Compras.gov.br
