@@ -9,14 +9,16 @@ from .api_views import (
     AtaRegistroPrecosViewSet,
     ContratacaoDecorenteViewSet,
     ItemARPViewSet,
+    VinculoARPUnidadeViewSet,
     VinculoPCAItemARPViewSet,
 )
 
 router = DefaultRouter()
-router.register(r"arps",         AtaRegistroPrecosViewSet,   basename="arp")
-router.register(r"itens",        ItemARPViewSet,             basename="item-arp")
-router.register(r"vinculos-pca", VinculoPCAItemARPViewSet,   basename="vinculo-pca")
-router.register(r"contratacoes", ContratacaoDecorenteViewSet, basename="contratacao")
-router.register(r"caronas",      AdesaoARPViewSet,           basename="adesao")
+router.register(r"arps",               AtaRegistroPrecosViewSet,   basename="arp")
+router.register(r"itens",              ItemARPViewSet,             basename="item-arp")
+router.register(r"vinculos-arp-unidade", VinculoARPUnidadeViewSet, basename="vinculo-arp-unidade")
+router.register(r"vinculos-pca",       VinculoPCAItemARPViewSet,   basename="vinculo-pca")
+router.register(r"contratacoes",       ContratacaoDecorenteViewSet, basename="contratacao")
+router.register(r"caronas",            AdesaoARPViewSet,           basename="adesao")
 
 urlpatterns = router.urls

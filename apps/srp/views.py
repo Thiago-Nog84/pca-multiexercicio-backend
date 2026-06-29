@@ -3,9 +3,10 @@ Views do módulo SRP — Dashboard de Atas de Registro de Preços
 
 Acesso: requer login (session auth via admin Django).
 Rotas:
-    /srp/                   → DashboardSRPView
-    /srp/arp/<pk>/          → ARPDetalheView
-    /srp/importar/          → ImportarARPView
+    /srp/                       → DashboardSRPView
+    /srp/arp/<pk>/              → ARPDetalheView
+    /srp/importar/              → ImportarARPView
+    /srp/unidade/<sigla>/       → SRPUnidadeView
 """
 
 import io
@@ -19,7 +20,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils.decorators import method_decorator
 from django.views import View
 
-from .models import AtaRegistroPrecos, ContratoARP, ItemARP
+from .models import AtaRegistroPrecos, ContratoARP, ItemARP, VinculoARPUnidade
 
 
 @method_decorator(login_required, name="dispatch")
@@ -32,41 +33,49 @@ class DashboardSRPView(View):
     template_name = "srp/dashboard.html"
 
     def get(self, request):
+        import json
+        from collections import defaultdict
+        from apps.core.models import UnidadeRequisitante
+
         hoje = date.today()
         arps = (
             AtaRegistroPrecos.objects.select_related("orgao_gerenciador")
-            .prefetch_related("itens")
+            .prefetch_related("itens", "contratos_decorrentes", "contratos_arp", "vinculos_unidades__unidade")
             .order_by("-data_inicio_vigencia")
         )
 
         total_arps = arps.count()
-        # Conta vigentes pela data real, não pelo campo armazenado
         arps_vigentes = arps.filter(data_fim_vigencia__gte=hoje).exclude(status__in=["cancelada", "suspensa"]).count()
         arps_encerradas = arps.filter(
             Q(data_fim_vigencia__lt=hoje) | Q(status__in=["encerrada", "cancelada"])
         ).count()
-
-        valor_total = (
-            ItemARP.objects.aggregate(
-                total=Sum(
-                    ExpressionWrapper(
-                        F("quantidade_registrada") * F("valor_unitario"),
-                        output_field=DecimalField(max_digits=18, decimal_places=2),
-                    )
-                )
-            )["total"]
-            or 0
+        arps_criticas = arps.filter(
+            data_fim_vigencia__gte=hoje,
+            data_fim_vigencia__lte=hoje.replace(day=hoje.day)
+        ).exclude(status__in=["cancelada", "suspensa"]).filter(
+            data_fim_vigencia__lte=models.Value(hoje)
         )
 
         total_itens = ItemARP.objects.count()
 
+        # Valores agregados
+        valor_total = 0
+        valor_contratado_total = 0
+
         arps_lista = []
+        # Dados para gráficos
+        por_status = defaultdict(int)       # {status: count}
+        por_ano = defaultdict(float)        # {ano: valor}
+        por_ano_count = defaultdict(int)    # {ano: count}
+        top_valor = []                      # [(numero_arp, objeto, valor)]
+        unidade_arps = defaultdict(list)    # {sigla: [arp_pk, ...]}
+
         for arp in arps:
-            itens = arp.itens.all()
-            valor_arp = sum(i.quantidade_registrada * i.valor_unitario for i in itens)
+            itens = list(arp.itens.all())
+            valor_arp = float(sum(i.quantidade_registrada * i.valor_unitario for i in itens))
+            valor_contratado_arp = float(sum(i.quantidade_contratada * i.valor_unitario for i in itens))
             dias_restantes = (arp.data_fim_vigencia - hoje).days if arp.data_fim_vigencia else None
 
-            # Deriva status efetivo das datas (ignora valor armazenado para exibição)
             if arp.status in ("cancelada", "suspensa"):
                 status_efetivo = arp.status
             elif arp.data_fim_vigencia and arp.data_fim_vigencia < hoje:
@@ -74,21 +83,79 @@ class DashboardSRPView(View):
             else:
                 status_efetivo = "vigente"
 
-            arps_lista.append(
-                {
-                    "arp": arp,
-                    "total_itens": itens.count(),
-                    "valor_total": valor_arp,
-                    "importada": arp.importada_da_api,
-                    "dias_restantes": dias_restantes,
-                    "status_efetivo": status_efetivo,
-                }
+            total_contratos_arp = (
+                arp.contratos_decorrentes.count() +
+                arp.contratos_arp.count()
             )
+            percentual = round(valor_contratado_arp / valor_arp * 100, 1) if valor_arp else 0
 
-        anos_disponiveis = sorted(
-            {a["arp"].data_inicio_vigencia.year for a in arps_lista if a["arp"].data_inicio_vigencia},
-            reverse=True,
-        )
+            valor_total += valor_arp
+            valor_contratado_total += valor_contratado_arp
+            por_status[status_efetivo] += 1
+
+            if arp.data_inicio_vigencia:
+                ano = arp.data_inicio_vigencia.year
+                por_ano[ano] += valor_arp
+                por_ano_count[ano] += 1
+
+            # Unidades vinculadas
+            for v in arp.vinculos_unidades.all():
+                unidade_arps[v.unidade.sigla].append(arp.pk)
+
+            arps_lista.append({
+                "arp": arp,
+                "total_itens": len(itens),
+                "valor_total": valor_arp,
+                "valor_contratado": valor_contratado_arp,
+                "percentual_consumido": percentual,
+                "importada": arp.importada_da_api,
+                "dias_restantes": dias_restantes,
+                "status_efetivo": status_efetivo,
+                "total_contratos": total_contratos_arp,
+            })
+            top_valor.append((arp.numero_arp, arp.objeto[:50], valor_arp, arp.pk))
+
+        anos_disponiveis = sorted({
+            a["arp"].data_inicio_vigencia.year
+            for a in arps_lista if a["arp"].data_inicio_vigencia
+        }, reverse=True)
+
+        # Top 10 por valor
+        top_valor.sort(key=lambda x: x[2], reverse=True)
+        top_valor = top_valor[:10]
+
+        # Unidades com ARPs — ordenadas por count desc
+        unidades_com_arps = []
+        for sigla, pks in sorted(unidade_arps.items(), key=lambda x: -len(x[1])):
+            try:
+                u = UnidadeRequisitante.objects.get(sigla=sigla)
+                unidades_com_arps.append({"sigla": sigla, "nome": u.nome, "total": len(pks)})
+            except UnidadeRequisitante.DoesNotExist:
+                unidades_com_arps.append({"sigla": sigla, "nome": sigla, "total": len(pks)})
+
+        # ARPs críticas (< 30 dias)
+        arps_criticas_lista = [
+            a for a in arps_lista
+            if a["dias_restantes"] is not None and 0 <= a["dias_restantes"] < 30
+        ]
+
+        # JSON para Chart.js
+        chart_status = json.dumps({
+            "labels": list(por_status.keys()),
+            "data": list(por_status.values()),
+        })
+        anos_sorted = sorted(por_ano.keys())
+        chart_ano = json.dumps({
+            "labels": [str(a) for a in anos_sorted],
+            "valores": [round(por_ano[a], 2) for a in anos_sorted],
+            "counts": [por_ano_count[a] for a in anos_sorted],
+        })
+        chart_top = json.dumps({
+            "labels": [t[0] for t in top_valor],
+            "objetos": [t[1] for t in top_valor],
+            "valores": [round(t[2], 2) for t in top_valor],
+            "pks": [t[3] for t in top_valor],
+        })
 
         context = {
             "arps_lista": arps_lista,
@@ -96,8 +163,15 @@ class DashboardSRPView(View):
             "arps_vigentes": arps_vigentes,
             "arps_encerradas": arps_encerradas,
             "valor_total": valor_total,
+            "valor_contratado_total": valor_contratado_total,
+            "valor_disponivel_total": valor_total - valor_contratado_total,
             "total_itens": total_itens,
             "anos_disponiveis": anos_disponiveis,
+            "unidades_com_arps": unidades_com_arps,
+            "arps_criticas_lista": arps_criticas_lista,
+            "chart_status": chart_status,
+            "chart_ano": chart_ano,
+            "chart_top": chart_top,
         }
         return render(request, self.template_name, context)
 
@@ -232,5 +306,125 @@ class ImportarARPView(View):
             "log": log,
             "erro_cmd": erro_cmd,
             "sucesso": erro_cmd is None,
+        }
+        return render(request, self.template_name, context)
+
+
+@method_decorator(login_required, name="dispatch")
+class SRPUnidadeView(View):
+    """
+    Dashboard SRP por unidade requisitante.
+    Responde: quais ARPs a unidade possui (como gestora ou demandante),
+    quantos contratos cada uma originou, e qual o saldo ainda disponível.
+
+    Também lista itens de ARPs vig entes com saldo para referenciar no PCA.
+    """
+
+    template_name = "srp/unidade_dashboard.html"
+
+    def get(self, request, sigla):
+        from apps.core.models import UnidadeRequisitante
+
+        unidade = get_object_or_404(UnidadeRequisitante, sigla=sigla.upper())
+        hoje = date.today()
+
+        # Vínculos da unidade com ARPs (gestora e demandante)
+        vinculos = (
+            VinculoARPUnidade.objects.filter(unidade=unidade)
+            .select_related("arp__orgao_gerenciador")
+            .prefetch_related(
+                "arp__itens__vinculos_pca",
+                "arp__contratacoes_decorrentes",
+                "arp__contratos_arp",
+                "arp__contratos_decorrentes",  # Contrato.arp_origem
+            )
+            .order_by("papel", "-arp__data_inicio_vigencia")
+        )
+
+        arps_gestora = []
+        arps_demandante = []
+
+        for vinculo in vinculos:
+            arp = vinculo.arp
+            itens = list(arp.itens.all())
+
+            valor_registrado = sum(i.quantidade_registrada * i.valor_unitario for i in itens)
+            valor_contratado = sum(i.valor_total_contratado for i in itens)
+            valor_disponivel = sum(i.valor_disponivel for i in itens)
+            valor_comprometido_pca = sum(i.valor_comprometido_pca for i in itens)
+
+            total_contratacoes = arp.contratacoes_decorrentes.count()
+            total_contratos_api = arp.contratos_arp.count()
+            # Contratos do módulo contratos com arp_origem preenchido
+            total_contratos_mppi = arp.contratos_decorrentes.count() if hasattr(arp, "contratos_decorrentes") else 0
+
+            # Deriva status efetivo
+            if arp.status in ("cancelada", "suspensa"):
+                status_efetivo = arp.status
+            elif arp.data_fim_vigencia and arp.data_fim_vigencia < hoje:
+                status_efetivo = "encerrada"
+            else:
+                status_efetivo = "vigente"
+
+            dias_restantes = (arp.data_fim_vigencia - hoje).days if arp.data_fim_vigencia else None
+
+            percentual_consumido = 0
+            if valor_registrado:
+                percentual_consumido = round(float(valor_contratado / valor_registrado) * 100, 1)
+
+            info = {
+                "arp": arp,
+                "status_efetivo": status_efetivo,
+                "dias_restantes": dias_restantes,
+                "total_itens": len(itens),
+                "valor_registrado": valor_registrado,
+                "valor_contratado": valor_contratado,
+                "valor_disponivel": valor_disponivel,
+                "valor_comprometido_pca": valor_comprometido_pca,
+                "total_contratos": total_contratacoes + total_contratos_api + total_contratos_mppi,
+                "total_contratacoes_dec": total_contratacoes,
+                "total_contratos_api": total_contratos_api,
+                "total_contratos_mppi": total_contratos_mppi,
+                "percentual_consumido": percentual_consumido,
+            }
+
+            if vinculo.papel == "gestora":
+                arps_gestora.append(info)
+            else:
+                arps_demandante.append(info)
+
+        # Itens com saldo disponivel para referenciar no PCA
+        from django.db.models import F as _F
+        itens_disponiveis = (
+            ItemARP.objects.filter(
+                arp__vinculos_unidades__unidade=unidade,
+                arp__status="vigente",
+                arp__data_fim_vigencia__gte=hoje,
+                quantidade_registrada__gt=_F("quantidade_contratada") + _F("quantidade_cedida_carona"),
+            )
+            .select_related("arp")
+            .prefetch_related("vinculos_pca")
+            .distinct()
+            .order_by("arp__numero_arp", "numero_item")
+        )
+
+        # Outras unidades que compartilham ARPs desta unidade
+        todas_unidades = (
+            UnidadeRequisitante.objects.filter(
+                vinculos_arp__arp__vinculos_unidades__unidade=unidade
+            )
+            .exclude(pk=unidade.pk)
+            .distinct()
+            .order_by("sigla")
+        )
+
+        context = {
+            "unidade": unidade,
+            "arps_gestora": arps_gestora,
+            "arps_demandante": arps_demandante,
+            "total_arps": len(arps_gestora) + len(arps_demandante),
+            "itens_disponiveis": itens_disponiveis,
+            "total_itens_disponiveis": itens_disponiveis.count(),
+            "outras_unidades": todas_unidades,
         }
         return render(request, self.template_name, context)

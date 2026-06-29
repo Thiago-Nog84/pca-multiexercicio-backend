@@ -22,6 +22,7 @@ from .models import (
     AtaRegistroPrecos,
     ContratacaoDecorrente,
     ItemARP,
+    VinculoARPUnidade,
     VinculoPCAItemARP,
 )
 
@@ -232,3 +233,144 @@ class AdesaoARPSerializer(serializers.ModelSerializer):
     def get_limite_aderente(self, obj) -> Decimal:
         """50% do quantitativo registrado no item."""
         return obj.item_arp.limite_carona_por_aderente
+
+
+# ---------------------------------------------------------------------------
+# VinculoARPUnidade — quais unidades gerem / usam cada ARP
+# ---------------------------------------------------------------------------
+
+class VinculoARPUnidadeSerializer(serializers.ModelSerializer):
+    """Leitura e escrita de vínculos ARP × Unidade Requisitante."""
+    arp_numero       = serializers.CharField(source="arp.numero_arp",   read_only=True)
+    arp_objeto       = serializers.CharField(source="arp.objeto",       read_only=True)
+    arp_status       = serializers.CharField(source="arp.status",       read_only=True)
+    unidade_sigla    = serializers.CharField(source="unidade.sigla",    read_only=True)
+    unidade_nome     = serializers.CharField(source="unidade.nome",     read_only=True)
+    papel_display    = serializers.CharField(source="get_papel_display", read_only=True)
+
+    class Meta:
+        model = VinculoARPUnidade
+        fields = [
+            "id", "arp", "arp_numero", "arp_objeto", "arp_status",
+            "unidade", "unidade_sigla", "unidade_nome",
+            "papel", "papel_display", "observacoes", "criado_em",
+        ]
+        read_only_fields = [
+            "arp_numero", "arp_objeto", "arp_status",
+            "unidade_sigla", "unidade_nome", "papel_display", "criado_em",
+        ]
+
+
+# ---------------------------------------------------------------------------
+# ARPResumoUnidadeSerializer — para o dashboard por unidade
+# Inclui contagens de contratos e saldo consolidado dos itens.
+# ---------------------------------------------------------------------------
+
+class ARPResumoUnidadeSerializer(serializers.ModelSerializer):
+    """
+    Resumo de uma ARP com métricas calculadas, usado no dashboard por unidade.
+    Retornado pela action /api/srp/arps/por-unidade/?sigla=CAA
+    """
+    esta_vigente            = serializers.BooleanField(read_only=True)
+    papel_unidade           = serializers.SerializerMethodField()
+    total_itens             = serializers.IntegerField(source="itens.count", read_only=True)
+    valor_total_registrado  = serializers.SerializerMethodField()
+    valor_total_disponivel  = serializers.SerializerMethodField()
+    valor_comprometido_pca  = serializers.SerializerMethodField()
+    total_contratacoes_dec  = serializers.SerializerMethodField()
+    total_contratos_api     = serializers.SerializerMethodField()
+    percentual_consumido    = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AtaRegistroPrecos
+        fields = [
+            "id", "numero_arp", "objeto",
+            "fornecedor_razao_social", "fornecedor_cnpj_cpf",
+            "data_inicio_vigencia", "data_fim_vigencia",
+            "status", "esta_vigente",
+            "usa_lotes", "link_documento_mppi",
+            "papel_unidade",
+            "total_itens",
+            "valor_total_registrado",
+            "valor_total_disponivel",
+            "valor_comprometido_pca",
+            "total_contratacoes_dec",
+            "total_contratos_api",
+            "percentual_consumido",
+        ]
+
+    def _unidade_sigla(self):
+        return self.context.get("unidade_sigla", "")
+
+    def get_papel_unidade(self, obj) -> str:
+        """Papel da unidade requisitante nesta ARP (gestora/demandante)."""
+        sigla = self._unidade_sigla()
+        vinculo = obj.vinculos_unidades.filter(unidade__sigla=sigla).first()
+        return vinculo.papel if vinculo else ""
+
+    def get_valor_total_registrado(self, obj) -> str:
+        total = sum(i.quantidade_registrada * i.valor_unitario for i in obj.itens.all())
+        return str(total)
+
+    def get_valor_total_disponivel(self, obj) -> str:
+        total = sum(i.valor_disponivel for i in obj.itens.all())
+        return str(total)
+
+    def get_valor_comprometido_pca(self, obj) -> str:
+        total = sum(i.valor_comprometido_pca for i in obj.itens.all())
+        return str(total)
+
+    def get_total_contratacoes_dec(self, obj) -> int:
+        return obj.contratacoes_decorrentes.count()
+
+    def get_total_contratos_api(self, obj) -> int:
+        return obj.contratos_arp.count()
+
+    def get_percentual_consumido(self, obj) -> float:
+        """% do valor registrado já consumido (contratado + cedido em carona)."""
+        registrado = sum(i.valor_total_registrado for i in obj.itens.all())
+        if not registrado:
+            return 0.0
+        consumido = sum(
+            i.valor_total_contratado + i.valor_cedido_carona
+            for i in obj.itens.all()
+        )
+        return round(float(consumido / registrado) * 100, 1)
+
+
+# ---------------------------------------------------------------------------
+# ItemARPDisponivelSerializer — para seleção no PCA 2027
+# Lista itens de ARPs vigentes com saldo disponível para comprometimento.
+# ---------------------------------------------------------------------------
+
+class ItemARPDisponivelSerializer(serializers.ModelSerializer):
+    """
+    Usado em GET /api/srp/itens/disponiveis-pca/?unidade=CAA
+    para mostrar ao requisitante quais itens de ARP ainda têm saldo
+    e podem ser referenciados em demandas do PCA.
+    """
+    arp_numero              = serializers.CharField(source="arp.numero_arp",  read_only=True)
+    arp_objeto              = serializers.CharField(source="arp.objeto",      read_only=True)
+    arp_vigencia_fim        = serializers.DateField(source="arp.data_fim_vigencia", read_only=True)
+    arp_fornecedor          = serializers.CharField(source="arp.fornecedor_razao_social", read_only=True)
+
+    quantidade_disponivel          = serializers.DecimalField(max_digits=14, decimal_places=4, read_only=True)
+    quantidade_comprometida_pca    = serializers.DecimalField(max_digits=14, decimal_places=4, read_only=True)
+    quantidade_disponivel_eventual = serializers.DecimalField(max_digits=14, decimal_places=4, read_only=True)
+    valor_total_registrado         = serializers.DecimalField(max_digits=16, decimal_places=2, read_only=True)
+    valor_disponivel               = serializers.DecimalField(max_digits=16, decimal_places=2, read_only=True)
+    valor_disponivel_eventual      = serializers.DecimalField(max_digits=16, decimal_places=2, read_only=True)
+    valor_comprometido_pca         = serializers.DecimalField(max_digits=16, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = ItemARP
+        fields = [
+            "id", "arp", "arp_numero", "arp_objeto", "arp_vigencia_fim", "arp_fornecedor",
+            "numero_item", "numero_lote", "descricao",
+            "unidade_fornecimento", "valor_unitario",
+            "quantidade_registrada", "quantidade_contratada", "quantidade_cedida_carona",
+            "quantidade_disponivel", "quantidade_comprometida_pca", "quantidade_disponivel_eventual",
+            "valor_total_registrado", "valor_disponivel", "valor_comprometido_pca",
+            "valor_disponivel_eventual",
+        ]
+        read_only_fields = fields

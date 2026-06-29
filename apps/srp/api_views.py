@@ -3,29 +3,35 @@ ViewSets DRF para o módulo SRP.
 
 Endpoints gerados pelo DefaultRouter:
 
-  GET    /api/srp/arps/                      → lista ARPs
-  POST   /api/srp/arps/                      → cria ARP
-  GET    /api/srp/arps/{pk}/                 → detalhe ARP (com itens)
-  PUT    /api/srp/arps/{pk}/                 → atualiza ARP
-  PATCH  /api/srp/arps/{pk}/                 → atualiza parcial
-  DELETE /api/srp/arps/{pk}/                 → remove ARP
+  GET    /api/srp/arps/                           → lista ARPs (filtros: status, vigente, exercicio, unidade)
+  POST   /api/srp/arps/                           → cria ARP
+  GET    /api/srp/arps/{pk}/                      → detalhe ARP (com itens)
+  PUT    /api/srp/arps/{pk}/                      → atualiza ARP
+  PATCH  /api/srp/arps/{pk}/                      → atualiza parcial
+  DELETE /api/srp/arps/{pk}/                      → remove ARP
 
-  GET    /api/srp/arps/{pk}/itens/           → itens da ARP
-  GET    /api/srp/arps/{pk}/contratacoes/    → pedidos de fornecimento
-  GET    /api/srp/arps/{pk}/caronas/         → adesões à ARP
+  GET    /api/srp/arps/{pk}/itens/                → itens da ARP
+  GET    /api/srp/arps/{pk}/contratacoes/         → pedidos de fornecimento
+  GET    /api/srp/arps/{pk}/caronas/              → adesões à ARP
+  GET    /api/srp/arps/por-unidade/?sigla=CAA     → resumo das ARPs de uma unidade (dashboard)
 
-  GET    /api/srp/itens/                     → todos os itens (filtráveis)
-  GET    /api/srp/itens/{pk}/                → detalhe item (com financeiro)
+  GET    /api/srp/itens/                          → todos os itens (filtráveis)
+  GET    /api/srp/itens/{pk}/                     → detalhe item (com financeiro)
+  GET    /api/srp/itens/disponiveis-pca/?unidade=CAA  → itens de ARPs vigentes com saldo (seleção no PCA)
 
-  GET    /api/srp/vinculos-pca/              → vínculos PCA × ARP
-  POST   /api/srp/vinculos-pca/             → cria vínculo
-  DELETE /api/srp/vinculos-pca/{pk}/        → remove vínculo
+  GET    /api/srp/vinculos-arp-unidade/           → vínculos ARP × Unidade
+  POST   /api/srp/vinculos-arp-unidade/           → cria vínculo
+  DELETE /api/srp/vinculos-arp-unidade/{pk}/      → remove vínculo
 
-  GET    /api/srp/contratacoes/              → todas as contratações
-  POST   /api/srp/contratacoes/             → cria contratação
+  GET    /api/srp/vinculos-pca/                   → vínculos PCA × ARP
+  POST   /api/srp/vinculos-pca/                   → cria vínculo
+  DELETE /api/srp/vinculos-pca/{pk}/              → remove vínculo
 
-  GET    /api/srp/caronas/                   → todas as caronas cedidas
-  POST   /api/srp/caronas/                  → registra carona
+  GET    /api/srp/contratacoes/                   → todas as contratações
+  POST   /api/srp/contratacoes/                   → cria contratação
+
+  GET    /api/srp/caronas/                        → todas as caronas cedidas
+  POST   /api/srp/caronas/                        → registra carona
 """
 
 from rest_framework import mixins, status, viewsets
@@ -38,17 +44,21 @@ from .models import (
     AtaRegistroPrecos,
     ContratacaoDecorrente,
     ItemARP,
+    VinculoARPUnidade,
     VinculoPCAItemARP,
 )
 from .serializers import (
     AdesaoARPSerializer,
+    ARPResumoUnidadeSerializer,
     AtaRegistroPrecosDetailSerializer,
     AtaRegistroPrecosListSerializer,
     AtaRegistroPrecosWriteSerializer,
     ContratacaoDecorenteSerializer,
     ItemARPDetailSerializer,
+    ItemARPDisponivelSerializer,
     ItemARPListSerializer,
     ItemARPWriteSerializer,
+    VinculoARPUnidadeSerializer,
     VinculoPCAItemARPSerializer,
 )
 
@@ -71,7 +81,7 @@ class AtaRegistroPrecosViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = AtaRegistroPrecos.objects.select_related(
             "orgao_gerenciador",
-        ).prefetch_related("itens").order_by("-data_inicio_vigencia")
+        ).prefetch_related("itens", "vinculos_unidades__unidade").order_by("-data_inicio_vigencia")
 
         # Filtros opcionais
         status_param = self.request.query_params.get("status")
@@ -89,6 +99,13 @@ class AtaRegistroPrecosViewSet(viewsets.ModelViewSet):
         elif vigente == "false":
             from datetime import date
             qs = qs.exclude(status="vigente", data_fim_vigencia__gte=date.today())
+
+        # Filtro por unidade requisitante (sigla ou pk)
+        unidade_param = self.request.query_params.get("unidade")
+        if unidade_param:
+            qs = qs.filter(
+                vinculos_unidades__unidade__sigla=unidade_param
+            ).distinct()
 
         return qs
 
@@ -139,6 +156,48 @@ class AtaRegistroPrecosViewSet(viewsets.ModelViewSet):
         )
         return Response(serializer.data)
 
+    @action(detail=False, methods=["get"], url_path="por-unidade")
+    def por_unidade(self, request):
+        """
+        GET /api/srp/arps/por-unidade/?sigla=CAA
+
+        Retorna resumo de todas as ARPs vinculadas à unidade (gestora ou demandante),
+        com contagens de contratos e saldo disponível agregado.
+        Responde à pergunta: 'Quantas ARPs a CAA possui e quantos contratos cada uma originou?'
+        """
+        sigla = request.query_params.get("sigla", "").upper().strip()
+        if not sigla:
+            return Response(
+                {"detail": "Parâmetro 'sigla' obrigatório. Ex: ?sigla=CAA"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        qs = (
+            AtaRegistroPrecos.objects
+            .filter(vinculos_unidades__unidade__sigla=sigla)
+            .distinct()
+            .select_related("orgao_gerenciador")
+            .prefetch_related(
+                "itens__vinculos_pca",
+                "itens__contratacoes",
+                "itens__adesoes",
+                "vinculos_unidades__unidade",
+                "contratacoes_decorrentes",
+                "contratos_arp",
+            )
+            .order_by("-data_inicio_vigencia")
+        )
+
+        serializer = ARPResumoUnidadeSerializer(
+            qs, many=True,
+            context={"request": request, "unidade_sigla": sigla},
+        )
+        return Response({
+            "unidade": sigla,
+            "total_arps": qs.count(),
+            "arps": serializer.data,
+        })
+
 
 # ---------------------------------------------------------------------------
 # ItemARP
@@ -182,6 +241,55 @@ class ItemARPViewSet(
         if self.action == "retrieve":
             return ItemARPDetailSerializer
         return ItemARPListSerializer
+
+    @action(detail=False, methods=["get"], url_path="disponiveis-pca")
+    def disponiveis_pca(self, request):
+        """
+        GET /api/srp/itens/disponiveis-pca/?unidade=CAA[&busca=papel]
+
+        Retorna itens de ARPs vigentes que ainda têm saldo disponível,
+        usados na seleção de ARP ao cadastrar demandas SRP no PCA.
+
+        Filtros opcionais:
+          ?unidade=CAA   → apenas ARPs onde a unidade é gestora ou demandante
+          ?busca=texto   → filtra por descrição do item (case-insensitive)
+          ?arp=<pk>      → filtra por ARP específica
+        """
+        from datetime import date as _date
+        from django.db.models import F
+
+        qs = (
+            ItemARP.objects
+            .filter(
+                arp__status="vigente",
+                arp__data_fim_vigencia__gte=_date.today(),
+            )
+            .filter(
+                quantidade_registrada__gt=F("quantidade_contratada") + F("quantidade_cedida_carona")
+            )
+            .select_related("arp__orgao_gerenciador")
+            .prefetch_related("vinculos_pca")
+            .order_by("arp__numero_arp", "numero_item")
+        )
+
+        unidade = request.query_params.get("unidade", "").upper().strip()
+        if unidade:
+            qs = qs.filter(
+                arp__vinculos_unidades__unidade__sigla=unidade
+            ).distinct()
+
+        arp_pk = request.query_params.get("arp")
+        if arp_pk:
+            qs = qs.filter(arp_id=arp_pk)
+
+        busca = request.query_params.get("busca", "").strip()
+        if busca:
+            qs = qs.filter(descricao__icontains=busca)
+
+        serializer = ItemARPDisponivelSerializer(
+            qs, many=True, context={"request": request},
+        )
+        return Response(serializer.data)
 
 
 # ---------------------------------------------------------------------------
@@ -239,6 +347,7 @@ class ContratacaoDecorenteViewSet(
       ?arp=<pk>
       ?status=emitido|em_execucao|concluido|cancelado
       ?exercicio=2026
+      ?unidade=CAA
     """
     permission_classes = [IsAuthenticated]
     serializer_class = ContratacaoDecorenteSerializer
@@ -259,6 +368,10 @@ class ContratacaoDecorenteViewSet(
         exercicio = self.request.query_params.get("exercicio")
         if exercicio:
             qs = qs.filter(exercicio=exercicio)
+
+        unidade = self.request.query_params.get("unidade", "").upper().strip()
+        if unidade:
+            qs = qs.filter(unidade_requisitante__sigla=unidade)
 
         return qs
 
@@ -338,3 +451,47 @@ class AdesaoARPViewSet(
         )
         adesao.refresh_from_db()
         return Response(AdesaoARPSerializer(adesao).data)
+
+
+# ---------------------------------------------------------------------------
+# VinculoARPUnidade
+# ---------------------------------------------------------------------------
+
+class VinculoARPUnidadeViewSet(
+    mixins.CreateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    mixins.ListModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    Vínculos entre ARPs e Unidades Requisitantes.
+    Permite registrar quem é gestora e quem é demandante de cada ARP.
+
+    Filtros:
+      ?unidade=CAA        — ARPs da unidade (gestora + demandante)
+      ?unidade=CAA&papel=gestora
+      ?arp=<pk>
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = VinculoARPUnidadeSerializer
+
+    def get_queryset(self):
+        qs = VinculoARPUnidade.objects.select_related(
+            "arp__orgao_gerenciador", "unidade",
+        ).order_by("papel", "unidade__sigla")
+
+        unidade = self.request.query_params.get("unidade", "").upper().strip()
+        if unidade:
+            qs = qs.filter(unidade__sigla=unidade)
+
+        papel = self.request.query_params.get("papel", "").strip()
+        if papel:
+            qs = qs.filter(papel=papel)
+
+        arp_pk = self.request.query_params.get("arp")
+        if arp_pk:
+            qs = qs.filter(arp_id=arp_pk)
+
+        return qs

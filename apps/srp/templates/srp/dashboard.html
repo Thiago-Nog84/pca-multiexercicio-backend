@@ -3,89 +3,203 @@
 
 {% block title %}Dashboard SRP — MPPI{% endblock %}
 
+{% block srp_extra_style %}
+.chart-card { border-radius:12px; border:1px solid #e8ecf0; }
+.unidade-btn { border-radius:20px; font-size:.8rem; font-weight:600; transition:.15s; }
+.unidade-btn:hover { transform:translateY(-1px); box-shadow:0 3px 10px rgba(0,0,0,.12); }
+.alerta-row { background:#fff8f8 !important; }
+.alerta-row:hover { background:#fff0f0 !important; }
+.consumo-bar { height:5px; border-radius:3px; background:#e9ecef; }
+.consumo-fill { height:5px; border-radius:3px; }
+.val-disponivel { color:#198754; font-weight:700; }
+.val-contratado { color:#0d6efd; }
+.section-title { font-size:.85rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#6c757d; margin-bottom:.75rem; }
+{% endblock %}
+
 {% block content %}
 
 <!-- Cabeçalho -->
 <div class="d-flex align-items-center justify-content-between mb-4">
   <div>
-    <h4 class="fw-bold mb-0" style="color: var(--mppi-azul);">
-      <i class="bi bi-bar-chart-line me-2"></i>Dashboard — Sistema de Registro de Preços
+    <h4 class="fw-bold mb-0" style="color:var(--mppi-azul);">
+      <i class="bi bi-bar-chart-line me-2"></i>Sistema de Registro de Preços
     </h4>
-    <small class="text-muted">Atas de Registro de Preços do MPPI (UASG 926092)</small>
+    <small class="text-muted">MPPI — UASG 926092 · {{ total_arps }} ata{{ total_arps|pluralize:"s" }} importada{{ total_arps|pluralize:"s" }}</small>
   </div>
-  <a href="{% url 'srp:importar_arp' %}" class="btn btn-primary">
+  <a href="{% url 'srp:importar_arp' %}" class="btn btn-primary btn-sm">
     <i class="bi bi-cloud-download me-1"></i>Importar ARPs
   </a>
 </div>
 
-<!-- Cards de Estatística -->
+<!-- ═══════════════ STAT CARDS ═══════════════ -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-2">
+    <div class="card stat-card p-3 h-100">
+      <div class="stat-icon mb-2" style="background:#e8f0fe; width:36px; height:36px;">
+        <i class="bi bi-file-earmark-text" style="color:#0d6efd;"></i>
+      </div>
+      <div class="fs-3 fw-bold" style="color:#0d6efd;">{{ total_arps }}</div>
+      <div class="text-muted small">Total ARPs</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card stat-card p-3 h-100">
+      <div class="stat-icon mb-2" style="background:#d1f0e0; width:36px; height:36px;">
+        <i class="bi bi-check-circle" style="color:#198754;"></i>
+      </div>
+      <div class="fs-3 fw-bold" style="color:#198754;">{{ arps_vigentes }}</div>
+      <div class="text-muted small">Vigentes</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card stat-card p-3 h-100">
+      <div class="stat-icon mb-2" style="background:#fde8e8; width:36px; height:36px;">
+        <i class="bi bi-exclamation-triangle" style="color:#dc3545;"></i>
+      </div>
+      <div class="fs-3 fw-bold" style="color:#dc3545;">{{ arps_criticas_lista|length }}</div>
+      <div class="text-muted small">Vencendo em 30d</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card stat-card p-3 h-100">
+      <div class="stat-icon mb-2" style="background:#fff3cd; width:36px; height:36px;">
+        <i class="bi bi-list-ul" style="color:#856404;"></i>
+      </div>
+      <div class="fs-3 fw-bold" style="color:#856404;">{{ total_itens }}</div>
+      <div class="text-muted small">Itens</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card stat-card p-3 h-100">
+      <div class="stat-icon mb-2" style="background:#f9e5e7; width:36px; height:36px;">
+        <i class="bi bi-currency-dollar" style="color:var(--mppi-vermelho);"></i>
+      </div>
+      <div class="fw-bold" style="color:var(--mppi-vermelho); font-size:1rem;">
+        R$&nbsp;{{ valor_total|floatformat:"2g" }}
+      </div>
+      <div class="text-muted small">Valor registrado</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card stat-card p-3 h-100">
+      <div class="stat-icon mb-2" style="background:#d1f0e0; width:36px; height:36px;">
+        <i class="bi bi-wallet2" style="color:#198754;"></i>
+      </div>
+      <div class="fw-bold val-disponivel" style="font-size:1rem;">
+        R$&nbsp;{{ valor_disponivel_total|floatformat:"2g" }}
+      </div>
+      <div class="text-muted small">Saldo disponível</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ LINHA: GRÁFICOS ═══════════════ -->
 <div class="row g-3 mb-4">
 
-  <div class="col-6 col-md-3">
-    <div class="card stat-card p-3">
-      <div class="d-flex align-items-center gap-3">
-        <div class="stat-icon" style="background:#f9e5e7;">
-          <i class="bi bi-file-earmark-text" style="color:var(--mppi-vermelho);"></i>
-        </div>
-        <div>
-          <div class="fs-4 fw-bold" style="color:var(--mppi-vermelho);">{{ total_arps }}</div>
-          <div class="text-muted small">Total de ARPs</div>
-        </div>
-      </div>
+  <!-- Gráfico de rosca: status -->
+  <div class="col-12 col-md-3">
+    <div class="card chart-card p-3 h-100">
+      <div class="section-title">ARPs por Status</div>
+      <canvas id="chartStatus" height="200"></canvas>
     </div>
   </div>
 
-  <div class="col-6 col-md-3">
-    <div class="card stat-card p-3">
-      <div class="d-flex align-items-center gap-3">
-        <div class="stat-icon" style="background:#d1f0e0;">
-          <i class="bi bi-check-circle" style="color:#198754;"></i>
-        </div>
-        <div>
-          <div class="fs-4 fw-bold" style="color:#198754;">{{ arps_vigentes }}</div>
-          <div class="text-muted small">Vigentes</div>
-        </div>
-      </div>
+  <!-- Gráfico de barras: valor por ano -->
+  <div class="col-12 col-md-5">
+    <div class="card chart-card p-3 h-100">
+      <div class="section-title">Valor Registrado por Ano</div>
+      <canvas id="chartAno" height="200"></canvas>
     </div>
   </div>
 
-  <div class="col-6 col-md-3">
-    <div class="card stat-card p-3">
-      <div class="d-flex align-items-center gap-3">
-        <div class="stat-icon" style="background:#fde8e8;">
-          <i class="bi bi-list-ul" style="color:#dc3545;"></i>
-        </div>
-        <div>
-          <div class="fs-4 fw-bold" style="color:#dc3545;">{{ total_itens }}</div>
-          <div class="text-muted small">Itens registrados</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-6 col-md-3">
-    <div class="card stat-card p-3">
-      <div class="d-flex align-items-center gap-3">
-        <div class="stat-icon" style="background:#fff3cd;">
-          <i class="bi bi-currency-dollar" style="color:#856404;"></i>
-        </div>
-        <div>
-          <div class="fs-5 fw-bold" style="color:#856404;">
-            R$ {{ valor_total|floatformat:"2g" }}
-          </div>
-          <div class="text-muted small">Valor total registrado</div>
-        </div>
-      </div>
+  <!-- Top 10 ARPs por valor -->
+  <div class="col-12 col-md-4">
+    <div class="card chart-card p-3 h-100">
+      <div class="section-title">Top 10 ARPs por Valor</div>
+      <canvas id="chartTop" height="200"></canvas>
     </div>
   </div>
 
 </div>
 
-<!-- Tabela de ARPs -->
+<!-- ═══════════════ LINHA: UNIDADES + ALERTAS ═══════════════ -->
+<div class="row g-3 mb-4">
+
+  <!-- Unidades -->
+  <div class="col-12 col-md-6">
+    <div class="card chart-card p-3 h-100">
+      <div class="section-title">ARPs por Unidade Requisitante</div>
+      {% if unidades_com_arps %}
+      <div class="d-flex flex-wrap gap-2">
+        {% for u in unidades_com_arps %}
+        <a href="{% url 'srp:unidade_dashboard' u.sigla %}"
+           class="btn btn-outline-primary unidade-btn"
+           title="{{ u.nome }}">
+          {{ u.sigla }}
+          <span class="badge bg-primary ms-1">{{ u.total }}</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-muted small mt-2">
+        Nenhuma unidade vinculada ainda.
+        <br>Execute: <code>python manage.py vincular_arps_unidades --gestora-sigla CLC</code>
+      </p>
+      {% endif %}
+
+      {% if unidades_com_arps %}
+      <div class="mt-3">
+        <canvas id="chartUnidades" height="160"></canvas>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Alertas de vencimento -->
+  <div class="col-12 col-md-6">
+    <div class="card chart-card p-3 h-100">
+      <div class="section-title">
+        <i class="bi bi-exclamation-triangle-fill text-danger me-1"></i>
+        ARPs vencendo em 30 dias ({{ arps_criticas_lista|length }})
+      </div>
+      {% if arps_criticas_lista %}
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead class="table-light"><tr>
+            <th>ARP</th><th>Fornecedor</th><th class="text-center">Dias</th><th></th>
+          </tr></thead>
+          <tbody>
+            {% for a in arps_criticas_lista %}
+            <tr class="alerta-row">
+              <td class="fw-bold text-nowrap" style="color:var(--mppi-azul);">{{ a.arp.numero_arp }}</td>
+              <td class="small">{{ a.arp.fornecedor_razao_social|truncatechars:30 }}</td>
+              <td class="text-center">
+                <span class="badge bg-danger">{{ a.dias_restantes }}d</span>
+              </td>
+              <td>
+                <a href="{% url 'srp:arp_detalhe' a.arp.pk %}" class="btn btn-xs btn-outline-primary py-0 px-2 small">
+                  <i class="bi bi-eye"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="d-flex align-items-center gap-2 mt-3 text-success">
+        <i class="bi bi-check-circle-fill fs-4"></i>
+        <span>Nenhuma ARP vencendo nos próximos 30 dias.</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ TABELA DE ARPs ═══════════════ -->
 <div class="card arp-card">
   <div class="card-header py-3">
-
-    <!-- Barra de busca e filtros -->
     <div class="row g-2 align-items-center">
       <div class="col-12 col-md-5">
         <div class="input-group input-group-sm">
@@ -93,16 +207,13 @@
             <i class="bi bi-search text-muted"></i>
           </span>
           <input type="text" id="busca-arp" class="form-control border-start-0 ps-0"
-                 placeholder="Buscar por número, fornecedor ou objeto... (atalho: /)"
+                 placeholder="Buscar número, fornecedor, objeto… (atalho: /)"
                  autocomplete="off">
           <button class="btn btn-outline-secondary btn-sm" type="button" id="btn-limpar-busca"
-                  style="display:none;" title="Limpar busca">
-            <i class="bi bi-x"></i>
-          </button>
+                  style="display:none;"><i class="bi bi-x"></i></button>
         </div>
       </div>
-
-      <div class="col-6 col-md-3">
+      <div class="col-6 col-md-2">
         <select class="form-select form-select-sm" id="filtro-status">
           <option value="">Todos os status</option>
           <option value="vigente">Vigente</option>
@@ -111,7 +222,6 @@
           <option value="cancelada">Cancelada</option>
         </select>
       </div>
-
       <div class="col-6 col-md-2">
         <select class="form-select form-select-sm" id="filtro-ano">
           <option value="">Todos os anos</option>
@@ -120,77 +230,51 @@
           {% endfor %}
         </select>
       </div>
-
-      <div class="col-6 col-md-2">
-        <select class="form-select form-select-sm" id="filtro-origem">
-          <option value="">Toda origem</option>
-          <option value="api">Importada (API)</option>
-          <option value="manual">Manual</option>
-        </select>
-      </div>
-
       <div class="col-6 col-md-2">
         <select class="form-select form-select-sm" id="filtro-vencimento">
-          <option value="">Todos os vencimentos</option>
-          <option value="critica">⛔ Crítico (&lt; 30 dias)</option>
-          <option value="atencao">⚠️ Atenção (&lt; 60 dias)</option>
+          <option value="">Todos vencimentos</option>
+          <option value="critica">⛔ Crítico (&lt;30d)</option>
+          <option value="atencao">⚠ Atenção (&lt;60d)</option>
           <option value="ok">✅ Normal</option>
           <option value="expirada">Expirada</option>
         </select>
       </div>
-
-      <div class="col-12 col-md-2 text-md-end">
-        <span class="badge bg-light text-dark fs-6" id="contador-visivel">
-          {{ total_arps }} ARP(s)
-        </span>
-        <button class="btn btn-link btn-sm text-muted p-0 ms-2" id="btn-limpar-filtros"
-                style="display:none; font-size:0.75rem;" onclick="limparFiltros()">
-          Limpar filtros
-        </button>
+      <div class="col-6 col-md-1 text-end">
+        <span class="badge bg-light text-dark" id="contador-visivel">{{ total_arps }}</span>
       </div>
     </div>
-
   </div>
 
   <div class="card-body p-0">
     {% if arps_lista %}
-
     <div class="table-responsive" id="table-wrapper">
       <table class="table table-hover mb-0 align-middle" id="tabela-arps">
         <thead class="table-light">
           <tr>
-            <th class="ps-3 sortable" data-col="0" style="cursor:pointer; white-space:nowrap; user-select:none;">
+            <th class="ps-3 sortable" data-col="0" style="cursor:pointer; white-space:nowrap;">
               Número <i class="bi bi-arrow-down-up ms-1 text-muted sort-icon"></i>
             </th>
-            <th class="sortable" data-col="1" style="cursor:pointer; user-select:none;">
+            <th class="sortable" data-col="1" style="cursor:pointer;">
               Fornecedor <i class="bi bi-arrow-down-up ms-1 text-muted sort-icon"></i>
             </th>
             <th>Objeto</th>
-            <th class="text-center sortable" data-col="3" style="cursor:pointer; white-space:nowrap; user-select:none;">
-              Itens <i class="bi bi-arrow-down-up ms-1 text-muted sort-icon"></i>
+            <th class="text-center">Itens</th>
+            <th class="text-center">Status</th>
+            <th style="white-space:nowrap;">Vigência</th>
+            <th class="text-center">Restante</th>
+            <th class="text-end sortable" data-col="6" style="cursor:pointer; white-space:nowrap;">
+              Valor Reg. <i class="bi bi-arrow-down-up ms-1 text-muted sort-icon"></i>
             </th>
-            <th class="text-center sortable" data-col="4" style="cursor:pointer; user-select:none;">
-              Status <i class="bi bi-arrow-down-up ms-1 text-muted sort-icon"></i>
-            </th>
-            <th class="sortable" data-col="5" style="cursor:pointer; white-space:nowrap; user-select:none;">
-              Vigência <i class="bi bi-arrow-down-up ms-1 text-muted sort-icon"></i>
-            </th>
-            <th class="text-center sortable" data-col="7" style="cursor:pointer; white-space:nowrap; user-select:none;">
-              Restante <i class="bi bi-arrow-down-up ms-1 text-muted sort-icon"></i>
-            </th>
-            <th class="text-end sortable" data-col="6" style="cursor:pointer; white-space:nowrap; user-select:none;">
-              Valor Total <i class="bi bi-arrow-down-up ms-1 text-muted sort-icon"></i>
-            </th>
-            <th class="text-center">Origem</th>
+            <th class="text-end" style="white-space:nowrap;">Consumo</th>
+            <th class="text-center">Contratos</th>
             <th class="text-center pe-3">Ações</th>
           </tr>
         </thead>
         {% regroup arps_lista by arp.data_inicio_vigencia.year as grupos_ano %}
         <tbody id="tbody-arps">
           {% for grupo in grupos_ano %}
-          {# ── Separador de ano ── #}
           <tr class="separador-ano" data-ano="{{ grupo.grouper }}">
-            <td colspan="10" class="py-1 px-3"
+            <td colspan="11" class="py-1 px-3"
                 style="background:var(--bs-gray-100); border-top:2px solid var(--mppi-azul);">
               <span class="fw-bold" style="color:var(--mppi-azul); font-size:.85rem;">
                 <i class="bi bi-calendar3 me-1"></i>{{ grupo.grouper }}
@@ -207,7 +291,6 @@
             data-fornecedor="{{ arp.fornecedor_razao_social|lower }}"
             data-objeto="{{ arp.objeto|lower }}"
             data-status="{{ entrada.status_efetivo }}"
-            data-origem="{% if entrada.importada %}api{% else %}manual{% endif %}"
             data-itens="{{ entrada.total_itens }}"
             data-valor="{{ entrada.valor_total }}"
             data-vigencia-fim="{{ arp.data_fim_vigencia|date:'Y-m-d' }}"
@@ -215,21 +298,17 @@
             data-vencimento="{% if entrada.dias_restantes is None or entrada.dias_restantes < 0 %}expirada{% elif entrada.dias_restantes < 30 %}critica{% elif entrada.dias_restantes < 60 %}atencao{% else %}ok{% endif %}"
             data-ano="{{ arp.data_inicio_vigencia.year }}"
           >
-            <td class="ps-3 fw-semibold" style="color:var(--mppi-azul); white-space:nowrap;">
+            <td class="ps-3 fw-semibold text-nowrap" style="color:var(--mppi-azul);">
               {{ arp.numero_arp }}
             </td>
             <td>
-              {% if arp.fornecedor_razao_social %}
-                <div class="fw-medium">{{ arp.fornecedor_razao_social|truncatechars:40 }}</div>
-                {% if arp.fornecedor_cnpj_cpf %}
-                  <small class="text-muted">{{ arp.fornecedor_cnpj_cpf }}</small>
-                {% endif %}
-              {% else %}
-                <span class="text-muted small fst-italic">—</span>
+              <div class="fw-medium small">{{ arp.fornecedor_razao_social|truncatechars:35 }}</div>
+              {% if arp.fornecedor_cnpj_cpf %}
+                <small class="text-muted">{{ arp.fornecedor_cnpj_cpf }}</small>
               {% endif %}
             </td>
             <td>
-              <span title="{{ arp.objeto }}">{{ arp.objeto|truncatechars:55 }}</span>
+              <span class="small" title="{{ arp.objeto }}">{{ arp.objeto|truncatechars:55 }}</span>
             </td>
             <td class="text-center">
               <span class="badge bg-secondary">{{ entrada.total_itens }}</span>
@@ -237,11 +316,6 @@
             <td class="text-center">
               {% if entrada.status_efetivo == 'vigente' %}
                 <span class="badge badge-vigente">Vigente</span>
-                {% if arp.prorrogada %}
-                  <br><span class="badge-prorrogada mt-1">
-                    <i class="bi bi-arrow-repeat me-1"></i>Prorrogada
-                  </span>
-                {% endif %}
               {% elif entrada.status_efetivo == 'suspensa' %}
                 <span class="badge badge-suspensa">Suspensa</span>
               {% elif entrada.status_efetivo == 'encerrada' %}
@@ -250,57 +324,55 @@
                 <span class="badge badge-cancelada">Cancelada</span>
               {% endif %}
             </td>
-            <td style="white-space:nowrap;">
-              <div class="small">
-                <i class="bi bi-calendar-check text-success me-1"></i>{{ arp.data_inicio_vigencia|date:"d/m/Y" }}
-              </div>
-              <div class="small {% if arp.esta_vigente %}text-success{% else %}text-danger{% endif %}">
+            <td class="small text-nowrap">
+              <div><i class="bi bi-calendar-check text-success me-1"></i>{{ arp.data_inicio_vigencia|date:"d/m/Y" }}</div>
+              <div class="{% if arp.esta_vigente %}text-success{% else %}text-danger{% endif %}">
                 <i class="bi bi-calendar-x me-1"></i>{{ arp.data_fim_vigencia|date:"d/m/Y" }}
-                {% if arp.prorrogada and arp.data_fim_vigencia_original %}
-                  <span class="text-muted" title="Vigência original antes da prorrogação">
-                    <i class="bi bi-info-circle ms-1"></i>orig. {{ arp.data_fim_vigencia_original|date:"d/m/Y" }}
-                  </span>
-                {% endif %}
               </div>
             </td>
-            <td class="text-center" style="white-space:nowrap;">
+            <td class="text-center text-nowrap">
               {% if entrada.dias_restantes is None %}
                 <span class="text-muted small">—</span>
               {% elif entrada.dias_restantes < 0 %}
-                <span class="vigencia-expirada small">
-                  <i class="bi bi-x-circle me-1"></i>Expirada
-                </span>
+                <span class="vigencia-expirada small">Expirada</span>
               {% elif entrada.dias_restantes < 30 %}
-                <span class="badge-critica">
-                  <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ entrada.dias_restantes }}d
-                </span>
+                <span class="badge-critica"><i class="bi bi-exclamation-triangle-fill me-1"></i>{{ entrada.dias_restantes }}d</span>
               {% elif entrada.dias_restantes < 60 %}
-                <span class="badge-atencao">
-                  <i class="bi bi-exclamation-circle me-1"></i>{{ entrada.dias_restantes }}d
-                </span>
+                <span class="badge-atencao">{{ entrada.dias_restantes }}d</span>
               {% else %}
-                <span class="vigencia-ok small">
-                  <i class="bi bi-check-circle me-1"></i>{{ entrada.dias_restantes }}d
-                </span>
+                <span class="vigencia-ok small">{{ entrada.dias_restantes }}d</span>
               {% endif %}
             </td>
-            <td class="text-end fw-semibold" style="white-space:nowrap;">
-              R$ {{ entrada.valor_total|floatformat:"2g" }}
+            <td class="text-end fw-semibold text-nowrap small">
+              R$&nbsp;{{ entrada.valor_total|floatformat:"2g" }}
+            </td>
+            <td style="min-width:90px;">
+              <div class="d-flex justify-content-between small mb-1">
+                <span class="text-muted" style="font-size:.7rem;">{{ entrada.percentual_consumido }}%</span>
+              </div>
+              <div class="consumo-bar">
+                <div class="consumo-fill"
+                     style="width:{{ entrada.percentual_consumido }}%;
+                     background:{% if entrada.percentual_consumido >= 90 %}#dc3545{% elif entrada.percentual_consumido >= 70 %}#fd7e14{% else %}#198754{% endif %};">
+                </div>
+              </div>
             </td>
             <td class="text-center">
-              {% if entrada.importada %}
-                <span class="importada-badge">
-                  <i class="bi bi-cloud-check me-1"></i>API
-                </span>
+              {% if entrada.total_contratos %}
+                <span class="badge bg-primary">{{ entrada.total_contratos }}</span>
               {% else %}
-                <span class="text-muted small">Manual</span>
+                <span class="text-muted small">—</span>
               {% endif %}
             </td>
-            <td class="text-center pe-3">
-              <a href="{% url 'srp:arp_detalhe' arp.pk %}"
-                 class="btn btn-sm btn-outline-primary">
-                <i class="bi bi-eye me-1"></i>Ver
+            <td class="text-center pe-3 text-nowrap">
+              <a href="{% url 'srp:arp_detalhe' arp.pk %}" class="btn btn-sm btn-outline-primary py-0 px-2" title="Ver ARP">
+                <i class="bi bi-eye"></i>
               </a>
+              {% if arp.link_ata_pncp %}
+              <a href="{{ arp.link_ata_pncp }}" target="_blank" class="btn btn-sm btn-outline-secondary py-0 px-2 ms-1" title="PNCP">
+                <i class="bi bi-box-arrow-up-right"></i>
+              </a>
+              {% endif %}
             </td>
           </tr>
           {% endwith %}
@@ -309,20 +381,15 @@
         </tbody>
       </table>
     </div>
-
-    <!-- Mensagem sem resultado -->
     <div id="sem-resultado" class="text-center py-5" style="display:none;">
       <i class="bi bi-search display-4 text-muted"></i>
-      <p class="text-muted mt-3">Nenhuma ARP encontrada com os filtros aplicados.</p>
-      <button class="btn btn-outline-secondary btn-sm" onclick="limparFiltros()">
-        <i class="bi bi-x-circle me-1"></i>Limpar filtros
-      </button>
+      <p class="text-muted mt-3">Nenhuma ARP encontrada.</p>
+      <button class="btn btn-outline-secondary btn-sm" onclick="limparFiltros()">Limpar filtros</button>
     </div>
-
     {% else %}
     <div class="text-center py-5">
       <i class="bi bi-inbox display-4 text-muted"></i>
-      <p class="text-muted mt-3">Nenhuma ARP cadastrada ainda.</p>
+      <p class="text-muted mt-3">Nenhuma ARP cadastrada.</p>
       <a href="{% url 'srp:importar_arp' %}" class="btn btn-primary">
         <i class="bi bi-cloud-download me-1"></i>Importar do Compras.gov
       </a>
@@ -334,136 +401,204 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
 <script>
 (function () {
+
+  // ── Paleta ─────────────────────────────────────────────────────────────────
+  const CORES = ['#2563eb','#16a34a','#dc2626','#d97706','#7c3aed','#0891b2','#db2777','#65a30d','#ea580c','#475569'];
+  const STATUS_COR = { vigente:'#16a34a', encerrada:'#6b7280', suspensa:'#d97706', cancelada:'#dc2626' };
+
+  // ── Gráfico Status ──────────────────────────────────────────────────────────
+  const ds = {{ chart_status|safe }};
+  new Chart(document.getElementById('chartStatus'), {
+    type: 'doughnut',
+    data: {
+      labels: ds.labels.map(l => l.charAt(0).toUpperCase() + l.slice(1)),
+      datasets: [{ data: ds.data, backgroundColor: ds.labels.map(l => STATUS_COR[l] || '#94a3b8'), borderWidth: 2 }]
+    },
+    options: {
+      cutout: '65%',
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
+      onClick(e, els) {
+        if (els.length) {
+          const label = ds.labels[els[0].index];
+          document.getElementById('filtro-status').value = label;
+          filtrar();
+          document.getElementById('tabela-arps').scrollIntoView({ behavior:'smooth' });
+        }
+      }
+    }
+  });
+
+  // ── Gráfico Ano ─────────────────────────────────────────────────────────────
+  const da = {{ chart_ano|safe }};
+  new Chart(document.getElementById('chartAno'), {
+    type: 'bar',
+    data: {
+      labels: da.labels,
+      datasets: [{
+        label: 'Valor Registrado (R$)',
+        data: da.valores,
+        backgroundColor: '#2563eb99',
+        borderColor: '#2563eb',
+        borderWidth: 1,
+        borderRadius: 4,
+      },{
+        label: 'ARPs',
+        data: da.counts,
+        type: 'line',
+        yAxisID: 'y2',
+        borderColor: '#dc2626',
+        backgroundColor: '#dc262620',
+        pointBackgroundColor: '#dc2626',
+        tension: .3,
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { font: { size:11 } } } },
+      scales: {
+        y:  { ticks: { callback: v => 'R$ ' + (v/1e6).toFixed(1) + 'M', font:{size:10} } },
+        y2: { position:'right', grid:{drawOnChartArea:false}, ticks:{ font:{size:10} } }
+      },
+      onClick(e, els) {
+        if (els.length) {
+          document.getElementById('filtro-ano').value = da.labels[els[0].index];
+          filtrar();
+          document.getElementById('tabela-arps').scrollIntoView({ behavior:'smooth' });
+        }
+      }
+    }
+  });
+
+  // ── Gráfico Top 10 ──────────────────────────────────────────────────────────
+  const dt = {{ chart_top|safe }};
+  new Chart(document.getElementById('chartTop'), {
+    type: 'bar',
+    data: {
+      labels: dt.labels,
+      datasets: [{ label: 'Valor (R$)', data: dt.valores, backgroundColor: CORES, borderRadius: 4 }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => 'R$ ' + ctx.raw.toLocaleString('pt-BR', {minimumFractionDigits:2}) + ' — ' + dt.objetos[ctx.dataIndex] } }
+      },
+      scales: { x: { ticks: { callback: v => 'R$' + (v/1e6).toFixed(1) + 'M', font:{size:9} } }, y: { ticks:{font:{size:10}} } },
+      onClick(e, els) {
+        if (els.length) {
+          window.location = '/srp/arp/' + dt.pks[els[0].index] + '/';
+        }
+      }
+    }
+  });
+
+  // ── Gráfico Unidades ────────────────────────────────────────────────────────
+  const cuEl = document.getElementById('chartUnidades');
+  if (cuEl) {
+    const unLabels = [{% for u in unidades_com_arps %}"{{ u.sigla }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+    const unData   = [{% for u in unidades_com_arps %}{{ u.total }}{% if not forloop.last %},{% endif %}{% endfor %}];
+    new Chart(cuEl, {
+      type: 'bar',
+      data: {
+        labels: unLabels,
+        datasets: [{ data: unData, backgroundColor: CORES, borderRadius:4 }]
+      },
+      options: {
+        plugins: { legend: { display:false } },
+        scales: { y: { ticks: { stepSize:1, font:{size:10} } }, x: { ticks:{font:{size:10}} } },
+        onClick(e, els) {
+          if (els.length) {
+            window.location = '/srp/unidade/' + unLabels[els[0].index] + '/';
+          }
+        }
+      }
+    });
+  }
+
+  // ── Tabela: filtro + ordenação ──────────────────────────────────────────────
   const tbody        = document.getElementById('tbody-arps');
   if (!tbody) return;
+  const inputBusca   = document.getElementById('busca-arp');
+  const btnLimpar    = document.getElementById('btn-limpar-busca');
+  const selStatus    = document.getElementById('filtro-status');
+  const selAno       = document.getElementById('filtro-ano');
+  const selVenc      = document.getElementById('filtro-vencimento');
+  const contador     = document.getElementById('contador-visivel');
+  const semResult    = document.getElementById('sem-resultado');
+  const tableWrapper = document.getElementById('table-wrapper');
 
-  const inputBusca    = document.getElementById('busca-arp');
-  const btnLimpar     = document.getElementById('btn-limpar-busca');
-  const btnLimparAll  = document.getElementById('btn-limpar-filtros');
-  const selStatus     = document.getElementById('filtro-status');
-  const selAno        = document.getElementById('filtro-ano');
-  const selOrigem     = document.getElementById('filtro-origem');
-  const selVencimento = document.getElementById('filtro-vencimento');
-  const contador      = document.getElementById('contador-visivel');
-  const semResult     = document.getElementById('sem-resultado');
-  const tableWrapper  = document.getElementById('table-wrapper');
-
-  // ── Ordenação ──────────────────────────────────────────────────────────────
   let sortCol = -1, sortAsc = true;
-
   document.querySelectorAll('th.sortable').forEach(th => {
+    th.style.cursor = 'pointer';
     th.addEventListener('click', () => {
       const col = parseInt(th.dataset.col);
-      sortAsc = (sortCol === col) ? !sortAsc : true;
+      sortAsc = sortCol === col ? !sortAsc : true;
       sortCol = col;
-
-      // Resetar todos os ícones
-      document.querySelectorAll('th.sortable').forEach(h => {
-        h.querySelector('.sort-icon').className = 'bi bi-arrow-down-up ms-1 text-muted sort-icon';
-        h.classList.remove('text-primary');
+      document.querySelectorAll('th.sortable .sort-icon').forEach(i => {
+        i.className = 'bi bi-arrow-down-up ms-1 text-muted sort-icon';
       });
-
-      // Ícone da coluna ativa
-      th.querySelector('.sort-icon').className =
-        `bi ${sortAsc ? 'bi-arrow-up' : 'bi-arrow-down'} ms-1 text-primary sort-icon`;
-
+      th.querySelector('.sort-icon').className = `bi ${sortAsc?'bi-arrow-up':'bi-arrow-down'} ms-1 text-primary sort-icon`;
       ordenar(col, sortAsc);
     });
   });
 
   function getCelula(tr, col) {
-    switch (col) {
-      case 0: return tr.dataset.numero || '';
-      case 1: return tr.dataset.fornecedor || '';
-      case 3: return parseFloat(tr.dataset.itens) || 0;
-      case 4: return tr.dataset.status || '';
-      case 5: return tr.dataset.vigenciaFim || '';
-      case 6: return parseFloat(tr.dataset.valor) || 0;
-      case 7: return parseFloat(tr.dataset.dias) || -9999;
-      default: return '';
-    }
+    if (col === 0) return tr.dataset.numero||'';
+    if (col === 1) return tr.dataset.fornecedor||'';
+    if (col === 6) return parseFloat(tr.dataset.valor)||0;
+    if (col === 7) return parseFloat(tr.dataset.dias)||-9999;
+    return '';
   }
-
   function ordenar(col, asc) {
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-    rows.sort((a, b) => {
-      const va = getCelula(a, col), vb = getCelula(b, col);
-      if (typeof va === 'number') return asc ? va - vb : vb - va;
-      return asc
-        ? String(va).localeCompare(String(vb), 'pt-BR', {sensitivity:'base'})
-        : String(vb).localeCompare(String(va), 'pt-BR', {sensitivity:'base'});
-    });
+    const rows = [...tbody.querySelectorAll('tr:not(.separador-ano)')];
+    rows.sort((a,b) => { const va=getCelula(a,col), vb=getCelula(b,col);
+      return typeof va==='number' ? (asc?va-vb:vb-va) : (asc?String(va).localeCompare(String(vb),'pt-BR'):String(vb).localeCompare(String(va),'pt-BR')); });
     rows.forEach(r => tbody.appendChild(r));
     filtrar();
   }
 
-  // ── Filtro / Busca ─────────────────────────────────────────────────────────
-  function filtrar() {
-    const termo      = (inputBusca.value || '').toLowerCase().trim();
-    const status     = selStatus.value;
-    const ano        = selAno.value;
-    const origem     = selOrigem.value;
-    const vencimento = selVencimento.value;
-    const ativo      = !!(termo || status || ano || origem || vencimento);
-
-    // Controla visibilidade das linhas de dados
+  window.filtrar = function filtrar() {
+    const termo = (inputBusca.value||'').toLowerCase().trim();
+    const status = selStatus.value, ano = selAno.value, venc = selVenc.value;
     let n = 0;
     tbody.querySelectorAll('tr:not(.separador-ano)').forEach(tr => {
-      const ok =
-        (!termo      || tr.dataset.numero.includes(termo) ||
-                        tr.dataset.fornecedor.includes(termo) ||
-                        tr.dataset.objeto.includes(termo)) &&
-        (!status     || tr.dataset.status === status) &&
-        (!ano        || tr.dataset.ano === ano) &&
-        (!origem     || tr.dataset.origem === origem) &&
-        (!vencimento || tr.dataset.vencimento === vencimento);
-
+      const ok = (!termo || tr.dataset.numero.includes(termo)||tr.dataset.fornecedor.includes(termo)||tr.dataset.objeto.includes(termo))
+              && (!status || tr.dataset.status===status)
+              && (!ano    || tr.dataset.ano===ano)
+              && (!venc   || tr.dataset.vencimento===venc);
       tr.style.display = ok ? '' : 'none';
       if (ok) n++;
     });
-
-    // Mostra separador de ano somente se há pelo menos uma linha visível no grupo
     tbody.querySelectorAll('tr.separador-ano').forEach(sep => {
-      const anoSep = sep.dataset.ano;
-      // Conta linhas visíveis com esse ano
-      const temVisivel = [...tbody.querySelectorAll(`tr:not(.separador-ano)[data-ano="${anoSep}"]`)]
-        .some(tr => tr.style.display !== 'none');
-      sep.style.display = temVisivel ? '' : 'none';
+      const temV = [...tbody.querySelectorAll(`tr:not(.separador-ano)[data-ano="${sep.dataset.ano}"]`)].some(r=>r.style.display!=='none');
+      sep.style.display = temV?'':'none';
     });
+    contador.textContent = n;
+    btnLimpar.style.display = inputBusca.value?'':'none';
+    tableWrapper.style.display = n?'':'none';
+    semResult.style.display = n?'none':'';
+  };
 
-    contador.textContent = n + ' ARP(s)';
-    btnLimpar.style.display    = inputBusca.value ? '' : 'none';
-    btnLimparAll.style.display = ativo ? '' : 'none';
-
-    tableWrapper.style.display = n ? '' : 'none';
-    semResult.style.display    = n ? 'none' : '';
-  }
+  window.limparFiltros = function() {
+    inputBusca.value=selStatus.value=selAno.value=selVenc.value=''; filtrar();
+  };
 
   inputBusca.addEventListener('input', filtrar);
   selStatus.addEventListener('change', filtrar);
   selAno.addEventListener('change', filtrar);
-  selOrigem.addEventListener('change', filtrar);
-  selVencimento.addEventListener('change', filtrar);
-  btnLimpar.addEventListener('click', () => { inputBusca.value = ''; filtrar(); inputBusca.focus(); });
-
-  window.limparFiltros = function () {
-    inputBusca.value    = '';
-    selStatus.value     = '';
-    selAno.value        = '';
-    selOrigem.value     = '';
-    selVencimento.value = '';
-    filtrar();
-  };
-
-  // Atalho "/" para focar na busca
+  selVenc.addEventListener('change', filtrar);
+  btnLimpar.addEventListener('click', ()=>{ inputBusca.value=''; filtrar(); inputBusca.focus(); });
   document.addEventListener('keydown', e => {
-    if (e.key === '/' && !['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)) {
-      e.preventDefault();
-      inputBusca.focus();
+    if (e.key==='/' && !['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName)) {
+      e.preventDefault(); inputBusca.focus();
     }
-   });
+  });
+
 })();
 </script>
 {% endblock %}
