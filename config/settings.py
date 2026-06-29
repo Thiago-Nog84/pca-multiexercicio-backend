@@ -103,6 +103,7 @@ LOGIN_REDIRECT_URL = "/pca/"
 LOGOUT_REDIRECT_URL = "/admin/login/"
 
 STATIC_URL = "static/"
+STATICFILES_DIRS = [BASE_DIR / "static"]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {

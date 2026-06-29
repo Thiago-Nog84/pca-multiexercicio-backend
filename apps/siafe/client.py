@@ -111,14 +111,14 @@ class SiafeClient:
                 cache.delete(CACHE_KEY)
                 continue
             self._check_response(resp)
-            return resp.json()
+            return resp.json() if resp.text.strip() else {}
         raise SiafeAPIError(401, "Falha de autenticação após retry.")
 
     def _post(self, path: str, body: dict) -> Any:
         url = f"{self.base_url}{path}"
         resp = self.session.post(url, headers=self._headers(), json=body, timeout=30)
         self._check_response(resp)
-        return resp.json()
+        return resp.json() if resp.text.strip() else {}
 
     # ------------------------------------------------------------------
     # Nota de Empenho

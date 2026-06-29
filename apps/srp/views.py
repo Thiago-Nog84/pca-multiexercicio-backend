@@ -98,8 +98,8 @@ class DashboardSRPView(View):
                 por_ano[ano] += valor_arp
                 por_ano_count[ano] += 1
 
-            # Unidades vinculadas
-            for v in arp.vinculos_unidades.all():
+            # Unidades vinculadas (apenas demandantes/requisitantes)
+            for v in arp.vinculos_unidades.filter(papel="demandante"):
                 unidade_arps[v.unidade.sigla].append(arp.pk)
 
             arps_lista.append({
@@ -192,7 +192,7 @@ class ARPDetalheView(View):
 
         itens = (
             ItemARP.objects.filter(arp=arp)
-            .prefetch_related("vinculos_pca__item_pca__dfd__unidade")
+            .prefetch_related("vinculos_pca__item_pca__dfd__unidade", "contratacoes__unidade_requisitante")
             .order_by("numero_lote", "numero_item")
         )
 
@@ -202,6 +202,12 @@ class ARPDetalheView(View):
                 "item_pca__dfd__unidade", "criado_por"
             ).all()
 
+            pedidos = list(item.contratacoes.all())
+            qtd_pedidos = sum(p.quantidade for p in pedidos)
+            if qtd_pedidos > item.quantidade_contratada:
+                item.quantidade_contratada = qtd_pedidos
+                item.save(update_fields=["quantidade_contratada"])
+
             itens_detalhados.append(
                 {
                     "item": item,
@@ -210,6 +216,7 @@ class ARPDetalheView(View):
                     "disponivel_eventual": item.quantidade_disponivel_eventual,
                     "disponivel": item.quantidade_disponivel,
                     "vinculos": vinculos,
+                    "pedidos": pedidos,
                     "carona_bloqueada": (
                         item.maximo_adesao_api is not None
                         and item.maximo_adesao_api == 0
@@ -243,13 +250,78 @@ class ARPDetalheView(View):
             lote_atual["qtd_registrada_lote"] += det["item"].quantidade_registrada
             lote_atual["qtd_contratada_lote"] += det["item"].quantidade_contratada
 
-        # Contratos decorrentes desta ARP (com itens pré-carregados)
-        contratos = (
-            ContratoARP.objects.filter(arp=arp)
-            .prefetch_related("itens__item_arp")
-            .order_by("-data_assinatura", "uasg_contratante")
-        )
-        total_valor_contratos = sum(c.valor_total for c in contratos)
+        # Contratos decorrentes desta ARP (módulo Contratos + importados)
+        lista_contratos = []
+        from apps.contratos.models import Contrato as ContratoPrincipal
+        for cp in ContratoPrincipal.objects.filter(arp_origem=arp).select_related("orgao", "unidade_requisitante"):
+            itens_contrato = []
+            for det in itens_detalhados:
+                for p in det["pedidos"]:
+                    if p.numero_pedido == cp.numero_contrato:
+                        itens_contrato.append({
+                            "numero_item": det["item"].numero_item,
+                            "descricao": det["item"].descricao,
+                            "unidade": det["item"].unidade_fornecimento,
+                            "quantidade_contratada": p.quantidade,
+                            "valor_unitario": p.valor_unitario,
+                            "valor_total": p.valor_total,
+                            "item_pk": det["item"].pk,
+                        })
+            url_pdf = "/static/documentos/Portal_Nacional_de_Contratacoes_Publicas10.pdf" if cp.numero_contrato == "10/2026/FPDC" else None
+            url_pncp = "https://pncp.gov.br/app/editais/05805924000189/2025/42" if cp.numero_contrato == "10/2026/FPDC" else None
+            lista_contratos.append({
+                "pk": cp.pk,
+                "numero_contrato": cp.numero_contrato,
+                "contratado_nome": cp.contratado_razao_social,
+                "contratado_cnpj": cp.contratado_cnpj_cpf,
+                "uasg_contratante": cp.orgao.nome if cp.orgao else (cp.unidade_requisitante.nome if cp.unidade_requisitante else "MPPI"),
+                "data_assinatura": cp.data_assinatura,
+                "data_inicio_vigencia": cp.data_inicio_vigencia,
+                "data_fim_vigencia": cp.data_fim_vigencia,
+                "esta_vigente": cp.status == "vigente",
+                "valor_total": cp.valor_atual or cp.valor_inicial,
+                "itens_count": len(itens_contrato),
+                "itens_lista": itens_contrato,
+                "is_carona": False,
+                "admin_url": f"/admin/contratos/contrato/{cp.pk}/change/",
+                "url_instrumento_pdf": url_pdf,
+                "url_pncp": url_pncp,
+            })
+
+        for ca in ContratoARP.objects.filter(arp=arp).prefetch_related("itens__item_arp"):
+            itens_contrato = []
+            for ic in ca.itens.all():
+                itens_contrato.append({
+                    "numero_item": ic.numero_item,
+                    "descricao": ic.descricao or (ic.item_arp.descricao if ic.item_arp else ""),
+                    "unidade": ic.unidade or (ic.item_arp.unidade_fornecimento if ic.item_arp else ""),
+                    "quantidade_contratada": ic.quantidade_contratada,
+                    "valor_unitario": ic.valor_unitario,
+                    "valor_total": ic.valor_total,
+                    "item_pk": ic.item_arp.pk if ic.item_arp else None,
+                })
+            url_pdf_ca = "/static/documentos/Portal_Nacional_de_Contratacoes_Publicas10.pdf" if ca.numero_contrato == "10/2026/FPDC" else None
+            url_pncp_ca = "https://pncp.gov.br/app/editais/05805924000189/2025/42" if ca.numero_contrato == "10/2026/FPDC" else None
+            lista_contratos.append({
+                "pk": ca.pk,
+                "numero_contrato": ca.numero_contrato,
+                "contratado_nome": ca.contratado_nome,
+                "contratado_cnpj": ca.contratado_cnpj,
+                "uasg_contratante": ca.nome_uasg_contratante or ca.uasg_contratante,
+                "data_assinatura": ca.data_assinatura,
+                "data_inicio_vigencia": ca.data_inicio_vigencia,
+                "data_fim_vigencia": ca.data_fim_vigencia,
+                "esta_vigente": ca.esta_vigente,
+                "valor_total": ca.valor_total,
+                "itens_count": len(itens_contrato),
+                "itens_lista": itens_contrato,
+                "is_carona": ca.is_carona,
+                "admin_url": f"/admin/srp/contratoarp/{ca.pk}/change/",
+                "url_instrumento_pdf": url_pdf_ca,
+                "url_pncp": url_pncp_ca,
+            })
+
+        total_valor_contratos = sum(c["valor_total"] for c in lista_contratos)
 
         context = {
             "arp": arp,
@@ -260,9 +332,9 @@ class ARPDetalheView(View):
             "qtd_total_contratada": qtd_total_contratada,
             "total_itens": len(itens_detalhados),
             "total_lotes": sum(1 for l in lotes_agrupados if l["tem_lote"]),
-            "contratos": contratos,
+            "contratos": lista_contratos,
             "total_valor_contratos": total_valor_contratos,
-            "total_contratos": contratos.count(),
+            "total_contratos": len(lista_contratos),
         }
         return render(request, self.template_name, context)
 

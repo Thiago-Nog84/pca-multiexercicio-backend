@@ -229,7 +229,19 @@
             </td>
             <td class="text-center text-muted">{{ item.unidade_fornecimento }}</td>
             <td class="text-end fw-medium">{{ item.quantidade_registrada|floatformat:2 }}</td>
-            <td class="text-end text-danger">{{ item.quantidade_contratada|floatformat:2 }}</td>
+            <td class="text-end text-danger fw-semibold">
+              {{ item.quantidade_contratada|floatformat:2 }}
+              {% if d.pedidos %}
+                <div class="mt-1">
+                  {% for p in d.pedidos %}
+                    <span class="badge bg-light text-dark border d-block mb-1" style="font-size:0.75rem;" title="Pedido/Contrato para {{ p.unidade_requisitante.sigla|default:'MPPI' }}">
+                      <i class="bi bi-file-earmark-check text-primary me-1"></i>{{ p.numero_pedido }}
+                      {% if p.unidade_requisitante %} ({{ p.unidade_requisitante.sigla }}){% endif %}
+                    </span>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </td>
             <td class="text-end" style="color:#856404; font-weight:600;">
               {{ d.comprometida_pca|floatformat:2 }}
             </td>
@@ -257,6 +269,12 @@
                         title="{{ d.vinculos.count }} demanda(s) PCA vinculada(s)">
                   <i class="bi bi-link-45deg"></i> {{ d.vinculos.count }}
                 </button>
+              {% elif d.pedidos %}
+                {% for p in d.pedidos %}
+                  <span class="badge bg-info text-dark d-block mb-1" style="font-size:0.75rem;" title="Atendido por Contratação Decorrente">
+                    <i class="bi bi-check2-circle me-1"></i>{{ p.unidade_requisitante.sigla|default:'PCA Atendido' }}
+                  </span>
+                {% endfor %}
               {% else %}
                 <span class="text-muted small">—</span>
               {% endif %}
@@ -344,14 +362,33 @@
         <tbody>
           {% for contrato in contratos %}
           <tr>
-            <td class="ps-3 fw-semibold">{{ contrato.numero_contrato }}</td>
+            <td class="ps-3 fw-semibold">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-1">
+                <span>{{ contrato.numero_contrato }}</span>
+                <div class="d-flex gap-1">
+                  {% if contrato.url_instrumento_pdf %}
+                  <a href="{{ contrato.url_instrumento_pdf }}" target="_blank" class="btn btn-sm btn-primary" style="font-size: 0.75rem;" title="Visualizar PDF do Documento de Instrumento">
+                    <i class="bi bi-file-earmark-pdf me-1"></i>Ver Instrumento (PDF)
+                  </a>
+                  {% elif contrato.admin_url %}
+                  <a href="{{ contrato.admin_url }}" target="_blank" class="btn btn-sm btn-outline-primary" style="font-size: 0.75rem;" title="Visualizar Instrumento no Sistema">
+                    <i class="bi bi-file-earmark-text me-1"></i>Ver Instrumento
+                  </a>
+                  {% endif %}
+                  {% if contrato.url_pncp %}
+                  <a href="{{ contrato.url_pncp }}" target="_blank" class="btn btn-sm btn-outline-secondary" style="font-size: 0.75rem;" title="Acessar Cadastro no PNCP">
+                    <i class="bi bi-box-arrow-up-right me-1"></i>PNCP
+                  </a>
+                  {% endif %}
+                </div>
+              </div>
+            </td>
             <td>
               <div class="fw-medium">{{ contrato.contratado_nome|default:"—"|truncatechars:40 }}</div>
               {% if contrato.contratado_cnpj %}<small class="text-muted">{{ contrato.contratado_cnpj }}</small>{% endif %}
             </td>
             <td>
-              <div>{{ contrato.nome_uasg_contratante|default:contrato.uasg_contratante|truncatechars:35 }}</div>
-              {% if contrato.uasg_contratante %}<small class="text-muted">UASG {{ contrato.uasg_contratante }}</small>{% endif %}
+              <div>{{ contrato.uasg_contratante|default:"MPPI"|truncatechars:35 }}</div>
             </td>
             <td class="text-center text-muted small">{{ contrato.data_assinatura|date:"d/m/Y"|default:"—" }}</td>
             <td class="text-center small">
@@ -363,16 +400,14 @@
             </td>
             <td class="text-end fw-semibold">R$ {{ contrato.valor_total|floatformat:"2g" }}</td>
             <td class="text-center">
-              {% with n=contrato.itens.count %}
-              {% if n > 0 %}
+              {% if contrato.itens_count > 0 %}
               <button class="btn btn-sm btn-outline-secondary"
                       data-bs-toggle="collapse"
                       data-bs-target="#itens-contrato-{{ contrato.pk }}"
-                      title="{{ n }} item(ns)">
-                <i class="bi bi-list-ul"></i> {{ n }}
+                      title="{{ contrato.itens_count }} item(ns)">
+                <i class="bi bi-list-ul"></i> {{ contrato.itens_count }}
               </button>
               {% else %}<span class="text-muted small">—</span>{% endif %}
-              {% endwith %}
             </td>
             <td class="text-center pe-3">
               {% if contrato.is_carona %}
@@ -386,36 +421,36 @@
               {% endif %}
             </td>
           </tr>
-          {% if contrato.itens.count > 0 %}
+          {% if contrato.itens_count > 0 %}
           <tr>
             <td colspan="8" class="p-0 border-0">
               <div class="collapse" id="itens-contrato-{{ contrato.pk }}">
                 <div class="bg-light border-start border-4 border-secondary ps-4 py-3 pe-3">
                   <h6 class="fw-bold mb-2 text-secondary">
-                    <i class="bi bi-list-check me-2"></i>Itens contratados
+                    <i class="bi bi-list-check me-2"></i>Itens contratados neste instrumento
                   </h6>
                   <table class="table table-sm table-bordered bg-white mb-0">
                     <thead class="table-secondary">
                       <tr>
-                        <th style="width:60px">Item ARP</th>
+                        <th style="width:60px" class="text-center">Item ARP</th>
                         <th>Descrição</th>
                         <th class="text-center">Un.</th>
-                        <th class="text-end">Qtd.</th>
+                        <th class="text-end">Qtd. Contratada</th>
                         <th class="text-end">Vl. Unit.</th>
                         <th class="text-end">Vl. Total</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {% for item_c in contrato.itens.all %}
+                      {% for item_c in contrato.itens_lista %}
                       <tr>
                         <td class="fw-semibold text-center">
-                          {% if item_c.item_arp %}
-                            <a href="#item-{{ item_c.item_arp.pk }}" class="text-decoration-none">{{ item_c.numero_item }}</a>
+                          {% if item_c.item_pk %}
+                            <a href="#item-{{ item_c.item_pk }}" class="text-decoration-none">{{ item_c.numero_item }}</a>
                           {% else %}{{ item_c.numero_item }}{% endif %}
                         </td>
-                        <td>{{ item_c.descricao|default:item_c.item_arp.descricao|default:"—"|truncatechars:60 }}</td>
-                        <td class="text-center text-muted">{{ item_c.unidade|default:item_c.item_arp.unidade_fornecimento|default:"—" }}</td>
-                        <td class="text-end">{{ item_c.quantidade_contratada|floatformat:2 }}</td>
+                        <td>{{ item_c.descricao|default:"—"|truncatechars:60 }}</td>
+                        <td class="text-center text-muted">{{ item_c.unidade|default:"—" }}</td>
+                        <td class="text-end fw-medium">{{ item_c.quantidade_contratada|floatformat:2 }}</td>
                         <td class="text-end">R$ {{ item_c.valor_unitario|floatformat:"2g" }}</td>
                         <td class="text-end fw-semibold">R$ {{ item_c.valor_total|floatformat:"2g" }}</td>
                       </tr>
