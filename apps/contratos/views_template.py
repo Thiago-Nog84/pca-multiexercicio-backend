@@ -4,9 +4,12 @@ import json
 from datetime import date, timedelta
 from decimal import Decimal
 
+import io
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.management import call_command
 from django.db.models import Count, Q, Sum
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.utils.decorators import method_decorator
 from django.views import View
 
@@ -167,13 +170,19 @@ class DashboardContratosView(View):
             ultima_importacao_arp = None
 
         # ── Conciliação: contratos no Comprasnet mas não cadastrados localmente ──
-        # Heurística por número de contrato
-        numeros_locais = set(contratos.values_list("numero_contrato", flat=True))
+        # Heurística normalizada por número de contrato (ex: 00001/2026 -> 1/2026)
+        import re
+        def _norm_num(s):
+            m = re.match(r"^0*(\d+)[/-](\d{4})", str(s or "").strip())
+            return f"{int(m.group(1))}/{m.group(2)}" if m else str(s or "").strip()
+
+        locais_norm = {_norm_num(num) for num in contratos.values_list("numero_contrato", flat=True)}
         nao_cadastrados = 0
         if _tem_dados_externos:
-            nao_cadastrados = ContratoComprasnet.objects.filter(
-                situacao="Ativo"
-            ).exclude(numero__in=numeros_locais).count()
+            nao_cadastrados = sum(
+                1 for cc in ContratoComprasnet.objects.filter(situacao="Ativo")
+                if _norm_num(cc.numero) not in locais_norm
+            )
 
         context = {
             "hoje": hoje,
@@ -309,3 +318,20 @@ class EmpenhosSIAFEView(View):
             "status_choices": Empenho.STATUS_LIQUIDACAO,
         }
         return render(request, self.template_name, context)
+
+
+@method_decorator(login_required, name="dispatch")
+class SincronizarExecucaoSIAFEView(View):
+    """
+    Dispara sincronização da execução orçamentária do SIAFE-PI (Notas de Empenho) para os contratos locais.
+    """
+
+    def post(self, request):
+        saida = io.StringIO()
+        try:
+            call_command("atualizar_execucao_siafe", stdout=saida, stderr=saida)
+            messages.success(request, "Execução Orçamentária do SIAFE-PI sincronizada com sucesso para todos os contratos.")
+        except Exception as exc:
+            messages.warning(request, f"Sincronização com o SIAFE-PI concluída com avisos/erros: {exc}")
+
+        return redirect("contratos:dashboard")

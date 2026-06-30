@@ -68,6 +68,8 @@ class Command(BaseCommand):
         parser.add_argument("--fonte", choices=["auto", "dadosabertos", "pncp"],
                             default="auto",
                             help="Fonte: auto (dadosabertos → pncp), dadosabertos, pncp")
+        parser.add_argument("--arp", type=str,
+                            help="Filtrar por número de ARP (ex: 00015/2025 ou 15/2025)")
 
     # ------------------------------------------------------------------
     # handle
@@ -80,6 +82,7 @@ class Command(BaseCommand):
         dry_run = options["dry_run"]
         debug = options["debug"]
         fonte = options["fonte"]
+        filtro_arp = options.get("arp")
         ano_fim = date.today().year
 
         if dry_run:
@@ -94,6 +97,21 @@ class Command(BaseCommand):
                 data_inicio_vigencia__year__gte=ano_inicio,
             ).order_by("data_inicio_vigencia")
         )
+
+        if filtro_arp:
+            filtro_norm = _normalizar_numero_arp(filtro_arp)
+            arps_db = {
+                k: v for k, v in arps_db.items()
+                if k == filtro_norm or v.numero_arp == filtro_arp
+            }
+            arps_com_link = [
+                a for a in arps_com_link
+                if _normalizar_numero_arp(a.numero_arp) == filtro_norm or a.numero_arp == filtro_arp
+            ]
+            if not arps_db:
+                self.stdout.write(self.style.WARNING(f"ARP {filtro_arp} não encontrada no banco.\n"))
+                return
+
         self.stdout.write(
             f"ARPs com link PNCP: {len(arps_com_link)} | Total banco: {len(arps_db)}"
         )
@@ -107,7 +125,7 @@ class Command(BaseCommand):
         # Tenta dadosabertos primeiro
         # ----------------------------------------------------------------
         if fonte in ("auto", "dadosabertos"):
-            self.stdout.write(self.style.SUCCESS("\n→ Tentando dadosabertos.compras.gov.br..."))
+            self.stdout.write(self.style.SUCCESS("\n-> Tentando dadosabertos.compras.gov.br..."))
             contratos_raw = self._buscar_contratos_dadosabertos(uasg, ano_inicio, ano_fim, debug)
             self.stdout.write(f"  Total: {len(contratos_raw)} contrato(s)")
 
@@ -115,8 +133,9 @@ class Command(BaseCommand):
                 itens_por_contrato = self._buscar_itens_dadosabertos(uasg, ano_inicio, ano_fim, debug)
                 self._processar_contratos(contratos_raw, itens_por_contrato, arps_db, uasg,
                                           atualizar, dry_run, resumo)
-                self._imprimir_resumo(resumo, dry_run)
-                return
+                if not filtro_arp or (resumo["contratos_criados"] > 0 or resumo["contratos_atualizados"] > 0):
+                    self._imprimir_resumo(resumo, dry_run)
+                    return
 
             if fonte == "dadosabertos":
                 self.stdout.write(self.style.WARNING(
@@ -128,7 +147,7 @@ class Command(BaseCommand):
         # ----------------------------------------------------------------
         # Fallback: PNCP por ARP
         # ----------------------------------------------------------------
-        self.stdout.write(self.style.SUCCESS("\n→ Tentando PNCP REST API (por ARP)..."))
+        self.stdout.write(self.style.SUCCESS("\n-> Tentando PNCP REST API (por ARP)..."))
 
         for arp in arps_com_link:
             m = RE_LINK_ARP.search(arp.link_ata_pncp)
@@ -339,7 +358,7 @@ class Command(BaseCommand):
                 continue
 
             self.stdout.write(
-                f"\n  → Contrato {numero_contrato or '?'} | ARP {numero_arp_api} | UASG {uasg_contratante}"
+                f"\n  -> Contrato {numero_contrato or '?'} | ARP {numero_arp_api} | UASG {uasg_contratante}"
             )
 
             chave = f"{numero_contrato}|{uasg_contratante}"

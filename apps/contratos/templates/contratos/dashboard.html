@@ -685,9 +685,12 @@
              class="btn btn-sm btn-outline-warning">
             <i class="bi bi-receipt me-1"></i>NEs FPDC
           </a>
-          <span class="text-muted small d-flex align-items-center">
-            <code class="ms-1">manage.py atualizar_execucao_siafe</code>
-          </span>
+          <form method="post" action="{% url 'contratos:sincronizar_siafe' %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" title="Sincronizar execução orçamentária no SIAFE-PI">
+              <i class="bi bi-arrow-repeat"></i><span>Sincronizar SIAFE</span>
+            </button>
+          </form>
         </div>
       </div>
       <div class="card-body">
@@ -772,7 +775,12 @@
           <i class="bi bi-cloud-slash" style="font-size:2rem;"></i>
           <p class="mt-2 mb-0 small">
             Nenhum dado de execução disponível.<br>
-            Execute <code>manage.py atualizar_execucao_siafe</code> para sincronizar.
+            <form method="post" action="{% url 'contratos:sincronizar_siafe' %}" class="d-inline mt-2">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-outline-warning mt-2">
+                <i class="bi bi-arrow-repeat me-1"></i>Sincronizar Execução SIAFE agora
+              </button>
+            </form>
           </p>
         </div>
         {% endif %}

@@ -12,11 +12,12 @@ Rotas:
 import io
 from datetime import date
 
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.management import call_command
 from django.db import models
 from django.db.models import DecimalField, ExpressionWrapper, F, Q, Sum
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
 from django.views import View
 
@@ -337,6 +338,47 @@ class ARPDetalheView(View):
             "total_contratos": len(lista_contratos),
         }
         return render(request, self.template_name, context)
+
+
+@method_decorator(login_required, name="dispatch")
+class SincronizarARPPNCPView(View):
+    """
+    Dispara consulta e atualização dos contratos e saldos empenhados da ARP via PNCP / API aberta.
+    """
+
+    def post(self, request, pk):
+        arp = get_object_or_404(AtaRegistroPrecos, pk=pk)
+        saida = io.StringIO()
+        erros = []
+
+        # 1. Sincronizar quantidades empenhadas dos itens via PNCP/Compras.gov.br
+        try:
+            call_command("sincronizar_qtd_empenhada_pncp", arp=arp.numero_arp, stdout=saida, stderr=saida)
+        except Exception as exc:
+            erros.append(f"Erro nos empenhos: {exc}")
+
+        # 2. Sincronizar/importar contratos da ARP via PNCP/Compras.gov.br
+        try:
+            uasg = arp.orgao_gerenciador.codigo_uasg if arp.orgao_gerenciador else "926092"
+            ano_inicio = arp.data_inicio_vigencia.year if arp.data_inicio_vigencia else 2024
+            call_command(
+                "importar_contratos_arp",
+                uasg=uasg,
+                ano_inicio=ano_inicio,
+                arp=arp.numero_arp,
+                atualizar=True,
+                stdout=saida,
+                stderr=saida,
+            )
+        except Exception as exc:
+            erros.append(f"Erro nos contratos: {exc}")
+
+        if not erros:
+            messages.success(request, f"Sincronização com o PNCP/Compras.gov.br concluída para a ARP {arp.numero_arp}.")
+        else:
+            messages.warning(request, f"Sincronização finalizada com avisos para a ARP {arp.numero_arp}: {'; '.join(erros)}")
+
+        return redirect("srp:arp_detalhe", pk=arp.pk)
 
 
 @method_decorator(login_required, name="dispatch")

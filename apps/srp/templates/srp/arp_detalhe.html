@@ -46,11 +46,18 @@
           <a href="{{ arp.link_documento_mppi }}"
              target="_blank"
              rel="noopener noreferrer"
-             class="btn btn-sm btn-outline-primary ms-2"
+             class="btn btn-sm btn-outline-light ms-2"
              title="Abrir texto integral da ARP em nova aba">
             <i class="bi bi-file-earmark-pdf me-1"></i>Ver texto da ARP
           </a>
         {% endif %}
+
+        <form method="post" action="{% url 'srp:arp_sincronizar_pncp' arp.pk %}" class="d-inline ms-2">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-sm btn-outline-light" title="Consultar e atualizar contratos e quantidades empenhadas via PNCP">
+            <i class="bi bi-arrow-repeat me-1"></i>Sincronizar PNCP
+          </button>
+        </form>
       </div>
     </div>
   </div>
@@ -337,11 +344,19 @@
 
 <!-- Contratos decorrentes -->
 <div class="card arp-card mt-4">
-  <div class="card-header py-3 d-flex align-items-center justify-content-between">
+  <div class="card-header py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
     <span class="fw-semibold"><i class="bi bi-file-earmark-check me-2"></i>Contratos decorrentes desta ARP</span>
-    {% if total_contratos %}
-    <span class="badge bg-secondary">{{ total_contratos }} contrato{{ total_contratos|pluralize }}</span>
-    {% endif %}
+    <div class="d-flex align-items-center gap-2">
+      <form method="post" action="{% url 'srp:arp_sincronizar_pncp' arp.pk %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-outline-light py-1 px-2" style="font-size: 0.78rem;" title="Atualizar contratos via PNCP/Compras.gov.br">
+          <i class="bi bi-cloud-download me-1"></i>Buscar Contratos no PNCP
+        </button>
+      </form>
+      {% if total_contratos %}
+      <span class="badge bg-secondary">{{ total_contratos }} contrato{{ total_contratos|pluralize }}</span>
+      {% endif %}
+    </div>
   </div>
   <div class="card-body p-0">
     {% if contratos %}

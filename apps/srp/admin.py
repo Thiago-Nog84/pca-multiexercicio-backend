@@ -152,11 +152,56 @@ class ContratoComprasnetAdmin(admin.ModelAdmin):
     search_fields = ("numero", "fornecedor_nome", "fornecedor_cnpj", "objeto", "processo")
     date_hierarchy = "vigencia_fim"
     readonly_fields = ("importado_em", "contrato_comprasnet_id")
-    list_select_related = ("arp",)
+    actions = ["importar_para_contratos_locais"]
 
     @admin.display(description="Vigente?", boolean=True)
     def esta_vigente_display(self, obj):
         return obj.esta_vigente
+
+    @admin.action(description="Importar selecionados para o Cadastro Geral de Contratos (MPPI)")
+    def importar_para_contratos_locais(self, request, queryset):
+        import re
+        from datetime import date
+        from apps.contratos.models import Contrato
+        from apps.core.models import Orgao
+
+        orgao_padrao = Orgao.objects.first()
+        if not orgao_padrao:
+            self.message_user(request, "Erro: Nenhum Órgão (MPPI) cadastrado no sistema.", level="error")
+            return
+
+        def _norm(s):
+            m = re.match(r"^0*(\d+)[/-](\d{4})", str(s or "").strip())
+            return f"{int(m.group(1))}/{m.group(2)}" if m else str(s or "").strip()
+
+        locais_norm = {_norm(n): n for n in Contrato.objects.values_list("numero_contrato", flat=True)}
+        criados = 0
+
+        for cc in queryset:
+            norm_num = _norm(cc.numero)
+            if norm_num in locais_norm:
+                continue
+
+            dt_ini = cc.vigencia_inicio or date.today()
+            dt_fim = cc.vigencia_fim or date.today()
+
+            Contrato.objects.create(
+                orgao=orgao_padrao,
+                numero_contrato=cc.numero,
+                objeto=cc.objeto or f"Contrato importado via Comprasnet {cc.numero}",
+                contratado_razao_social=cc.fornecedor_nome or "Fornecedor não informado",
+                contratado_cnpj_cpf=cc.fornecedor_cnpj or "",
+                valor_inicial=cc.valor_global or 0,
+                valor_atual=cc.valor_global or 0,
+                saldo_disponivel=cc.valor_global or 0,
+                data_assinatura=dt_ini,
+                data_inicio_vigencia=dt_ini,
+                data_fim_vigencia=dt_fim,
+                tipo="servico_nao_continuo",
+            )
+            criados += 1
+
+        self.message_user(request, f"{criados} contrato(s) importado(s) com sucesso para o Cadastro Geral de Contratos.")
 
 
 # ---------------------------------------------------------------------------
