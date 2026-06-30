@@ -1,0 +1,204 @@
+"""
+Management command: conciliar_dashboard_srp
+=============================================
+Concilia as Contratações Decorrentes e os saldos dos itens das ARPs para o Dashboard SRP,
+garantindo que nenhum item ultrapasse sua quantidade registrada (evitando saldo negativo)
+e distribuindo contratos que abrangem múltiplos itens de forma proporcional/prioritária.
+
+Uso:
+    python manage.py conciliar_dashboard_srp --dry-run
+    python manage.py conciliar_dashboard_srp --arp 00001/2026
+    python manage.py conciliar_dashboard_srp
+"""
+
+from decimal import Decimal, ROUND_HALF_UP
+from difflib import SequenceMatcher
+
+from django.core.management.base import BaseCommand
+from django.db import transaction
+from django.db.models import F
+
+from apps.contratos.models import Contrato
+from apps.srp.models import AtaRegistroPrecos, ContratacaoDecorrente, ItemARP
+
+
+def _sim(a: str, b: str) -> float:
+    return SequenceMatcher(None, (a or "")[:200].lower(), (b or "")[:200].lower()).ratio()
+
+
+# Alocações oficiais extraídas diretamente de Termos de Contrato / Apêndices assinados
+OFFICIAL_CONTRACT_ITEMS = {
+    ("00001/2026", "18/2026/PGJ"): {
+        1: Decimal("2"),    # Assistente Social (30h/sem)
+        2: Decimal("2"),    # Pedagogo (30h/sem)
+        3: Decimal("3"),    # Psicólogo (20h/sem)
+        4: Decimal("576"),  # Diárias
+    },
+    ("00003/2026", "28/2026 PGJ"): {
+        10: Decimal("994"),   # Açúcar Cristal 1kg (Empenho 2026NE00428)
+        11: Decimal("11450"), # Café 250g (Empenho 2026NE00428)
+    },
+}
+
+
+class Command(BaseCommand):
+    help = "Concilia saldo das ARPs e distribui contratações evitando saldos negativos no Dashboard SRP"
+
+    def add_arguments(self, parser):
+        parser.add_argument("--dry-run", action="store_true", help="Simula sem salvar no banco")
+        parser.add_argument("--arp", type=str, help="Filtrar por número de ARP (ex: 00001/2026)")
+
+    def handle(self, *args, **options):
+        dry_run = options["dry_run"]
+        filtro_arp = options["arp"]
+
+        if dry_run:
+            self.stdout.write(self.style.WARNING("*** DRY-RUN — nenhuma alteração será salva ***\n"))
+
+        arps = AtaRegistroPrecos.objects.all()
+        if filtro_arp:
+            arps = arps.filter(numero_arp__icontains=filtro_arp)
+
+        arps_conciliadas = 0
+        total_cds_criadas = 0
+
+        for arp in arps:
+            contratos = Contrato.objects.filter(arp_origem=arp).order_by("data_assinatura", "numero_contrato")
+            if not contratos.exists():
+                continue
+
+            arps_conciliadas += 1
+            self.stdout.write(f"\nConciliando ARP {arp.numero_arp} ({contratos.count()} contratos vinculados)...")
+
+            with transaction.atomic():
+                # 1. Remove contratações decorrentes anteriores desta ARP para reconstrução limpa
+                ContratacaoDecorrente.objects.filter(arp=arp).delete()
+
+                # 2. Zera as quantidades contratadas dos itens em memória e no banco
+                ItemARP.objects.filter(arp=arp).update(quantidade_contratada=Decimal("0"))
+                itens = list(arp.itens.all().order_by("numero_item"))
+                for item in itens:
+                    item.quantidade_contratada = Decimal("0")
+
+                cds_to_create = []
+
+                # 3. Distribui cada contrato nos itens da ARP
+                for c in contratos:
+                    chave_oficial = (arp.numero_arp, c.numero_contrato)
+                    if chave_oficial in OFFICIAL_CONTRACT_ITEMS:
+                        mapa = OFFICIAL_CONTRACT_ITEMS[chave_oficial]
+                        for item in itens:
+                            if item.numero_item in mapa:
+                                qtd = mapa[item.numero_item]
+                                vl_total = (qtd * item.valor_unitario).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                                cds_to_create.append(
+                                    ContratacaoDecorrente(
+                                        arp=arp,
+                                        item_arp=item,
+                                        numero_pedido=c.numero_contrato,
+                                        numero_sei="",
+                                        exercicio=(c.data_assinatura.year if c.data_assinatura else 2026),
+                                        quantidade=qtd,
+                                        valor_unitario=item.valor_unitario,
+                                        valor_total=vl_total,
+                                        data_emissao=c.data_assinatura or arp.data_inicio_vigencia,
+                                        status="concluido",
+                                        unidade_requisitante=c.unidade_requisitante or "",
+                                    )
+                                )
+                                item.quantidade_contratada += qtd
+                                total_cds_criadas += 1
+                        continue
+
+                    val_restante = c.valor_inicial or Decimal("0")
+                    if val_restante <= 0:
+                        continue
+
+                    # Ordena os itens por similaridade com o objeto do contrato
+                    obj_c = c.objeto or ""
+                    candidatos = sorted(
+                        itens,
+                        key=lambda i: (_sim(obj_c, i.descricao or ""), -i.numero_item),
+                        reverse=True
+                    )
+
+                    for idx, item in enumerate(candidatos):
+                        if not item.valor_unitario or item.valor_unitario <= 0:
+                            continue
+
+                        qtd_disp = item.quantidade_registrada - item.quantidade_contratada
+                        if qtd_disp <= Decimal("0"):
+                            continue
+
+                        val_disp = (qtd_disp * item.valor_unitario).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                        is_last_item = (idx == len(candidatos) - 1)
+
+                        if val_restante <= val_disp:
+                            qtd_raw = val_restante / item.valor_unitario
+                            int_qtd = Decimal(int(qtd_raw))
+                            # Se não for o último candidato e couber quantidade inteira (ex: postos de trabalho),
+                            # prioriza o número inteiro e repassa a sobra fracionada para o próximo item (ex: diárias)
+                            if not is_last_item and int_qtd > Decimal("0") and (qtd_raw - int_qtd) > Decimal("0.0001"):
+                                qtd = int_qtd
+                                val_total_cd = (qtd * item.valor_unitario).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                                val_restante -= val_total_cd
+                            else:
+                                qtd = qtd_raw.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+                                if qtd > qtd_disp:
+                                    qtd = qtd_disp
+                                val_total_cd = val_restante
+                                val_restante = Decimal("0")
+                        else:
+                            # Contrato excede este item, consome todo o saldo disponível e passa para o próximo
+                            qtd = qtd_disp
+                            val_total_cd = val_disp
+                            val_restante -= val_disp
+
+                        if qtd > Decimal("0"):
+                            cds_to_create.append(
+                                ContratacaoDecorrente(
+                                    arp=arp,
+                                    item_arp=item,
+                                    numero_pedido=c.numero_contrato,
+                                    numero_sei="",
+                                    exercicio=(c.data_assinatura.year if c.data_assinatura else 2026),
+                                    quantidade=qtd,
+                                    valor_unitario=item.valor_unitario,
+                                    valor_total=val_total_cd,
+                                    data_emissao=c.data_assinatura or arp.data_inicio_vigencia,
+                                    status="concluido",
+                                    unidade_requisitante=c.unidade_requisitante or "",
+                                )
+                            )
+                            item.quantidade_contratada += qtd
+                            total_cds_criadas += 1
+
+                        if val_restante <= Decimal("0"):
+                            break
+
+                # 4. Grava as contratações decorrentes em lote (sem trigger de save individual)
+                if not dry_run and cds_to_create:
+                    ContratacaoDecorrente.objects.bulk_create(cds_to_create)
+
+                # 5. Salva a quantidade contratada exata em cada item da ARP no banco
+                if not dry_run:
+                    for item in itens:
+                        ItemARP.objects.filter(pk=item.pk).update(quantidade_contratada=item.quantidade_contratada)
+
+                if dry_run:
+                    transaction.set_rollback(True)
+
+            # Exibe resumo dos itens desta ARP após conciliação
+            for item in itens:
+                saldo = item.quantidade_registrada - item.quantidade_contratada
+                self.stdout.write(
+                    f"  Item {item.numero_item:02d}: Reg={item.quantidade_registrada:10.4f} | "
+                    f"Contratada={item.quantidade_contratada:10.4f} | Saldo={saldo:10.4f}"
+                )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"\nConciliação concluída: {arps_conciliadas} ARPs processadas, "
+                f"{total_cds_criadas} contratações decorrentes conciliadas."
+            )
+        )

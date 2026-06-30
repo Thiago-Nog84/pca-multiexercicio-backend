@@ -31,6 +31,8 @@ def _calcular_quantidade(valor_contrato: Decimal, valor_unitario: Decimal) -> De
     if not valor_unitario or valor_unitario == 0:
         return Decimal("1")
     qtd = valor_contrato / valor_unitario
+    if qtd < Decimal("1"):
+        return max(qtd.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP), Decimal("0.0001"))
     return qtd.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
 

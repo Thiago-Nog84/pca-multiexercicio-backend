@@ -2,6 +2,7 @@
 
 import json
 from datetime import date, timedelta
+from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q, Sum
@@ -10,6 +11,7 @@ from django.utils.decorators import method_decorator
 from django.views import View
 
 from .models import Aditivo, Contrato
+from .models_empenho import Empenho
 
 # Modelos importados de fontes externas (srp app)
 try:
@@ -225,5 +227,85 @@ class DashboardContratosView(View):
             "contratos_sem_empenho": contratos_sem_empenho,
             "grafico_status": grafico_status,
             "grafico_execucao": grafico_execucao,
+        }
+        return render(request, self.template_name, context)
+
+
+@method_decorator(login_required, name="dispatch")
+class EmpenhosSIAFEView(View):
+    template_name = "contratos/empenhos.html"
+
+    def get(self, request):
+        hoje = date.today()
+
+        # Contratos com e sem empenho vinculado
+        contratos_vigentes = Contrato.objects.select_related("orgao", "unidade_requisitante").filter(status="vigente")
+        sem_empenho = contratos_vigentes.filter(valor_empenhado=0).order_by("orgao__sigla", "numero_contrato")
+        com_empenho = contratos_vigentes.filter(valor_empenhado__gt=0).order_by("-valor_empenhado")
+
+        # Totais gerais
+        total_vigentes = contratos_vigentes.count()
+        total_sem_empenho = sem_empenho.count()
+        total_com_empenho = com_empenho.count()
+
+        agg = contratos_vigentes.aggregate(
+            val=Sum("valor_atual"),
+            emp=Sum("valor_empenhado"),
+        )
+        valor_total_vigentes = agg["val"] or Decimal("0.00")
+        valor_total_empenhado = agg["emp"] or Decimal("0.00")
+        pct_empenhado = round(float(valor_total_empenhado) / float(valor_total_vigentes) * 100, 1) if valor_total_vigentes else 0
+
+        # Empenhos registrados
+        empenhos = Empenho.objects.select_related("contrato", "contrato__orgao").order_by(
+            "-ano_exercicio", "contrato__orgao__sigla", "numero_empenho"
+        )
+        total_empenhos = empenhos.count()
+        agg_emp = empenhos.aggregate(
+            val_emp=Sum("valor_empenhado"),
+            val_liq=Sum("valor_liquidado"),
+            val_pago=Sum("valor_pago"),
+        )
+        total_valor_empenhado = agg_emp["val_emp"] or Decimal("0.00")
+        total_valor_liquidado = agg_emp["val_liq"] or Decimal("0.00")
+        total_valor_pago = agg_emp["val_pago"] or Decimal("0.00")
+
+        # Distribuição por órgão
+        por_orgao = (
+            contratos_vigentes.values("orgao__sigla")
+            .annotate(qtd=Count("id"), emp=Sum("valor_empenhado"), val=Sum("valor_atual"))
+            .order_by("orgao__sigla")
+        )
+
+        # Filtros GET
+        filtro_orgao = request.GET.get("orgao", "")
+        filtro_status = request.GET.get("status", "")
+
+        qs_empenhos = empenhos
+        if filtro_orgao:
+            qs_empenhos = qs_empenhos.filter(contrato__orgao__sigla=filtro_orgao)
+        if filtro_status:
+            qs_empenhos = qs_empenhos.filter(status_liquidacao=filtro_status)
+
+        context = {
+            "hoje": hoje,
+            "total_vigentes": total_vigentes,
+            "total_sem_empenho": total_sem_empenho,
+            "total_com_empenho": total_com_empenho,
+            "valor_total_vigentes": valor_total_vigentes,
+            "valor_total_empenhado": valor_total_empenhado,
+            "pct_empenhado": pct_empenhado,
+            "contratos_sem_empenho": sem_empenho,
+            "contratos_com_empenho": com_empenho[:20],
+            "empenhos": qs_empenhos,
+            "total_empenhos": total_empenhos,
+            "total_valor_empenhado": total_valor_empenhado,
+            "total_valor_liquidado": total_valor_liquidado,
+            "total_valor_pago": total_valor_pago,
+            "por_orgao": list(por_orgao),
+            "filtro_orgao": filtro_orgao,
+            "filtro_status": filtro_status,
+            "orgaos": Contrato.objects.values_list("orgao__sigla", flat=True).distinct().order_by("orgao__sigla"),
+            "status_choices": Empenho.STATUS_LIQUIDACAO,
         }
         return render(request, self.template_name, context)

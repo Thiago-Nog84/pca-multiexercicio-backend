@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Execução Orçamentária — Empenhos SIAFE | MPPI{% endblock %}
+{% block nav_contratos %}active{% endblock %}
+
+{% block extra_style %}
+<style>
+  .stat-card { border-radius: 12px; border: 1px solid #e8ecf0; transition: transform .15s, box-shadow .15s; }
+  .stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.08); }
+  .stat-icon { border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+  .progress-lg { height: 14px; border-radius: 8px; }
+  .badge-status { font-size: .73rem; font-weight: 600; border-radius: 10px; padding: .3em .75em; }
+  .badge-ne { font-family: monospace; background: #e8f0fe; color: #1a56db; border-radius: 6px; padding: .25em .6em; font-size: .8rem; font-weight: 600; }
+  .tbl-empenhos { font-size: .875rem; }
+  .tbl-empenhos tbody tr:hover { background: #f8fafc; }
+  .orgao-badge { font-size: .72rem; font-weight: 700; padding: .25em .6em; border-radius: 6px; }
+  .filter-bar { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; }
+  .sem-empenho-row { background: #fff8f0 !important; }
+  .sem-empenho-row:hover { background: #fff0e0 !important; }
+  .chip { display: inline-flex; align-items: center; gap: .35rem; border-radius: 20px; padding: .3em .85em; font-size: .78rem; font-weight: 600; border: 1px solid; }
+  .chip-warning { background: #fff8e1; color: #b45309; border-color: #f59e0b40; }
+  .chip-success { background: #f0fdf4; color: #166534; border-color: #4ade8040; }
+  .chip-info { background: #eff6ff; color: #1e40af; border-color: #60a5fa40; }
+  .tab-pill { border-radius: 10px; font-weight: 600; font-size: .85rem; }
+  .tab-pill.active { background: #1e40af; color: #fff; }
+  .by-orgao-card { border-radius: 10px; border: 1px solid #e2e8f0; padding: 1rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho -->
+<div class="d-flex align-items-start justify-content-between mb-4">
+  <div>
+    <h4 class="fw-bold mb-0" style="color:#1e293b;">
+      <i class="bi bi-receipt text-primary me-2"></i>Execução Orçamentária — Empenhos SIAFE
+    </h4>
+    <small class="text-muted">MPPI — Ajuste de Empenhos por Contrato · Sincronização com SIAFE-PI</small>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'contratos:dashboard' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Voltar aos Contratos
+    </a>
+    <span class="badge bg-light text-dark border align-self-center">
+      <i class="bi bi-clock me-1"></i>{{ hoje|date:"d/m/Y" }}
+    </span>
+  </div>
+</div>
+
+<!-- ═══════════════ STAT CARDS ═══════════════ -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex align-items-center gap-3 mb-2">
+        <div class="stat-icon" style="width:44px;height:44px;background:#e8f0fe;color:#1a56db;font-size:1.3rem;">
+          <i class="bi bi-folder2-open"></i>
+        </div>
+        <div>
+          <div class="fs-4 fw-bold" style="color:#1a56db;">{{ total_vigentes }}</div>
+          <div class="text-muted" style="font-size:.8rem;">Contratos Vigentes</div>
+        </div>
+      </div>
+      <div class="d-flex justify-content-between" style="font-size:.75rem;">
+        <span class="text-success fw-semibold">{{ total_com_empenho }} com empenho</span>
+        <span class="text-warning fw-semibold">{{ total_sem_empenho }} pendente</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-md-3">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex align-items-center gap-3 mb-2">
+        <div class="stat-icon" style="width:44px;height:44px;background:#d1f0e0;color:#166534;font-size:1.3rem;">
+          <i class="bi bi-cash-coin"></i>
+        </div>
+        <div>
+          <div class="fs-6 fw-bold" style="color:#166534;">R$ {{ valor_total_vigentes|floatformat:2|intcomma }}</div>
+          <div class="text-muted" style="font-size:.8rem;">Volume Total Vigentes</div>
+        </div>
+      </div>
+      <div style="font-size:.75rem;" class="text-muted">Soma de valores atuais dos contratos</div>
+    </div>
+  </div>
+
+  <div class="col-6 col-md-3">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex align-items-center gap-3 mb-2">
+        <div class="stat-icon" style="width:44px;height:44px;background:#e0e7ff;color:#3730a3;font-size:1.3rem;">
+          <i class="bi bi-receipt-cutoff"></i>
+        </div>
+        <div>
+          <div class="fs-6 fw-bold" style="color:#3730a3;">R$ {{ valor_total_empenhado|floatformat:2|intcomma }}</div>
+          <div class="text-muted" style="font-size:.8rem;">Total Empenhado</div>
+        </div>
+      </div>
+      <div class="progress progress-lg mt-1">
+        <div class="progress-bar bg-primary" role="progressbar" style="width:{{ pct_empenhado }}%;" aria-valuenow="{{ pct_empenhado }}" aria-valuemin="0" aria-valuemax="100"></div>
+      </div>
+      <div class="text-muted mt-1" style="font-size:.72rem;">{{ pct_empenhado }}% do volume total empenhado</div>
+    </div>
+  </div>
+
+  <div class="col-6 col-md-3">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex align-items-center gap-3 mb-2">
+        <div class="stat-icon" style="width:44px;height:44px;background:#fff3cd;color:#b45309;font-size:1.3rem;">
+          <i class="bi bi-exclamation-triangle"></i>
+        </div>
+        <div>
+          <div class="fs-4 fw-bold" style="color:#b45309;">{{ total_sem_empenho }}</div>
+          <div class="text-muted" style="font-size:.8rem;">Contratos sem Empenho</div>
+        </div>
+      </div>
+      <div style="font-size:.75rem;" class="text-warning fw-semibold">
+        <i class="bi bi-info-circle me-1"></i>Ajuste de vínculo pendente
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ DISTRIBUIÇÃO POR ÓRGÃO ═══════════════ -->
+<div class="row g-3 mb-4">
+  {% for o in por_orgao %}
+  <div class="col-6 col-md-3 col-xl-2">
+    <div class="by-orgao-card text-center">
+      <div class="fw-bold fs-5 text-primary">{{ o.orgao__sigla }}</div>
+      <div class="text-muted" style="font-size:.78rem;">{{ o.qtd }} contrato{{ o.qtd|pluralize:"s" }}</div>
+      <div class="mt-1" style="font-size:.78rem;">
+        {% if o.emp %}
+          <span class="chip chip-success"><i class="bi bi-check2"></i>R$ {{ o.emp|floatformat:0|intcomma }}</span>
+        {% else %}
+          <span class="chip chip-warning"><i class="bi bi-x"></i>Sem empenho</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ═══════════════ TABS: NOTAS DE EMPENHO / SEM EMPENHO ═══════════════ -->
+<ul class="nav nav-pills gap-2 mb-3" id="empTab" role="tablist">
+  <li class="nav-item">
+    <button class="nav-link tab-pill active" id="ne-tab" data-bs-toggle="pill" data-bs-target="#ne-panel" type="button" role="tab">
+      <i class="bi bi-receipt me-1"></i>Notas de Empenho <span class="badge bg-primary ms-1">{{ total_empenhos }}</span>
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link tab-pill" id="sem-tab" data-bs-toggle="pill" data-bs-target="#sem-panel" type="button" role="tab">
+      <i class="bi bi-exclamation-triangle me-1"></i>Sem Empenho <span class="badge bg-warning text-dark ms-1">{{ total_sem_empenho }}</span>
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content">
+  <!-- TAB: NOTAS DE EMPENHO -->
+  <div class="tab-pane fade show active" id="ne-panel" role="tabpanel">
+    <!-- Filtros -->
+    <div class="filter-bar p-3 mb-3 d-flex align-items-center gap-3 flex-wrap">
+      <form method="get" class="d-flex gap-2 flex-wrap mb-0">
+        <select name="orgao" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+          <option value="">Todos os Órgãos</option>
+          {% for o in orgaos %}
+            <option value="{{ o }}" {% if filtro_orgao == o %}selected{% endif %}>{{ o }}</option>
+          {% endfor %}
+        </select>
+        <select name="status" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+          <option value="">Todos os Status</option>
+          {% for k, v in status_choices %}
+            <option value="{{ k }}" {% if filtro_status == k %}selected{% endif %}>{{ v }}</option>
+          {% endfor %}
+        </select>
+        {% if filtro_orgao or filtro_status %}
+          <a href="{% url 'contratos:empenhos' %}" class="btn btn-sm btn-outline-secondary">Limpar</a>
+        {% endif %}
+      </form>
+      <div class="ms-auto d-flex gap-3" style="font-size:.8rem;">
+        <span class="chip chip-info"><i class="bi bi-cash-coin"></i>Empenhado: R$ {{ total_valor_empenhado|floatformat:2|intcomma }}</span>
+        <span class="chip chip-success"><i class="bi bi-check2-all"></i>Liquidado: R$ {{ total_valor_liquidado|floatformat:2|intcomma }}</span>
+      </div>
+    </div>
+
+    <div class="card shadow-sm border-0 rounded-3">
+      <div class="table-responsive">
+        <table class="table tbl-empenhos table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr style="font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;">
+              <th class="ps-3">Nota de Empenho</th>
+              <th>Contrato</th>
+              <th>Órgão</th>
+              <th>Favorecido</th>
+              <th>El. Despesa</th>
+              <th class="text-end">Valor Empenhado</th>
+              <th class="text-end">Liquidado</th>
+              <th class="text-center pe-3">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for emp in empenhos %}
+            <tr>
+              <td class="ps-3">
+                <span class="badge-ne">{{ emp.numero_empenho }}</span>
+                <div class="text-muted" style="font-size:.72rem;">{{ emp.ano_exercicio }}</div>
+              </td>
+              <td class="fw-semibold" style="font-size:.85rem;">{{ emp.contrato.numero_contrato }}</td>
+              <td>
+                <span class="orgao-badge bg-light border text-dark">{{ emp.contrato.orgao.sigla }}</span>
+              </td>
+              <td style="max-width:180px;">
+                <span title="{{ emp.nome_favorecido }}" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-block;max-width:180px;vertical-align:middle;">{{ emp.nome_favorecido|default:emp.contrato.contratado_razao_social }}</span>
+              </td>
+              <td><code style="font-size:.78rem;">{{ emp.elemento_despesa|default:"—" }}</code></td>
+              <td class="text-end fw-semibold">R$ {{ emp.valor_empenhado|floatformat:2|intcomma }}</td>
+              <td class="text-end text-muted">R$ {{ emp.valor_liquidado|floatformat:2|intcomma }}</td>
+              <td class="text-center pe-3">
+                {% if emp.status_liquidacao == "pago" %}
+                  <span class="badge-status bg-success text-white">Pago</span>
+                {% elif emp.status_liquidacao == "liquidado" %}
+                  <span class="badge-status bg-primary text-white">Liquidado</span>
+                {% elif emp.status_liquidacao == "parcialmente" %}
+                  <span class="badge-status bg-info text-dark">Parcial</span>
+                {% else %}
+                  <span class="badge-status bg-warning text-dark">Não Liquidado</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="8" class="text-center py-5 text-muted">
+                <i class="bi bi-inbox fs-1 d-block mb-2"></i>Nenhuma nota de empenho para os filtros selecionados.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: CONTRATOS SEM EMPENHO -->
+  <div class="tab-pane fade" id="sem-panel" role="tabpanel">
+    <div class="card shadow-sm border-0 rounded-3">
+      <div class="card-header bg-warning bg-opacity-10 border-warning border-bottom py-2 px-3">
+        <span class="fw-bold text-warning-emphasis"><i class="bi bi-exclamation-circle me-2"></i>Contratos Vigentes sem Empenho Vinculado</span>
+        <span class="badge bg-warning text-dark ms-2">{{ total_sem_empenho }}</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table tbl-empenhos table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr style="font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;">
+              <th class="ps-3">Contrato</th>
+              <th>Órgão</th>
+              <th>Unidade</th>
+              <th>Contratado</th>
+              <th>Tipo</th>
+              <th class="text-end">Valor Atual</th>
+              <th class="text-center pe-3">Fim Vigência</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ct in contratos_sem_empenho %}
+            <tr class="sem-empenho-row">
+              <td class="ps-3 fw-bold text-warning-emphasis">{{ ct.numero_contrato }}</td>
+              <td>
+                <span class="orgao-badge bg-warning bg-opacity-25 text-dark border border-warning">{{ ct.orgao.sigla }}</span>
+              </td>
+              <td class="text-muted" style="font-size:.82rem;">{{ ct.unidade_requisitante.sigla|default:"—" }}</td>
+              <td style="max-width:180px;">
+                <span title="{{ ct.contratado_razao_social }}" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-block;max-width:180px;vertical-align:middle;font-size:.85rem;">{{ ct.contratado_razao_social }}</span>
+              </td>
+              <td>
+                <span class="badge bg-light text-dark border" style="font-size:.73rem;">{{ ct.get_tipo_display }}</span>
+              </td>
+              <td class="text-end fw-semibold">R$ {{ ct.valor_atual|floatformat:2|intcomma }}</td>
+              <td class="text-center pe-3">
+                {% if ct.alerta_vigencia == "critico" %}
+                  <span class="badge bg-danger">{{ ct.data_fim_vigencia|date:"d/m/Y" }}</span>
+                {% elif ct.alerta_vigencia == "atencao" %}
+                  <span class="badge bg-warning text-dark">{{ ct.data_fim_vigencia|date:"d/m/Y" }}</span>
+                {% else %}
+                  <span class="badge bg-light text-dark border">{{ ct.data_fim_vigencia|date:"d/m/Y" }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="7" class="text-center py-5 text-success">
+                <i class="bi bi-check2-circle fs-1 d-block mb-2"></i>Todos os contratos vigentes possuem empenho vinculado!
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

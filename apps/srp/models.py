@@ -154,6 +154,22 @@ class AtaRegistroPrecos(models.Model):
     def esta_vigente(self):
         from datetime import date
         return self.status == "vigente" and self.data_fim_vigencia >= date.today()
+
+    @property
+    def licitacao_origem(self):
+        from apps.licitacao.models import ProcessoLicitatorio
+        if self.numero_pncp:
+            prefixo = self.numero_pncp.split("-0000")[0] if "-0000" in self.numero_pncp else self.numero_pncp
+            obj = ProcessoLicitatorio.objects.filter(numero_controle_pncp__icontains=prefixo).first()
+            if obj:
+                return obj
+        if self.processo_licitatorio:
+            num_limpo = self.processo_licitatorio.lstrip("0")
+            if num_limpo and len(num_limpo) > 2:
+                obj = ProcessoLicitatorio.objects.filter(numero_edital__icontains=num_limpo).first()
+                if obj:
+                    return obj
+        return None
 class ItemARP(models.Model):
     """
     Item registrado na ARP com quantidade, valor unitário e saldo disponível.

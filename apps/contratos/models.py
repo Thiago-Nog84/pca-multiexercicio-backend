@@ -8,6 +8,7 @@ Alertas de vigência: 90 / 60 / 30 dias antes do vencimento.
 
 from django.conf import settings
 from django.db import models
+from .models_empenho import Empenho  # noqa: F401 — re-exportado para acesso via contratos.models
 
 
 class Contrato(models.Model):
@@ -190,6 +191,30 @@ class Contrato(models.Model):
             return "atencao"
         if dias <= 90:
             return "aviso"
+        return None
+
+
+    @property
+    def licitacao_origem(self):
+        from apps.licitacao.models import ProcessoLicitatorio
+        if self.arp_origem and self.arp_origem.licitacao_origem:
+            return self.arp_origem.licitacao_origem
+        if self.numero_pncp:
+            prefixo = self.numero_pncp.split('-0000')[0] if '-0000' in self.numero_pncp else self.numero_pncp
+            obj = ProcessoLicitatorio.objects.filter(numero_controle_pncp__icontains=prefixo).first()
+            if obj:
+                return obj
+        if self.numero_sei and len(self.numero_sei) > 5:
+            obj = ProcessoLicitatorio.objects.filter(processo_sei__icontains=self.numero_sei).first()
+            if obj:
+                return obj
+        obj = ProcessoLicitatorio.objects.filter(numero_controle_pncp=f"LOCAL-CT-{self.id}").first()
+        if obj:
+            return obj
+        if self.numero_contrato:
+            obj = ProcessoLicitatorio.objects.filter(objeto__icontains=self.numero_contrato).first()
+            if obj:
+                return obj
         return None
 
 
