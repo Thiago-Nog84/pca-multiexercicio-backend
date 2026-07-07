@@ -11,6 +11,12 @@ from .views_relatorios import (
     RelDemandasSuspensasView,
     RelModalidadeView,
 )
+from .views_cadastro import (
+    CadastroGrupoDemandaView,
+    ContratosVigentesDisponiveisJSON,
+    DescricaoAutocompleteJSON,
+    ItensARPDisponiveisJSON,
+)
 from .views_suspensas import DemandasSuspensasView
 from .views_template import (
     CatalogoSearchView,
@@ -34,6 +40,18 @@ app_name = "pca"
 urlpatterns = [
     path("", DashboardPCAView.as_view(), name="dashboard"),
     path("demandas/", DemandasPCAView.as_view(), name="demandas"),
+    path("cadastro-grupo/", CadastroGrupoDemandaView.as_view(), name="cadastro_grupo"),
+    path("api/arp-itens-disponiveis.json", ItensARPDisponiveisJSON.as_view(), name="arp_itens_disponiveis_json"),
+    path(
+        "api/contratos-vigentes-disponiveis.json",
+        ContratosVigentesDisponiveisJSON.as_view(),
+        name="contratos_vigentes_disponiveis_json",
+    ),
+    path(
+        "api/descricao-autocomplete.json",
+        DescricaoAutocompleteJSON.as_view(),
+        name="descricao_autocomplete_json",
+    ),
     path("suspensas/", DemandasSuspensasView.as_view(), name="suspensas"),
     path("item/<int:pk>/", ItemPCADetalheView.as_view(), name="item_detalhe"),
     path("renovacao/", RenovacaoExercicioView.as_view(), name="renovacao"),

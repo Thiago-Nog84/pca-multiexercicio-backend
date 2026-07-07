@@ -183,7 +183,7 @@ class Command(BaseCommand):
                 )
 
                 self.stdout.write(
-                    f"\n  → Contrato {numero_contrato or '?'} | UASG {uasg_contratante}"
+                    f"\n  -> Contrato {numero_contrato or '?'} | UASG {uasg_contratante}"
                 )
                 if debug:
                     self.stdout.write(

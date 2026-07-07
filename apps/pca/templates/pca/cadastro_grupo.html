@@ -1,0 +1,631 @@
+{% extends "base.html" %}
+
+{% block title %}Cadastro em grupo — PCA{% endblock %}
+{% block nav_demandas %}active{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3" style="max-width:1100px;">
+
+  <div class="d-flex align-items-center gap-3 mb-3">
+    <div class="rounded-circle d-flex align-items-center justify-content-center"
+         style="width:48px;height:48px;background:rgba(155,35,53,.1);">
+      <i class="bi bi-collection fs-4" style="color:var(--mppi-vermelho);"></i>
+    </div>
+    <div>
+      <h4 class="mb-0 fw-bold">Cadastro de demanda em grupo</h4>
+      <small class="text-muted">
+        Cadastre vários itens de uma mesma demanda de uma vez (ex: "Açúcar e café"),
+        em vez de um item por vez. Se o item usa ARP própria, busque a ata e vincule o saldo disponível.
+        Se o tipo de demanda não for "Nova Contratação", busque o contrato vigente que já atende o item.
+      </small>
+    </div>
+    <div class="ms-auto">
+      <a href="{% url 'pca:demandas' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-list-ul"></i> Ver demandas
+      </a>
+    </div>
+  </div>
+
+  {% if messages %}
+  <div class="mb-2">
+    {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show py-2 mb-1" role="alert">
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <form method="post" action="{% url 'pca:cadastro_grupo' %}" id="form-grupo">
+    {% csrf_token %}
+    <input type="hidden" name="linhas" id="linhas-input" value="">
+
+    {# ── Dados do grupo (DFD) ── #}
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white fw-semibold">
+        <i class="bi bi-folder2-open me-1"></i> Dados do grupo
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label">PCA (exercício)</label>
+            <select name="pca_id" class="form-select" required>
+              {% for p in todos_pcas %}
+              <option value="{{ p.pk }}" {% if pca and p.pk == pca.pk %}selected{% endif %}>
+                {{ p.exercicio }} — {{ p.get_status_display }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Unidade requisitante</label>
+            <select name="unidade_id" class="form-select" required>
+              <option value="">Selecione…</option>
+              {% for u in unidades %}
+              <option value="{{ u.pk }}">{{ u.sigla }} — {{ u.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Nº SEI (opcional)</label>
+            <input type="text" name="numero_sei" class="form-control" placeholder="00000.000000/2027-00">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Grau de prioridade</label>
+            <select name="grau_prioridade" class="form-select">
+              {% for val, label in grau_prioridade_choices %}
+              <option value="{{ val }}" {% if val == "medio" %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Nome / objeto do grupo</label>
+            <input type="text" name="descricao_objeto" class="form-control"
+                   placeholder="Ex: Açúcar e café" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Prazo da necessidade</label>
+            <input type="date" name="prazo_necessidade" class="form-control">
+          </div>
+          <div class="col-md-3"></div>
+          <div class="col-12">
+            <label class="form-label">Justificativa</label>
+            <textarea name="justificativa" class="form-control" rows="2"
+                      placeholder="Por que essa demanda é necessária"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ── Itens do grupo ── #}
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white d-flex align-items-center">
+        <span class="fw-semibold"><i class="bi bi-list-check me-1"></i> Itens do grupo</span>
+        <span class="ms-auto text-muted small" id="resumo-itens">0 item(ns) · R$ 0,00</span>
+      </div>
+      <div class="card-body">
+        <div id="itens-container" class="d-flex flex-column gap-3"></div>
+        <button type="button" class="btn btn-outline-secondary w-100 mt-2" id="btn-add-item">
+          <i class="bi bi-plus-lg me-1"></i> Adicionar item ao grupo
+        </button>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mb-4">
+      <a href="{% url 'pca:demandas' %}" class="btn btn-outline-secondary">Cancelar</a>
+      <button type="submit" class="btn btn-primary" id="btn-salvar">
+        <i class="bi bi-check-circle me-1"></i> Salvar grupo de demandas
+      </button>
+    </div>
+  </form>
+</div>
+
+{# ── Template de uma linha de item (clonado via JS) ── #}
+<template id="template-item">
+  <div class="item-row border rounded p-3" data-idx="">
+    <div class="d-flex justify-content-between align-items-start mb-2">
+      <span class="fw-semibold small text-muted">Item <span class="item-numero">1</span></span>
+      <button type="button" class="btn btn-sm btn-outline-danger btn-remover-item">
+        <i class="bi bi-trash3"></i>
+      </button>
+    </div>
+
+    <div class="row g-2">
+      <div class="col-md-6 position-relative">
+        <label class="form-label small">Descrição</label>
+        <input type="text" class="form-control form-control-sm descricao-input" data-field="descricao"
+               required autocomplete="off"
+               placeholder="Ex: Açúcar tipo Cristal — pacote 1kg (digite para buscar itens já cadastrados)">
+        <input type="hidden" data-field="item_catalogo_id" class="hidden-item-catalogo-id">
+        <div class="descricao-resultado d-none" style="position:absolute; z-index:20; top:100%; left:0; right:0;
+             background:var(--bs-body-bg,#fff); border:1px solid #dee2e6; border-radius:.375rem;
+             box-shadow:0 4px 10px rgba(0,0,0,.1); max-height:280px; overflow-y:auto;"></div>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Categoria</label>
+        <select class="form-select form-select-sm" data-field="categoria" required>
+          {% for val, label in categoria_choices %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">CATMAT/CATSER</label>
+        <input type="text" class="form-control form-control-sm" data-field="codigo_catmat_catser">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Unid. fornecimento</label>
+        <input type="text" class="form-control form-control-sm" data-field="unidade_fornecimento" required
+               placeholder="kg, un, mês…">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Continuidade</label>
+        <select class="form-select form-select-sm" data-field="classificacao_continuidade">
+          {% for val, label in continuidade_choices %}
+          <option value="{{ val }}" {% if val == "eventual" %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label small">Quantidade estimada</label>
+        <input type="number" step="0.01" min="0.01" class="form-control form-control-sm campo-calculo"
+               data-field="quantidade_estimada" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Valor unitário (R$)</label>
+        <input type="number" step="0.01" min="0.01" class="form-control form-control-sm campo-calculo"
+               data-field="valor_unitario_estimado" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Valor total</label>
+        <input type="text" class="form-control form-control-sm valor-total-display" readonly value="R$ 0,00">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Tipo de demanda</label>
+        <select class="form-select form-select-sm" data-field="tipo_demanda">
+          {% for val, label in tipo_demanda_choices %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Normativo</label>
+        <select class="form-select form-select-sm" data-field="normativo">
+          {% for val, label in normativo_choices %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small">Unidade orçamentária</label>
+        <select class="form-select form-select-sm" data-field="unidade_orcamentaria">
+          {% for val, label in uo_choices %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    {# ── Modalidade — decide se mostra o painel de ARP ── #}
+    <div class="mt-3 pt-2 border-top">
+      <label class="form-label small d-block mb-1">Modalidade da contratação</label>
+      <div class="d-flex flex-wrap gap-3">
+        {% for val, label in modalidade_choices %}
+        <div class="form-check form-check-inline">
+          <input class="form-check-input modalidade-radio" type="radio" data-field="modalidade" value="{{ val }}"
+                 {% if val == "pregao_eletronico" %}checked{% endif %}>
+          <label class="form-check-label small">{{ label }}</label>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# ── Painel de busca de ARP (visível só quando modalidade = arp_propria) ── #}
+    <div class="arp-panel d-none mt-2 p-2 rounded" style="background:#f8f9fa;">
+      <p class="small text-muted mb-2">
+        <i class="bi bi-search"></i> Buscar atas de registro de preços vigentes que já têm este item cadastrado.
+      </p>
+      <div class="input-group input-group-sm mb-2">
+        <input type="text" class="form-control arp-busca-input" placeholder="Digite parte da descrição do item (ex: açúcar)…">
+        <button type="button" class="btn btn-outline-primary btn-arp-buscar">Buscar ARPs</button>
+      </div>
+      <div class="arp-resultado d-flex flex-column gap-2"></div>
+      <input type="hidden" data-field="item_arp_id" class="hidden-item-arp-id">
+      <div class="arp-selecionado d-none mt-2 p-2 border rounded bg-white">
+        <div class="small fw-semibold arp-selecionado-info"></div>
+        <div class="d-flex align-items-center gap-2 mt-1">
+          <label class="form-label small mb-0">Quantidade a vincular:</label>
+          <input type="number" step="0.01" min="0.01" class="form-control form-control-sm qtd-comprometida"
+                 data-field="quantidade_comprometida" style="width:120px;">
+          <span class="small text-danger msg-erro-saldo"></span>
+        </div>
+      </div>
+    </div>
+
+    {# ── Painel de busca de contrato vigente (visível quando tipo_demanda != nova) ── #}
+    <div class="contrato-panel d-none mt-2 p-2 rounded" style="background:#f8f9fa;">
+      <p class="small text-muted mb-2">
+        <i class="bi bi-search"></i> Buscar contratos vigentes do MPPI que já atendem esta demanda
+        (renovação, aditivo, apostilamento ou repactuação — dispensa nova licitação).
+      </p>
+      <div class="input-group input-group-sm mb-2">
+        <input type="text" class="form-control contrato-busca-input" placeholder="Número, objeto ou fornecedor do contrato…">
+        <button type="button" class="btn btn-outline-primary btn-contrato-buscar">Buscar contratos</button>
+      </div>
+      <div class="contrato-resultado d-flex flex-column gap-2"></div>
+      <input type="hidden" data-field="contrato_id" class="hidden-contrato-id">
+      <div class="contrato-selecionado d-none mt-2 p-2 border rounded bg-white">
+        <div class="small fw-semibold contrato-selecionado-info"></div>
+        <div class="small text-muted mt-1 msg-saldo-contrato"></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+(function () {
+  const container = document.getElementById('itens-container');
+  const tpl = document.getElementById('template-item');
+  const linhasInput = document.getElementById('linhas-input');
+  const resumo = document.getElementById('resumo-itens');
+  const buscaUrl = "{% url 'pca:arp_itens_disponiveis_json' %}";
+  const buscaContratoUrl = "{% url 'pca:contratos_vigentes_disponiveis_json' %}";
+  const buscaDescricaoUrl = "{% url 'pca:descricao_autocomplete_json' %}";
+  let seq = 0;
+
+  function debounce(fn, ms) {
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+  }
+
+  function fmtMoeda(v) {
+    return 'R$ ' + (isNaN(v) ? 0 : v).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  }
+
+  function atualizarLinhasEResumo() {
+    const rows = container.querySelectorAll('.item-row');
+    linhasInput.value = Array.from(rows).map(r => r.dataset.idx).join(',');
+    let total = 0;
+    rows.forEach((r, i) => {
+      r.querySelector('.item-numero').textContent = i + 1;
+      const qtd = parseFloat(r.querySelector('[data-field="quantidade_estimada"]').value) || 0;
+      const vu = parseFloat(r.querySelector('[data-field="valor_unitario_estimado"]').value) || 0;
+      total += qtd * vu;
+    });
+    resumo.textContent = `${rows.length} item(ns) · ${fmtMoeda(total)}`;
+  }
+
+  function recalcularLinha(row) {
+    const qtd = parseFloat(row.querySelector('[data-field="quantidade_estimada"]').value) || 0;
+    const vu = parseFloat(row.querySelector('[data-field="valor_unitario_estimado"]').value) || 0;
+    row.querySelector('.valor-total-display').value = fmtMoeda(qtd * vu);
+    atualizarLinhasEResumo();
+  }
+
+  function renderizarResultadosARP(row, itens) {
+    const box = row.querySelector('.arp-resultado');
+    if (!itens.length) {
+      box.innerHTML = '<p class="text-muted small mb-0">Nenhuma ARP vigente encontrada com esse item.</p>';
+      return;
+    }
+    box.innerHTML = '';
+    itens.forEach(it => {
+      const saldo = it.quantidade_disponivel_eventual;
+      const corSaldo = saldo <= 0 ? 'text-danger' : (saldo < it.quantidade_registrada * 0.2 ? 'text-warning' : 'text-success');
+      const card = document.createElement('div');
+      card.className = 'border rounded p-2 bg-white';
+      card.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <span class="fw-semibold small">ARP ${it.arp_numero}${it.lote ? ' — lote ' + it.lote : ''}</span>
+            <span class="text-muted small ms-1">${it.fornecedor.substring(0,40)} · vigente até ${it.vigencia_fim}</span>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-primary btn-selecionar-arp"
+                  ${saldo <= 0 ? 'disabled title="Sem saldo disponível"' : ''}>Selecionar</button>
+        </div>
+        <div class="small text-muted mt-1">${it.descricao}</div>
+        <div class="small mt-1">
+          Registrado: ${it.quantidade_registrada} · Contratado: ${it.quantidade_contratada} ·
+          Comprom. PCA: ${it.quantidade_comprometida_pca} ·
+          <strong class="${corSaldo}">Saldo: ${saldo.toFixed(4)} ${it.unidade_fornecimento}</strong>
+        </div>`;
+      card.querySelector('.btn-selecionar-arp').addEventListener('click', () => {
+        row.querySelector('.hidden-item-arp-id').value = it.id;
+        row.querySelector('.arp-selecionado').classList.remove('d-none');
+        row.querySelector('.arp-selecionado-info').textContent =
+          `Selecionado: ARP ${it.arp_numero} — item ${it.numero_item} (${it.descricao.substring(0,60)})`;
+        const qtdInput = row.querySelector('.qtd-comprometida');
+        qtdInput.dataset.max = saldo;
+        qtdInput.value = Math.min(parseFloat(row.querySelector('[data-field="quantidade_estimada"]').value) || saldo, saldo);
+        validarSaldo(row);
+      });
+      box.appendChild(card);
+    });
+  }
+
+  function validarSaldo(row) {
+    const qtdInput = row.querySelector('.qtd-comprometida');
+    const msg = row.querySelector('.msg-erro-saldo');
+    const max = parseFloat(qtdInput.dataset.max || 'Infinity');
+    const val = parseFloat(qtdInput.value) || 0;
+    if (val > max) {
+      qtdInput.classList.add('is-invalid');
+      msg.textContent = `excede o saldo disponível (${max})`;
+    } else {
+      qtdInput.classList.remove('is-invalid');
+      msg.textContent = '';
+    }
+  }
+
+  function preencherDoAutocomplete(row, item, origem) {
+    row.querySelector('[data-field="categoria"]').value = item.categoria;
+    row.querySelector('[data-field="codigo_catmat_catser"]').value = item.codigo_catmat_catser || '';
+    row.querySelector('[data-field="unidade_fornecimento"]').value = item.unidade_fornecimento || '';
+    row.querySelector('[data-field="classificacao_continuidade"]').value = item.classificacao_continuidade || 'eventual';
+    row.querySelector('.descricao-input').value = item.descricao;
+    row.querySelector('.hidden-item-catalogo-id').value = origem === 'catalogo' ? item.id : '';
+    if (origem === 'historico') {
+      row.querySelector('[data-field="valor_unitario_estimado"]').value = item.valor_unitario_estimado;
+      row.querySelector('[data-field="quantidade_estimada"]').value = item.quantidade_estimada;
+      recalcularLinha(row);
+    }
+    row.querySelector('.descricao-resultado').classList.add('d-none');
+  }
+
+  function renderizarAutocomplete(row, data) {
+    const box = row.querySelector('.descricao-resultado');
+    const temResultado = data.catalogo.length || data.historico.length;
+    if (!temResultado) {
+      box.classList.add('d-none');
+      box.innerHTML = '';
+      return;
+    }
+    let html = '';
+    if (data.catalogo.length) {
+      html += '<div class="px-2 pt-2 pb-1 small text-muted fw-semibold">Catálogo institucional</div>';
+      data.catalogo.forEach(it => {
+        html += `
+          <button type="button" class="dropdown-item-like d-block w-100 text-start border-0 bg-transparent px-2 py-1 small btn-selecionar-desc"
+                  data-origem="catalogo" data-idx="${data.catalogo.indexOf(it)}">
+            <span class="badge bg-secondary-subtle text-secondary me-1">Catálogo</span>${it.descricao}
+          </button>`;
+      });
+    }
+    if (data.historico.length) {
+      html += '<div class="px-2 pt-2 pb-1 small text-muted fw-semibold border-top">Já cadastrado em contratações anteriores</div>';
+      data.historico.forEach(it => {
+        html += `
+          <button type="button" class="dropdown-item-like d-block w-100 text-start border-0 bg-transparent px-2 py-1 small btn-selecionar-desc"
+                  data-origem="historico" data-idx="${data.historico.indexOf(it)}">
+            <span class="badge bg-info-subtle text-info me-1">PCA ${it.exercicio}</span>${it.descricao}
+            <span class="text-muted"> — ${it.unidade_sigla} · R$ ${it.valor_unitario_estimado.toLocaleString('pt-BR',{minimumFractionDigits:2})}/un.</span>
+          </button>`;
+      });
+    }
+    box.innerHTML = html;
+    box.classList.remove('d-none');
+    box.querySelectorAll('.btn-selecionar-desc').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const origem = btn.dataset.origem;
+        const item = origem === 'catalogo' ? data.catalogo[btn.dataset.idx] : data.historico[btn.dataset.idx];
+        preencherDoAutocomplete(row, item, origem);
+      });
+    });
+  }
+
+  function buscarDescricaoAutocomplete(row) {
+    const q = row.querySelector('.descricao-input').value.trim();
+    if (q.length < 2) {
+      row.querySelector('.descricao-resultado').classList.add('d-none');
+      return;
+    }
+    fetch(`${buscaDescricaoUrl}?q=${encodeURIComponent(q)}`, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+      .then(r => r.json())
+      .then(data => renderizarAutocomplete(row, data))
+      .catch(() => {});
+  }
+
+  function buscarARPs(row) {
+    const q = row.querySelector('.arp-busca-input').value.trim();
+    if (q.length < 3) {
+      row.querySelector('.arp-resultado').innerHTML =
+        '<p class="text-muted small mb-0">Digite ao menos 3 caracteres.</p>';
+      return;
+    }
+    fetch(`${buscaUrl}?q=${encodeURIComponent(q)}`, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+      .then(r => r.json())
+      .then(data => renderizarResultadosARP(row, data.itens))
+      .catch(() => {
+        row.querySelector('.arp-resultado').innerHTML =
+          '<p class="text-danger small mb-0">Erro ao buscar ARPs. Tente novamente.</p>';
+      });
+  }
+
+  function renderizarResultadosContrato(row, contratos, contratosApi) {
+    const box = row.querySelector('.contrato-resultado');
+    box.innerHTML = '';
+
+    if (!contratos.length && !(contratosApi && contratosApi.length)) {
+      box.innerHTML = '<p class="text-muted small mb-0">Nenhum contrato vigente encontrado.</p>';
+      return;
+    }
+
+    contratos.forEach(c => {
+      const saldo = c.saldo_disponivel;
+      const corSaldo = saldo <= 0 ? 'text-danger' : 'text-success';
+      const card = document.createElement('div');
+      card.className = 'border rounded p-2 bg-white';
+      card.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <span class="fw-semibold small">Contrato ${c.numero_contrato}</span>
+            <span class="text-muted small ms-1">${c.contratado.substring(0,40)} · vigente até ${c.vigencia_fim}</span>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-primary btn-selecionar-contrato"
+                  ${saldo <= 0 ? 'disabled title="Sem saldo disponível"' : ''}>Selecionar</button>
+        </div>
+        <div class="small text-muted mt-1">${c.objeto}</div>
+        <div class="small mt-1">
+          ${c.tipo_display} · Valor atual: R$ ${c.valor_atual.toLocaleString('pt-BR', {minimumFractionDigits: 2})} ·
+          <strong class="${corSaldo}">Saldo disponível: R$ ${saldo.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</strong>
+        </div>`;
+      card.querySelector('.btn-selecionar-contrato').addEventListener('click', () => {
+        row.querySelector('.hidden-contrato-id').value = c.id;
+        const bloco = row.querySelector('.contrato-selecionado');
+        bloco.classList.remove('d-none');
+        bloco.dataset.saldo = saldo;
+        row.querySelector('.contrato-selecionado-info').textContent =
+          `Selecionado: contrato ${c.numero_contrato} — ${c.contratado.substring(0,50)}`;
+        validarSaldoContrato(row, saldo);
+      });
+      box.appendChild(card);
+    });
+
+    // Contratos vistos via API (compras.gov.br/PNCP) mas ainda sem cadastro
+    // formal em Contrato — nao sao vinculaveis diretamente (nao ha saldo/
+    // gestor/fiscal rastreados), mas oferecem link para cadastro rapido,
+    // pre-preenchido com o dado real da API.
+    (contratosApi || []).forEach(c => {
+      const card = document.createElement('div');
+      card.className = 'border rounded p-2';
+      card.style.background = '#fff8e6';
+      card.style.borderColor = '#f0d999';
+      card.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <span class="fw-semibold small">Contrato ${c.numero_contrato}</span>
+            <span class="badge ms-1" style="font-size:.62rem; background:#f0d999; color:#5c4300;">via API</span>
+            <span class="text-muted small ms-1">${(c.contratado||'').substring(0,40)} · vigente até ${c.vigencia_fim}</span>
+          </div>
+          <a href="${c.link_cadastrar}" target="_blank" class="btn btn-sm btn-outline-warning">
+            Cadastrar em Contratos
+          </a>
+        </div>
+        <div class="small text-muted mt-1">${c.objeto || '(objeto da ARP ' + c.arp_numero + ')'}</div>
+        <div class="small mt-1">
+          Origem: ${c.fonte} · ARP ${c.arp_numero} · Valor: R$ ${c.valor_total.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+        </div>
+        <div class="small text-warning mt-1">
+          Encontrado via API, mas ainda não cadastrado no módulo de Contratos — não é possível
+          vincular diretamente (sem saldo/gestor/fiscal aqui). Cadastre uma vez e ele passa a
+          aparecer na busca normal, vinculável.
+        </div>`;
+      box.appendChild(card);
+    });
+  }
+
+  function validarSaldoContrato(row, saldo) {
+    const msg = row.querySelector('.msg-saldo-contrato');
+    const qtd = parseFloat(row.querySelector('[data-field="quantidade_estimada"]').value) || 0;
+    const vu = parseFloat(row.querySelector('[data-field="valor_unitario_estimado"]').value) || 0;
+    const valor = qtd * vu;
+    if (valor > saldo) {
+      msg.className = 'small text-danger mt-1 msg-saldo-contrato';
+      msg.textContent = `Atenção: valor do item (${valor.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}) excede o saldo disponível do contrato — o cadastro será bloqueado ao salvar.`;
+    } else {
+      msg.className = 'small text-success mt-1 msg-saldo-contrato';
+      msg.textContent = `Dentro do saldo disponível do contrato.`;
+    }
+  }
+
+  function buscarContratos(row) {
+    const q = row.querySelector('.contrato-busca-input').value.trim();
+    if (q.length < 3) {
+      row.querySelector('.contrato-resultado').innerHTML =
+        '<p class="text-muted small mb-0">Digite ao menos 3 caracteres.</p>';
+      return;
+    }
+    fetch(`${buscaContratoUrl}?q=${encodeURIComponent(q)}`, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+      .then(r => r.json())
+      .then(data => renderizarResultadosContrato(row, data.contratos, data.contratos_api))
+      .catch(() => {
+        row.querySelector('.contrato-resultado').innerHTML =
+          '<p class="text-danger small mb-0">Erro ao buscar contratos. Tente novamente.</p>';
+      });
+  }
+
+  function addRow() {
+    const idx = seq++;
+    const node = tpl.content.cloneNode(true);
+    const row = node.querySelector('.item-row');
+    row.dataset.idx = idx;
+
+    row.querySelectorAll('[data-field]').forEach(el => {
+      el.name = `item_${idx}_${el.dataset.field}`;
+    });
+
+    row.querySelector('.btn-remover-item').addEventListener('click', () => {
+      row.remove();
+      atualizarLinhasEResumo();
+    });
+
+    row.querySelectorAll('.campo-calculo').forEach(el => {
+      el.addEventListener('input', () => {
+        recalcularLinha(row);
+        const contratoId = row.querySelector('.hidden-contrato-id').value;
+        if (contratoId) {
+          const saldoAtual = parseFloat(row.querySelector('.contrato-selecionado').dataset.saldo || '0');
+          validarSaldoContrato(row, saldoAtual);
+        }
+      });
+    });
+
+    row.querySelectorAll('.modalidade-radio').forEach(radio => {
+      radio.addEventListener('change', () => {
+        row.querySelector('.arp-panel').classList.toggle('d-none', radio.value !== 'arp_propria' || !radio.checked);
+      });
+    });
+
+    const tipoDemandaSelect = row.querySelector('[data-field="tipo_demanda"]');
+    tipoDemandaSelect.addEventListener('change', () => {
+      row.querySelector('.contrato-panel').classList.toggle('d-none', tipoDemandaSelect.value === 'nova');
+    });
+
+    row.querySelector('.btn-arp-buscar').addEventListener('click', () => buscarARPs(row));
+    row.querySelector('.arp-busca-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); buscarARPs(row); }
+    });
+    row.querySelector('.qtd-comprometida').addEventListener('input', () => validarSaldo(row));
+
+    row.querySelector('.btn-contrato-buscar').addEventListener('click', () => buscarContratos(row));
+    row.querySelector('.contrato-busca-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); buscarContratos(row); }
+    });
+
+    const descInput = row.querySelector('.descricao-input');
+    const descBuscaDebounced = debounce(() => buscarDescricaoAutocomplete(row), 300);
+    descInput.addEventListener('input', () => {
+      row.querySelector('.hidden-item-catalogo-id').value = '';
+      descBuscaDebounced();
+    });
+
+    container.appendChild(row);
+    atualizarLinhasEResumo();
+  }
+
+  // Fecha qualquer dropdown de autocomplete de descrição aberto ao clicar fora dele
+  document.addEventListener('click', (e) => {
+    container.querySelectorAll('.item-row').forEach(row => {
+      if (!row.contains(e.target)) {
+        row.querySelector('.descricao-resultado').classList.add('d-none');
+      }
+    });
+  });
+
+  document.getElementById('btn-add-item').addEventListener('click', addRow);
+  document.getElementById('form-grupo').addEventListener('submit', function (e) {
+    atualizarLinhasEResumo();
+    if (!container.querySelector('.item-row')) {
+      e.preventDefault();
+      alert('Adicione ao menos um item ao grupo antes de salvar.');
+    }
+  });
+
+  // Duas linhas iniciais, para já sugerir o padrão de grupo (ex: açúcar + café)
+  addRow();
+  addRow();
+})();
+</script>
+{% endblock %}

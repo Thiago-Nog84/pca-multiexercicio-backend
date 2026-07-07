@@ -322,6 +322,10 @@
       <i class="bi bi-list-task"></i>
       <span class="link-text">Demandas (DFDs)</span>
     </a>
+    <a href="{% url 'pca:cadastro_grupo' %}" class="sidebar-link {% block nav_cadastro_grupo %}{% endblock %}">
+      <i class="bi bi-collection"></i>
+      <span class="link-text">Nova demanda (grupo)</span>
+    </a>
     <a href="{% url 'pca:suspensas' %}" class="sidebar-link {% block nav_suspensas %}{% endblock %}">
       <i class="bi bi-pause-circle"></i>
       <span class="link-text">Demandas Suspensas</span>

@@ -16,6 +16,26 @@ CLASSIFICACAO_CONTINUIDADE = [
     ("eventual",              "Eventual / pontual"),
 ]
 
+# ---------------------------------------------------------------------------
+# Categoria do item — granularidade inspirada na "Classe" do sistema de
+# referência (separa Material de Consumo de Material Permanente, e trata
+# Serviço de Engenharia / Terceirizado / Treinamento / Software como classes
+# próprias, o que importa para a classificação orçamentária).
+# Compartilhada por ItemPCA e ItemCatalogo.
+# ---------------------------------------------------------------------------
+CATEGORIAS_ITEM = [
+    ("material",              "Material de Consumo (CATMAT)"),
+    ("material_permanente",   "Material Permanente (CATMAT)"),
+    ("servico",                "Serviço (CATSER)"),
+    ("servico_engenharia",     "Serviço de Engenharia"),
+    ("servico_terceirizado",   "Serviço Terceirizado (dedicação exclusiva de mão de obra)"),
+    ("obras",                  "Obras e Serviços de Engenharia"),
+    ("solucao_ti",             "Solução de TIC (Res. CNMP 283/2024)"),
+    ("software",               "Software"),
+    ("treinamento",            "Treinamento"),
+    ("publicidade",            "Publicidade (Dec. 21.813/2023)"),
+]
+
 
 class PlanoContratacaoAnual(models.Model):
     """
@@ -106,13 +126,7 @@ class ItemPCA(models.Model):
     O código PCA é gerado automaticamente no formato PCA-XXXX-AAAA ao salvar.
     """
 
-    CATEGORIAS = [
-        ("material", "Material (CATMAT)"),
-        ("servico", "Serviço (CATSER)"),
-        ("obras", "Obras e Serviços de Engenharia"),
-        ("solucao_ti", "Solução de TIC (Res. CNMP 283/2024)"),
-        ("publicidade", "Publicidade (Dec. 21.813/2023)"),
-    ]
+    CATEGORIAS = CATEGORIAS_ITEM
 
     # Tipo da demanda: o QUE é (natureza da contratação)
     TIPO_DEMANDA = [
@@ -296,6 +310,22 @@ class ItemPCA(models.Model):
         "planejamento.ETP", null=True, blank=True, on_delete=models.SET_NULL, related_name="itens_pca"
     )
 
+    # Atendimento por contrato vigente (alternativa à ARP para tipo_demanda
+    # renovacao/aditivo/apostilamento/repactuacao) — evita nova licitação
+    # quando um contrato já em vigor cobre a demanda.
+    contrato_vigente = models.ForeignKey(
+        "contratos.Contrato",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="itens_pca_atendidos",
+        help_text=(
+            "Contrato vigente que já atende esta demanda (renovação, aditivo, "
+            "repactuação ou apostilamento), dispensando nova licitação. "
+            "Preenchido ao vincular pela busca de contratos vigentes no cadastro em grupo."
+        ),
+    )
+
     class Meta:
         verbose_name = "Item do PCA"
         ordering = ["numero_item"]
@@ -367,13 +397,7 @@ class ItemCatalogo(models.Model):
     renovação no planejamento do exercício seguinte.
     """
 
-    CATEGORIAS = [
-        ("material",    "Material (CATMAT)"),
-        ("servico",     "Serviço (CATSER)"),
-        ("obras",       "Obras e Serviços de Engenharia"),
-        ("solucao_ti",  "Solução de TIC (Res. CNMP 283/2024)"),
-        ("publicidade", "Publicidade (Dec. 21.813/2023)"),
-    ]
+    CATEGORIAS = CATEGORIAS_ITEM
 
     MODALIDADES_SUGERIDAS = [
         ("pregao_eletronico", "Pregão Eletrônico"),

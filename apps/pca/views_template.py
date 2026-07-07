@@ -11,6 +11,22 @@ def _pca_default(todos_pcas):
     ano = datetime.date.today().year
     return todos_pcas.filter(exercicio=ano).first() or todos_pcas.first()
 
+
+def _resolver_pca(request, todos_pcas):
+    """
+    Resolve qual PCA exibir: respeita ?pca_id=<id> se presente na querystring
+    (selecionado manualmente pelo usuario, ex: PCA 2027 recem-criado), senao
+    cai no padrao do ano corrente (_pca_default). Sem isso, telas como
+    Dashboard e Demandas ficam presas no ano corrente e escondem PCAs de
+    exercicios futuros mesmo que ja tenham itens cadastrados.
+    """
+    pca_id = request.GET.get("pca_id")
+    if pca_id:
+        pca_selecionado = todos_pcas.filter(pk=pca_id).first()
+        if pca_selecionado:
+            return pca_selecionado
+    return _pca_default(todos_pcas)
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
@@ -35,7 +51,7 @@ class DashboardPCAView(View):
 
     def get(self, request):
         todos_pcas_qs = PlanoContratacaoAnual.objects.order_by("-exercicio")
-        pca = _pca_default(todos_pcas_qs)
+        pca = _resolver_pca(request, todos_pcas_qs)
 
         if pca:
             dfds = DocumentoFormalizacaoDemanda.objects.filter(pca=pca)
@@ -116,6 +132,7 @@ class DashboardPCAView(View):
 
         context = {
             "pca": pca,
+            "todos_pcas": todos_pcas_qs,
             "total_dfds": dfds.count(),
             "total_itens": total_itens,
             "valor_total": valor_total,
@@ -154,7 +171,7 @@ class DemandasPCAView(View):
 
     def get(self, request):
         todos_pcas_qs = PlanoContratacaoAnual.objects.order_by("-exercicio")
-        pca = _pca_default(todos_pcas_qs)
+        pca = _resolver_pca(request, todos_pcas_qs)
 
         itens_qs = ItemPCA.objects.select_related(
             "dfd", "dfd__pca", "dfd__unidade"
@@ -179,6 +196,7 @@ class DemandasPCAView(View):
 
         context = {
             "pca": pca,
+            "todos_pcas": todos_pcas_qs,
             "itens": itens_qs,
             "total": itens_qs.count(),
             "status_filtro": status_filtro,
