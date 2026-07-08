@@ -183,6 +183,7 @@ class DemandasPCAView(View):
         status_filtro    = request.GET.get("status", "")
         categoria_filtro = request.GET.get("categoria", "")
         modalidade_filtro = request.GET.get("modalidade", "")
+        unidade_filtro   = request.GET.get("unidade", "")
         busca = request.GET.get("q", "").strip()
 
         if status_filtro:
@@ -191,8 +192,18 @@ class DemandasPCAView(View):
             itens_qs = itens_qs.filter(categoria=categoria_filtro)
         if modalidade_filtro:
             itens_qs = itens_qs.filter(modalidade=modalidade_filtro)
+        if unidade_filtro:
+            itens_qs = itens_qs.filter(dfd__unidade_id=unidade_filtro)
         if busca:
             itens_qs = itens_qs.filter(descricao__icontains=busca)
+
+        # So unidades que tem DFD no PCA exibido — evita opcoes que filtram para vazio
+        from apps.core.models import UnidadeRequisitante
+        unidades_qs = UnidadeRequisitante.objects.order_by("sigla")
+        if pca:
+            unidades_qs = unidades_qs.filter(
+                documentoformalizacaodemanda__pca=pca
+            ).distinct()
 
         context = {
             "pca": pca,
@@ -202,6 +213,8 @@ class DemandasPCAView(View):
             "status_filtro": status_filtro,
             "categoria_filtro": categoria_filtro,
             "modalidade_filtro": modalidade_filtro,
+            "unidade_filtro": unidade_filtro,
+            "unidades": unidades_qs,
             "busca": busca,
             "status_choices": ItemPCA.STATUS,
             "categoria_choices": ItemPCA.CATEGORIAS,
