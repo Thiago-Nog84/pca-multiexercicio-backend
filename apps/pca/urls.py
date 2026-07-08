@@ -17,6 +17,7 @@ from .views_cadastro import (
     DescricaoAutocompleteJSON,
     ItensARPDisponiveisJSON,
 )
+from .views_duplicatas import DuplicatasPCAView
 from .views_suspensas import DemandasSuspensasView
 from .views_template import (
     CatalogoSearchView,
@@ -28,6 +29,7 @@ from .views_template import (
     RenovacaoExercicioView,
 )
 from .views_validacao import ARPsVigentesJSON, ValidacaoDemandas, ValidacaoAcao, ValidacaoVincularARP
+from .views_workflow import WorkflowPCAView
 
 router = DefaultRouter()
 router.register("planos", PlanoContratacaoAnualViewSet, basename="plano")
@@ -53,6 +55,8 @@ urlpatterns = [
         name="descricao_autocomplete_json",
     ),
     path("suspensas/", DemandasSuspensasView.as_view(), name="suspensas"),
+    path("duplicatas/", DuplicatasPCAView.as_view(), name="duplicatas"),
+    path("workflow/", WorkflowPCAView.as_view(), name="workflow"),
     path("item/<int:pk>/", ItemPCADetalheView.as_view(), name="item_detalhe"),
     path("renovacao/", RenovacaoExercicioView.as_view(), name="renovacao"),
     path("orcamento/", OrcamentoView.as_view(), name="orcamento"),

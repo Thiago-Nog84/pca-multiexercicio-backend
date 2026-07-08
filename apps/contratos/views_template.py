@@ -335,3 +335,137 @@ class SincronizarExecucaoSIAFEView(View):
             messages.warning(request, f"Sincronização com o SIAFE-PI concluída com avisos/erros: {exc}")
 
         return redirect("contratos:dashboard")
+
+
+# ---------------------------------------------------------------------------
+# Painel de Vencimentos — alertas progressivos 120/90/60/30 dias
+# ---------------------------------------------------------------------------
+
+def _faixa_vencimento(dias):
+    """Classifica dias restantes em faixa progressiva de alerta."""
+    if dias < 0:
+        return "vencido", "Vencido", "danger"
+    if dias <= 30:
+        return "d30", "Até 30 dias", "danger"
+    if dias <= 60:
+        return "d60", "31–60 dias", "warning"
+    if dias <= 90:
+        return "d90", "61–90 dias", "warning"
+    if dias <= 120:
+        return "d120", "91–120 dias", "info"
+    return None, None, None
+
+
+@method_decorator(login_required, name="dispatch")
+class VencimentosView(View):
+    """
+    Painel consolidado de vencimentos: contratos, ARPs próprias e ARPs
+    externas (caronas recebidas) com vigência encerrando em até 120 dias,
+    em faixas progressivas 120/90/60/30 (padrão de mercado para gestão
+    contratual — Lei 14.133/2021 exige planejamento tempestivo de
+    renovações e novas licitações).
+    """
+
+    template_name = "contratos/vencimentos.html"
+    HORIZONTE_DIAS = 120
+
+    def get(self, request):
+        from django.urls import reverse
+
+        from apps.srp.models import ARPExterna, AtaRegistroPrecos
+
+        hoje = date.today()
+        limite = hoje + timedelta(days=self.HORIZONTE_DIAS)
+        tipo_filtro = request.GET.get("tipo", "")
+        faixa_filtro = request.GET.get("faixa", "")
+
+        alertas = []
+
+        contratos = Contrato.objects.filter(
+            status="vigente", data_fim_vigencia__lte=limite
+        ).select_related("unidade_requisitante", "gestor")
+        for c in contratos:
+            dias = (c.data_fim_vigencia - hoje).days
+            faixa, faixa_label, cor = _faixa_vencimento(dias)
+            alertas.append({
+                "tipo": "contrato",
+                "tipo_label": "Contrato",
+                "numero": c.numero_contrato,
+                "descricao": c.objeto,
+                "parte": c.contratado_razao_social,
+                "unidade": c.unidade_requisitante.sigla if c.unidade_requisitante else "",
+                "data_fim": c.data_fim_vigencia,
+                "dias": dias,
+                "faixa": faixa,
+                "faixa_label": faixa_label,
+                "cor": cor,
+                "url": reverse("admin:contratos_contrato_change", args=[c.pk]),
+            })
+
+        arps = AtaRegistroPrecos.objects.filter(
+            status="vigente", data_fim_vigencia__lte=limite
+        )
+        for a in arps:
+            dias = (a.data_fim_vigencia - hoje).days
+            faixa, faixa_label, cor = _faixa_vencimento(dias)
+            alertas.append({
+                "tipo": "arp",
+                "tipo_label": "ARP própria",
+                "numero": a.numero_arp,
+                "descricao": a.objeto,
+                "parte": a.fornecedor_razao_social,
+                "unidade": "",
+                "data_fim": a.data_fim_vigencia,
+                "dias": dias,
+                "faixa": faixa,
+                "faixa_label": faixa_label,
+                "cor": cor,
+                "url": reverse("srp:arp_detalhe", args=[a.pk]),
+            })
+
+        arps_ext = ARPExterna.objects.filter(
+            status="ativa", data_fim_vigencia__lte=limite
+        ).select_related("unidade_beneficiaria")
+        for ae in arps_ext:
+            dias = (ae.data_fim_vigencia - hoje).days
+            faixa, faixa_label, cor = _faixa_vencimento(dias)
+            alertas.append({
+                "tipo": "arp_externa",
+                "tipo_label": "Carona (ARP externa)",
+                "numero": ae.numero_arp_origem,
+                "descricao": ae.objeto,
+                "parte": ae.orgao_gerenciador_nome,
+                "unidade": ae.unidade_beneficiaria.sigla if ae.unidade_beneficiaria else "",
+                "data_fim": ae.data_fim_vigencia,
+                "dias": dias,
+                "faixa": faixa,
+                "faixa_label": faixa_label,
+                "cor": cor,
+                "url": reverse("admin:srp_arpexterna_change", args=[ae.pk]),
+            })
+
+        # Contadores por faixa (antes dos filtros, para os cards)
+        contadores = {"vencido": 0, "d30": 0, "d60": 0, "d90": 0, "d120": 0}
+        for al in alertas:
+            if al["faixa"]:
+                contadores[al["faixa"]] += 1
+
+        if tipo_filtro:
+            alertas = [al for al in alertas if al["tipo"] == tipo_filtro]
+        if faixa_filtro:
+            alertas = [al for al in alertas if al["faixa"] == faixa_filtro]
+
+        for al in alertas:
+            al["dias_abs"] = abs(al["dias"])
+        alertas.sort(key=lambda al: al["dias"])
+
+        context = {
+            "alertas": alertas,
+            "contadores": contadores,
+            "total": len(alertas),
+            "hoje": hoje,
+            "horizonte": self.HORIZONTE_DIAS,
+            "tipo_filtro": tipo_filtro,
+            "faixa_filtro": faixa_filtro,
+        }
+        return render(request, self.template_name, context)

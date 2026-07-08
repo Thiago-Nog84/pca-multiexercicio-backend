@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}PCA — Possíveis Duplicatas{% endblock %}
+{% block nav_duplicatas %}active{% endblock %}
+
+{% block extra_style %}
+<style>
+  .grupo-card { border-radius: 12px; border: 1px solid #e8ecf0; }
+  .grupo-card.entre-unidades { border-left: 4px solid var(--mppi-vermelho); }
+  .grupo-header { background: #f8fafc; border-radius: 12px 12px 0 0; }
+  .badge-criterio { font-size: .7rem; font-weight: 700; padding: .25em .6em; border-radius: 6px; }
+  .tbl-grupo { font-size: .85rem; }
+  .tbl-grupo tbody tr:hover { background: #f8fafc; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div class="page-header">
+    <h1><i class="bi bi-intersect text-primary me-2"></i>Possíveis Duplicatas
+      {% if pca %}<span class="fs-5 text-muted ms-2">PCA {{ pca.exercicio }}</span>{% endif %}
+    </h1>
+    <p>
+      {{ total_grupos }} grupo{{ total_grupos|pluralize }} de itens semelhantes
+      ({{ grupos_entre_unidades }} entre unidades distintas · {{ itens_envolvidos }} iten{{ itens_envolvidos|pluralize:"s" }} envolvido{{ itens_envolvidos|pluralize }}).
+      Revise antes de consolidar o plano — itens iguais pedidos por setores diferentes
+      podem virar um único lote licitado.
+    </p>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-4">
+  <div class="card-body py-2 px-3">
+    <form method="get" class="row g-2 align-items-center">
+      <div class="col-auto">
+        <select name="pca_id" class="form-select form-select-sm" onchange="this.form.submit()">
+          {% for p in todos_pcas %}
+            <option value="{{ p.pk }}" {% if pca and p.pk == pca.pk %}selected{% endif %}>
+              PCA {{ p.exercicio }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto form-check ms-2">
+        <input class="form-check-input" type="checkbox" name="entre_unidades" value="1"
+               id="chk-entre" {% if so_entre_unidades %}checked{% endif %}
+               onchange="this.form.submit()">
+        <label class="form-check-label small" for="chk-entre">
+          Somente grupos entre unidades diferentes
+        </label>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% for g in grupos %}
+<div class="grupo-card mb-3 {% if g.entre_unidades %}entre-unidades{% endif %}">
+  <div class="grupo-header px-3 py-2 d-flex flex-wrap align-items-center gap-2">
+    {% if g.criterio == 'catmat' %}
+      <span class="badge-criterio bg-danger-subtle text-danger">MESMO CATMAT/CATSER: {{ g.chave }}</span>
+    {% else %}
+      <span class="badge-criterio bg-warning-subtle text-warning-emphasis">DESCRIÇÃO SEMELHANTE</span>
+    {% endif %}
+    {% if g.entre_unidades %}
+      <span class="badge-criterio bg-primary-subtle text-primary">
+        <i class="bi bi-people me-1"></i>{{ g.unidades|join:", " }}
+      </span>
+    {% else %}
+      <span class="badge-criterio bg-secondary-subtle text-secondary">mesma unidade ({{ g.unidades.0 }})</span>
+    {% endif %}
+    <span class="ms-auto text-muted small">
+      {{ g.qtd_itens }} itens · R$ {{ g.valor_total|floatformat:2|intcomma }}
+    </span>
+  </div>
+  <div class="table-responsive">
+    <table class="table tbl-grupo align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Código</th>
+          <th>Unidade</th>
+          <th>Descrição</th>
+          <th>CATMAT</th>
+          <th class="text-end">Qtd</th>
+          <th class="text-end">Valor unit.</th>
+          <th class="text-end">Valor total</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in g.itens %}
+        <tr>
+          <td>
+            <a href="{% url 'pca:item_detalhe' item.pk %}" class="fw-semibold text-decoration-none">
+              {{ item.codigo_pca }}
+            </a>
+          </td>
+          <td>{{ item.dfd.unidade.sigla|default:"—" }}</td>
+          <td class="text-muted" style="max-width:380px;">{{ item.descricao|truncatechars:100 }}</td>
+          <td>{{ item.codigo_catmat_catser|default:"—" }}</td>
+          <td class="text-end">{{ item.quantidade_estimada|floatformat:0|intcomma }}</td>
+          <td class="text-end">{{ item.valor_unitario_estimado|floatformat:2|intcomma }}</td>
+          <td class="text-end">{{ item.valor_total_estimado|floatformat:2|intcomma }}</td>
+          <td><span class="badge bg-light text-dark border">{{ item.get_status_display }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% empty %}
+<div class="card border-0 shadow-sm" style="border-radius:12px;">
+  <div class="card-body text-center text-muted py-5">
+    <i class="bi bi-check-circle fs-3 d-block mb-2"></i>
+    Nenhum grupo de itens semelhantes encontrado com os filtros atuais.
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

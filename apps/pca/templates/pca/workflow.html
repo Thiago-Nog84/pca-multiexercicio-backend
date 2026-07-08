@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}PCA — Fases do Plano{% endblock %}
+{% block nav_workflow %}active{% endblock %}
+
+{% block extra_style %}
+<style>
+  .stepper { display: flex; flex-wrap: wrap; gap: 0; }
+  .step { flex: 1 1 0; min-width: 130px; text-align: center; position: relative; padding: 0 .25rem; }
+  .step::before {
+    content: ""; position: absolute; top: 17px; left: -50%; width: 100%;
+    height: 3px; background: #e2e8f0; z-index: 0;
+  }
+  .step:first-child::before { display: none; }
+  .step.concluida::before { background: var(--mppi-verde); }
+  .step.atual::before { background: var(--mppi-verde); }
+  .step-dot {
+    width: 36px; height: 36px; border-radius: 50%; margin: 0 auto .4rem;
+    display: flex; align-items: center; justify-content: center;
+    background: #e2e8f0; color: #64748b; font-weight: 700; position: relative; z-index: 1;
+    border: 3px solid #fff;
+  }
+  .step.concluida .step-dot { background: var(--mppi-verde); color: #fff; }
+  .step.atual .step-dot { background: var(--mppi-vermelho); color: #fff; box-shadow: 0 0 0 4px rgba(155,35,53,.18); }
+  .step-label { font-size: .74rem; font-weight: 600; color: #64748b; line-height: 1.2; }
+  .step.atual .step-label { color: var(--mppi-vermelho); }
+  .step.concluida .step-label { color: #166534; }
+  .hist-item { border-left: 3px solid #e2e8f0; padding: .4rem .9rem; }
+  .hist-item + .hist-item { margin-top: .35rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div class="page-header">
+    <h1><i class="bi bi-signpost-split text-primary me-2"></i>Fases do PCA
+      {% if pca %}<span class="fs-5 text-muted ms-2">{{ pca.exercicio }}</span>{% endif %}
+    </h1>
+    <p>Workflow do Ato PGJ 1381/2024 (arts. 10–12), com trilha de auditoria.</p>
+  </div>
+  <form method="get">
+    <select name="pca_id" class="form-select form-select-sm" onchange="this.form.submit()">
+      {% for p in todos_pcas %}
+        <option value="{{ p.pk }}" {% if pca and p.pk == pca.pk %}selected{% endif %}>PCA {{ p.exercicio }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+{% if pca %}
+<!-- Stepper -->
+<div class="card mb-4">
+  <div class="card-body py-4">
+    <div class="stepper">
+      {% for f in fases %}
+      <div class="step {{ f.estado }}">
+        <div class="step-dot">
+          {% if f.estado == 'concluida' %}<i class="bi bi-check-lg"></i>{% else %}{{ forloop.counter }}{% endif %}
+        </div>
+        <div class="step-label">{{ f.label }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Ações -->
+  <div class="col-12 col-lg-5">
+    <div class="card h-100">
+      <div class="card-header bg-white fw-semibold"><i class="bi bi-arrow-left-right me-2"></i>Mudar de fase</div>
+      <div class="card-body">
+        {% if pode_mudar %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="pca_id" value="{{ pca.pk }}">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Justificativa
+              <span class="text-muted fw-normal">(obrigatória ao recuar)</span>
+            </label>
+            <textarea name="observacao" rows="2" class="form-control form-control-sm"
+                      placeholder="Ex: consolidação concluída pela CLC em conjunto com a APG…"></textarea>
+          </div>
+          <div class="d-flex gap-2">
+            {% if fase_anterior %}
+            <button type="submit" name="acao" value="recuar" class="btn btn-outline-secondary btn-sm"
+                    onclick="return confirm('Recuar o PCA {{ pca.exercicio }} de fase?');">
+              <i class="bi bi-arrow-left me-1"></i>Recuar
+            </button>
+            {% endif %}
+            {% if fase_seguinte %}
+            <button type="submit" name="acao" value="avancar" class="btn btn-primary btn-sm ms-auto"
+                    onclick="return confirm('Avançar o PCA {{ pca.exercicio }} para a próxima fase?');">
+              Avançar<i class="bi bi-arrow-right ms-1"></i>
+            </button>
+            {% else %}
+            <span class="text-muted small align-self-center ms-auto">Última fase do pipeline.</span>
+            {% endif %}
+          </div>
+        </form>
+        {% else %}
+        <div class="alert alert-secondary small mb-0">
+          <i class="bi bi-lock me-1"></i>Somente perfis <strong>APG</strong> ou
+          <strong>Autoridade Competente</strong> podem mudar a fase. Você está em modo de visualização.
+        </div>
+        {% endif %}
+
+        {% if pca.data_aprovacao_pgj %}
+        <hr>
+        <div class="small text-muted">
+          <i class="bi bi-patch-check text-success me-1"></i>
+          Aprovado pelo PGJ em {{ pca.data_aprovacao_pgj|date:"d/m/Y" }}
+          {% if pca.aprovado_por %}por {{ pca.aprovado_por.get_full_name|default:pca.aprovado_por.username }}{% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Situação DFDs/itens -->
+  <div class="col-12 col-lg-3">
+    <div class="card h-100">
+      <div class="card-header bg-white fw-semibold"><i class="bi bi-clipboard-data me-2"></i>Situação atual</div>
+      <div class="card-body small">
+        <div class="fw-semibold text-muted mb-1">DFDs</div>
+        {% for d in dfds_por_status %}
+          <div class="d-flex justify-content-between">
+            <span>{{ d.label }}</span>
+            <span class="fw-semibold">{{ d.qtd }}</span>
+          </div>
+        {% empty %}<div class="text-muted">Nenhum DFD.</div>{% endfor %}
+        <hr class="my-2">
+        <div class="fw-semibold text-muted mb-1">Itens</div>
+        {% for i in itens_por_status %}
+          <div class="d-flex justify-content-between">
+            <span>{{ i.label }}</span>
+            <span class="fw-semibold">{{ i.qtd }}</span>
+          </div>
+        {% empty %}<div class="text-muted">Nenhum item.</div>{% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Histórico -->
+  <div class="col-12 col-lg-4">
+    <div class="card h-100">
+      <div class="card-header bg-white fw-semibold"><i class="bi bi-clock-history me-2"></i>Histórico de fases</div>
+      <div class="card-body small" style="max-height: 320px; overflow-y: auto;">
+        {% for h in historico %}
+        <div class="hist-item">
+          <div class="fw-semibold">{{ h.get_de_status_display }} → {{ h.get_para_status_display }}</div>
+          <div class="text-muted">
+            {{ h.criado_em|date:"d/m/Y H:i" }}
+            {% if h.usuario %}· {{ h.usuario.get_full_name|default:h.usuario.username }}{% endif %}
+          </div>
+          {% if h.observacao %}<div class="text-muted fst-italic">“{{ h.observacao }}”</div>{% endif %}
+        </div>
+        {% empty %}
+        <div class="text-muted">Nenhuma mudança registrada ainda.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-warning">Nenhum PCA cadastrado.</div>
+{% endif %}
+{% endblock %}

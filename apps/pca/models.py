@@ -622,3 +622,39 @@ class ConformidadeItem(models.Model):
         ]
         marcados = sum(1 for c in campos if c)
         return round(marcados / len(campos) * 100)
+
+
+class HistoricoFasePCA(models.Model):
+    """
+    Trilha de auditoria das mudanças de fase do PCA (workflow do
+    Ato PGJ 1381/2024, arts. 10-12). Cada avanço/recuo de status feito
+    pelo painel de fases gera um registro imutável: quem, quando,
+    de onde para onde e justificativa.
+    """
+
+    pca = models.ForeignKey(
+        PlanoContratacaoAnual,
+        on_delete=models.CASCADE,
+        related_name="historico_fases",
+    )
+    de_status = models.CharField(max_length=20, choices=PlanoContratacaoAnual.STATUS)
+    para_status = models.CharField(max_length=20, choices=PlanoContratacaoAnual.STATUS)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="mudancas_fase_pca",
+    )
+    observacao = models.TextField(
+        blank=True,
+        help_text="Justificativa da mudança de fase (obrigatória ao recuar)",
+    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Histórico de Fase do PCA"
+        verbose_name_plural = "Históricos de Fase do PCA"
+        ordering = ["-criado_em"]
+
+    def __str__(self):
+        return f"PCA {self.pca.exercicio}: {self.de_status} → {self.para_status}"

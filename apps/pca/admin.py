@@ -8,11 +8,28 @@ from django.utils.html import format_html
 from .models import (
     CLASSIFICACAO_CONTINUIDADE,
     DocumentoFormalizacaoDemanda,
+    HistoricoFasePCA,
     ItemCatalogo,
     ItemPCA,
     OrcamentoPlanejado,
     PlanoContratacaoAnual,
 )
+
+
+@admin.register(HistoricoFasePCA)
+class HistoricoFasePCAAdmin(admin.ModelAdmin):
+    list_display = ("pca", "de_status", "para_status", "usuario", "criado_em")
+    list_filter = ("pca", "para_status")
+    readonly_fields = ("pca", "de_status", "para_status", "usuario", "observacao", "criado_em")
+
+    def has_add_permission(self, request):
+        return False  # trilha de auditoria: criada apenas pelo painel de fases
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
 
 
 # --- ItemCatalogo -----------------------------------------------------------

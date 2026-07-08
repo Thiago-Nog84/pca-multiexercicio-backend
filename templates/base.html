@@ -330,6 +330,14 @@
       <i class="bi bi-pause-circle"></i>
       <span class="link-text">Demandas Suspensas</span>
     </a>
+    <a href="{% url 'pca:workflow' %}" class="sidebar-link {% block nav_workflow %}{% endblock %}">
+      <i class="bi bi-signpost-split"></i>
+      <span class="link-text">Fases do PCA</span>
+    </a>
+    <a href="{% url 'pca:duplicatas' %}" class="sidebar-link {% block nav_duplicatas %}{% endblock %}">
+      <i class="bi bi-intersect"></i>
+      <span class="link-text">Possíveis Duplicatas</span>
+    </a>
     <a href="{% url 'pca:validar_demandas' 2027 %}" class="sidebar-link {% block nav_validar %}{% endblock %}">
       <i class="bi bi-clipboard2-check"></i>
       <span class="link-text">Validar Demandas 2027</span>
@@ -367,6 +375,10 @@
     <a href="{% url 'juridico:dashboard' %}" class="sidebar-link {% block nav_juridico %}{% endblock %}">
       <i class="bi bi-briefcase"></i>
       <span class="link-text">Pareceres Jurídicos</span>
+    </a>
+    <a href="{% url 'contratos:vencimentos' %}" class="sidebar-link {% block nav_vencimentos %}{% endblock %}">
+      <i class="bi bi-alarm"></i>
+      <span class="link-text">Vencimentos</span>
     </a>
 
     <div class="sidebar-divider"></div>

@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Vencimentos — Alertas 120/90/60/30 | MPPI{% endblock %}
+{% block nav_vencimentos %}active{% endblock %}
+
+{% block extra_style %}
+<style>
+  .faixa-card { border-radius: 12px; border: 1px solid #e8ecf0; cursor: pointer; text-decoration: none; display: block; transition: transform .15s, box-shadow .15s; }
+  .faixa-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.08); }
+  .faixa-card.selecionada { outline: 3px solid var(--mppi-vermelho); }
+  .tbl-venc { font-size: .875rem; }
+  .tbl-venc tbody tr:hover { background: #f8fafc; }
+  .badge-dias { font-family: monospace; font-weight: 700; border-radius: 8px; padding: .3em .7em; font-size: .82rem; }
+  .filter-bar { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; }
+  .badge-tipo { font-size: .72rem; font-weight: 700; padding: .25em .6em; border-radius: 6px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-start justify-content-between mb-4">
+  <div>
+    <h4 class="fw-bold mb-0" style="color:#1e293b;">
+      <i class="bi bi-alarm text-primary me-2"></i>Vencimentos — Alertas Progressivos
+    </h4>
+    <small class="text-muted">
+      Contratos, ARPs próprias e caronas com vigência encerrando em até {{ horizonte }} dias
+      · Referência: {{ hoje|date:"d/m/Y" }}
+    </small>
+  </div>
+</div>
+
+<!-- Cards por faixa (clique para filtrar) -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md">
+    <a href="?faixa=vencido{% if tipo_filtro %}&tipo={{ tipo_filtro }}{% endif %}"
+       class="faixa-card p-3 {% if faixa_filtro == 'vencido' %}selecionada{% endif %}">
+      <div class="text-danger fw-bold fs-3">{{ contadores.vencido }}</div>
+      <div class="text-muted small fw-semibold">Vencidos (status ainda vigente)</div>
+    </a>
+  </div>
+  <div class="col-6 col-md">
+    <a href="?faixa=d30{% if tipo_filtro %}&tipo={{ tipo_filtro }}{% endif %}"
+       class="faixa-card p-3 {% if faixa_filtro == 'd30' %}selecionada{% endif %}">
+      <div class="text-danger fw-bold fs-3">{{ contadores.d30 }}</div>
+      <div class="text-muted small fw-semibold">Até 30 dias</div>
+    </a>
+  </div>
+  <div class="col-6 col-md">
+    <a href="?faixa=d60{% if tipo_filtro %}&tipo={{ tipo_filtro }}{% endif %}"
+       class="faixa-card p-3 {% if faixa_filtro == 'd60' %}selecionada{% endif %}">
+      <div class="text-warning fw-bold fs-3">{{ contadores.d60 }}</div>
+      <div class="text-muted small fw-semibold">31–60 dias</div>
+    </a>
+  </div>
+  <div class="col-6 col-md">
+    <a href="?faixa=d90{% if tipo_filtro %}&tipo={{ tipo_filtro }}{% endif %}"
+       class="faixa-card p-3 {% if faixa_filtro == 'd90' %}selecionada{% endif %}">
+      <div class="text-warning fw-bold fs-3">{{ contadores.d90 }}</div>
+      <div class="text-muted small fw-semibold">61–90 dias</div>
+    </a>
+  </div>
+  <div class="col-6 col-md">
+    <a href="?faixa=d120{% if tipo_filtro %}&tipo={{ tipo_filtro }}{% endif %}"
+       class="faixa-card p-3 {% if faixa_filtro == 'd120' %}selecionada{% endif %}">
+      <div class="text-info fw-bold fs-3">{{ contadores.d120 }}</div>
+      <div class="text-muted small fw-semibold">91–120 dias</div>
+    </a>
+  </div>
+</div>
+
+<!-- Filtros -->
+<form method="get" class="filter-bar p-3 mb-3 d-flex flex-wrap gap-2 align-items-end">
+  <div>
+    <label class="form-label small fw-semibold mb-1">Tipo</label>
+    <select name="tipo" class="form-select form-select-sm" onchange="this.form.submit()">
+      <option value="">Todos</option>
+      <option value="contrato" {% if tipo_filtro == 'contrato' %}selected{% endif %}>Contratos</option>
+      <option value="arp" {% if tipo_filtro == 'arp' %}selected{% endif %}>ARPs próprias</option>
+      <option value="arp_externa" {% if tipo_filtro == 'arp_externa' %}selected{% endif %}>Caronas (ARP externa)</option>
+    </select>
+  </div>
+  {% if faixa_filtro %}<input type="hidden" name="faixa" value="{{ faixa_filtro }}">{% endif %}
+  {% if faixa_filtro or tipo_filtro %}
+  <a href="{% url 'contratos:vencimentos' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-x-lg me-1"></i>Limpar filtros
+  </a>
+  {% endif %}
+  <div class="ms-auto text-muted small align-self-center">{{ total }} registro(s)</div>
+</form>
+
+<!-- Tabela -->
+<div class="card border-0 shadow-sm" style="border-radius:12px;">
+  <div class="table-responsive">
+    <table class="table tbl-venc align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Tipo</th>
+          <th>Número</th>
+          <th>Objeto</th>
+          <th>Contratado / Fornecedor / Órgão</th>
+          <th>Unidade</th>
+          <th class="text-center">Fim da vigência</th>
+          <th class="text-center">Dias restantes</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for al in alertas %}
+        <tr>
+          <td>
+            {% if al.tipo == 'contrato' %}
+              <span class="badge-tipo bg-primary-subtle text-primary">Contrato</span>
+            {% elif al.tipo == 'arp' %}
+              <span class="badge-tipo bg-success-subtle text-success">ARP própria</span>
+            {% else %}
+              <span class="badge-tipo bg-warning-subtle text-warning-emphasis">Carona</span>
+            {% endif %}
+          </td>
+          <td class="fw-semibold">{{ al.numero }}</td>
+          <td class="text-muted" style="max-width:340px;">{{ al.descricao|truncatechars:90 }}</td>
+          <td>{{ al.parte|truncatechars:45 }}</td>
+          <td>{{ al.unidade|default:"—" }}</td>
+          <td class="text-center">{{ al.data_fim|date:"d/m/Y" }}</td>
+          <td class="text-center">
+            <span class="badge-dias bg-{{ al.cor }}-subtle text-{{ al.cor }}-emphasis">
+              {% if al.dias < 0 %}vencido há {{ al.dias_abs }} d{% else %}{{ al.dias }} d{% endif %}
+            </span>
+          </td>
+          <td class="text-end pe-3">
+            <a href="{{ al.url }}" class="btn btn-sm btn-outline-secondary" title="Abrir">
+              <i class="bi bi-box-arrow-up-right"></i>
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="text-center text-muted py-4">
+            <i class="bi bi-check-circle me-1"></i>Nenhum vencimento nos próximos {{ horizonte }} dias com os filtros atuais.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
