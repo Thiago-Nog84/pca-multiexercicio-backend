@@ -25,9 +25,13 @@ from django.core.management.base import BaseCommand
 from apps.pca.models import ItemCatalogo
 from apps.pca.services.catalogo_gov import CatalogoGovIndisponivel, validar_codigo
 
+# Categorias que são inequivocamente serviço → validar só no CATSER.
+# "software" fica DE FORA de propósito: licença de software é frequentemente
+# catalogada como produto CATMAT (ex.: PDM 16431 "SOFTWARE APLICATIVO"), então
+# para software deixamos o validador tentar CATMAT e CATSER (tipo=None).
 CATEGORIAS_SERVICO = {
     "servico", "servico_engenharia", "servico_terceirizado",
-    "software", "treinamento", "publicidade",
+    "treinamento", "publicidade",
 }
 
 

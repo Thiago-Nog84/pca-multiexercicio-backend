@@ -47,9 +47,11 @@
 
       // Categoria de servico -> valida como CATSER
       var campoCategoria = document.getElementById("id_categoria");
+      // "software" fica de fora: licença de software costuma ter código CATMAT
+      // (ex: PDM 16431 "SOFTWARE APLICATIVO"), então deixamos tentar os dois.
       var categoriasServico = [
         "servico", "servico_engenharia", "servico_terceirizado",
-        "software", "treinamento", "publicidade",
+        "treinamento", "publicidade",
       ];
       var tipo = "";
       if (campoCategoria && categoriasServico.indexOf(campoCategoria.value) !== -1) {
