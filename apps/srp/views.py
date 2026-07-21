@@ -339,7 +339,25 @@ class ARPDetalheView(View):
                 "url_pncp": url_pncp,
             })
 
+        # Conjuntos para evitar duplicar registros importados (ContratoARP) que
+        # correspondem ao mesmo contrato já cadastrado formalmente em ContratoPrincipal
+        val_existentes = {
+            round(float(c["valor_total"]), 2)
+            for c in lista_contratos
+            if c.get("valor_total")
+        }
+        num_existentes = {
+            str(c["numero_contrato"]).strip().lower()
+            for c in lista_contratos
+            if c.get("numero_contrato")
+        }
+
         for ca in ContratoARP.objects.filter(arp=arp).prefetch_related("itens__item_arp"):
+            ca_num = str(ca.numero_contrato or "").strip().lower()
+            ca_val = round(float(ca.valor_total or 0), 2)
+            if (ca_num and ca_num in num_existentes) or (ca_val and ca_val in val_existentes):
+                continue
+
             itens_contrato = []
             for ic in ca.itens.all():
                 itens_contrato.append({
