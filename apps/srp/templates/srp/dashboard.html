@@ -502,17 +502,23 @@
   const CORES = ['#2563eb','#16a34a','#dc2626','#d97706','#7c3aed','#0891b2','#db2777','#65a30d','#ea580c','#475569'];
   const STATUS_COR = { vigente:'#16a34a', encerrada:'#6b7280', suspensa:'#d97706', cancelada:'#dc2626' };
 
-  // ── Gráfico Status ──────────────────────────────────────────────────────────
+  // ── Gráfico Status (barras horizontais — barra > rosca, cap. 2) ─────────────
+  // Aqui a cor CODIFICA o dado (verde=vigente, cinza=encerrada…), uso legítimo
+  // segundo cap. 4-5. Por isso mantemos as cores por status.
   const ds = {{ chart_status|safe }};
   new Chart(document.getElementById('chartStatus'), {
-    type: 'doughnut',
+    type: 'bar',
     data: {
       labels: ds.labels.map(l => l.charAt(0).toUpperCase() + l.slice(1)),
-      datasets: [{ data: ds.data, backgroundColor: ds.labels.map(l => STATUS_COR[l] || '#94a3b8'), borderWidth: 2 }]
+      datasets: [{ data: ds.data, backgroundColor: ds.labels.map(l => STATUS_COR[l] || '#94a3b8'), borderRadius: 4 }]
     },
     options: {
-      cutout: '65%',
-      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
+      indexAxis: 'y',
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ctx.parsed.x + ' ARP' + (ctx.parsed.x === 1 ? '' : 's') } }
+      },
+      scales: { x: { grid: { display: false }, ticks: { precision: 0 } }, y: { grid: { display: false } } },
       onClick(e, els) {
         if (els.length) {
           const label = ds.labels[els[0].index];

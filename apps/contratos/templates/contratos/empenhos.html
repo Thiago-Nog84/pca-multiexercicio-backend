@@ -378,23 +378,21 @@
       options: {
         maintainAspectRatio: false,
         plugins: { legend: { display: false }, tooltip: tipVal },
-        scales: { y: { ticks: { callback: kfmt } } },
+        scales: { x: { grid: { display: false } }, y: { grid: { display: false }, ticks: { callback: kfmt } } },
         onClick: (e, els) => { if (els.length) drill('orgao', dOrg.labels[els[0].index]); },
       },
     });
   }
 
-  // Por fonte de recurso (rosca) -> filtra fonte
+  // Por fonte de recurso (barras horizontais — barra > rosca, cap. 2) -> filtra fonte
   if (dFonte.labels.length) {
     new Chart(document.getElementById('chartFonte'), {
-      type: 'doughnut',
-      data: { labels: dFonte.labels.map(l => 'Fonte ' + l), datasets: [{ data: dFonte.valores, backgroundColor: CORES }] },
+      type: 'bar',
+      data: { labels: dFonte.labels.map(l => 'Fonte ' + l), datasets: [{ data: dFonte.valores, backgroundColor: '#3730a3', borderRadius: 4 }] },
       options: {
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } },
-          tooltip: { callbacks: { label: c => c.label + ': ' + brl(c.parsed) } },
-        },
+        indexAxis: 'y', maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => brl(c.parsed.x) } } },
+        scales: { x: { grid: { display: false }, ticks: { callback: kfmt } }, y: { grid: { display: false } } },
         onClick: (e, els) => { if (els.length) { const k = dFonte.chaves[els[0].index]; if (k) drill('fonte', k); } },
       },
     });
@@ -408,7 +406,7 @@
       options: {
         indexAxis: 'y', maintainAspectRatio: false,
         plugins: { legend: { display: false }, tooltip: tipVal },
-        scales: { x: { ticks: { callback: kfmt } } },
+        scales: { x: { grid: { display: false }, ticks: { callback: kfmt } }, y: { grid: { display: false } } },
         onClick: (e, els) => { if (els.length) drill('elemento', dElem.chaves[els[0].index]); },
       },
     });
@@ -422,7 +420,7 @@
       options: {
         indexAxis: 'y', maintainAspectRatio: false,
         plugins: { legend: { display: false }, tooltip: tipVal },
-        scales: { x: { ticks: { callback: kfmt } } },
+        scales: { x: { grid: { display: false }, ticks: { callback: kfmt } }, y: { grid: { display: false } } },
         onClick: (e, els) => { if (els.length) drill('q', dFav.labels[els[0].index].split(' ').slice(0,2).join(' ')); },
       },
     });

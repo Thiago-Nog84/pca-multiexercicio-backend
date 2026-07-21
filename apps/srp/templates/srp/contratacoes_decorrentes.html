@@ -305,11 +305,15 @@
   const dItem      = {{ chart_item|safe }};
   const dFonte     = {{ chart_fonte|safe }};
 
+  // Cor institucional única (Storytelling com Dados, cap. 4-5: cor com propósito,
+  // não decorativa). Uma cor por gráfico; nada de paleta arco-íris.
   const VERMELHO = '#A61B2B';
-  const CORES = ['#A61B2B','#0d6efd','#198754','#fd7e14','#6f42c1','#20c997',
-                 '#d63384','#ffc107','#0dcaf0','#6c757d','#dc3545','#495057'];
+  const AZUL = '#1a56db';
 
   const brl = v => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const kfmt = v => 'R$ ' + (v/1000).toLocaleString('pt-BR', {maximumFractionDigits: 0}) + 'k';
+  // Eixos sem linhas de grade (cap. 3: declutter)
+  const semGrade = { grid: { display: false } };
 
   // Drill-down: adiciona/atualiza um filtro na URL, preservando os demais.
   function drill(param, valor) {
@@ -358,20 +362,22 @@
     });
   }
 
-  // 2) Por status (rosca) -> filtra status
+  // 2) Por status (barras horizontais — barra > rosca, cap. 2) -> filtra status
   if (dStatus.labels.length) {
     new Chart(document.getElementById('chartStatus'), {
-      type: 'doughnut',
+      type: 'bar',
       data: {
         labels: dStatus.labels,
-        datasets: [{ data: dStatus.contagens, backgroundColor: CORES }],
+        datasets: [{ data: dStatus.contagens, backgroundColor: VERMELHO, borderRadius: 4 }],
       },
       options: {
+        indexAxis: 'y',
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } },
-          tooltip: { callbacks: { label: ctx => ctx.label + ': ' + ctx.parsed + ' contratações' } },
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ctx.parsed.x + ' contratações' } },
         },
+        scales: { x: { grid: { display: false }, ticks: { precision: 0 } }, y: semGrade },
         onClick: (e, els) => { if (els.length) drill('status', dStatus.chaves[els[0].index]); },
       },
     });
@@ -413,20 +419,22 @@
     });
   }
 
-  // 5) Por unidade gestora / fonte (rosca) -> filtra fonte
+  // 5) Por unidade gestora / fonte (barras horizontais) -> filtra fonte
   if (dFonte.labels.length) {
     new Chart(document.getElementById('chartFonte'), {
-      type: 'doughnut',
+      type: 'bar',
       data: {
         labels: dFonte.labels,
-        datasets: [{ data: dFonte.valores, backgroundColor: ['#A61B2B','#0d6efd','#198754','#6c757d'] }],
+        datasets: [{ data: dFonte.valores, backgroundColor: VERMELHO, borderRadius: 4 }],
       },
       options: {
+        indexAxis: 'y',
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } },
-          tooltip: { callbacks: { label: ctx => ctx.label + ': ' + brl(ctx.parsed) } },
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => brl(ctx.parsed.x) } },
         },
+        scales: { x: { grid: { display: false }, ticks: { callback: kfmt } }, y: semGrade },
         onClick: (e, els) => {
           if (els.length) {
             const chave = dFonte.chaves[els[0].index];
