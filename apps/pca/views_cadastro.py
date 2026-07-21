@@ -471,6 +471,33 @@ class ContratosVigentesDisponiveisJSON(View):
 
 
 @method_decorator(login_required, name="dispatch")
+class ValidarCodigoCatalogoJSON(View):
+    """
+    GET /pca/api/validar-codigo-catalogo.json?codigo=19777[&tipo=CATSER]
+
+    Consulta o catálogo OFICIAL do Governo Federal (dadosabertos.compras.gov.br)
+    para confirmar que um código PDM/CATSER existe e mostrar sua descrição
+    oficial. Usado na curadoria do catálogo interno.
+
+    A API oficial não busca por descrição livre — só por código. Por isso
+    este endpoint valida um código informado, em vez de sugerir códigos a
+    partir do texto.
+    """
+
+    def get(self, request):
+        from apps.pca.services.catalogo_gov import validar_codigo
+
+        codigo = (request.GET.get("codigo") or "").strip()
+        tipo = (request.GET.get("tipo") or "").strip() or None
+        if not codigo:
+            return JsonResponse(
+                {"encontrado": False, "erro": "Informe o parâmetro 'codigo'."},
+                status=400,
+            )
+        return JsonResponse(validar_codigo(codigo, tipo))
+
+
+@method_decorator(login_required, name="dispatch")
 class DescricaoAutocompleteJSON(View):
     """
     GET /pca/api/descricao-autocomplete.json?q=<texto>

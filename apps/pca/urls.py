@@ -16,6 +16,7 @@ from .views_cadastro import (
     ContratosVigentesDisponiveisJSON,
     DescricaoAutocompleteJSON,
     ItensARPDisponiveisJSON,
+    ValidarCodigoCatalogoJSON,
 )
 from .views_analise import AnalisarItemPCAView, AnalisarLoteItensPCAView
 from .views_duplicatas import DuplicatasPCAView
@@ -65,6 +66,11 @@ urlpatterns = [
         "api/contratos-vigentes-disponiveis.json",
         ContratosVigentesDisponiveisJSON.as_view(),
         name="contratos_vigentes_disponiveis_json",
+    ),
+    path(
+        "api/validar-codigo-catalogo.json",
+        ValidarCodigoCatalogoJSON.as_view(),
+        name="validar_codigo_catalogo_json",
     ),
     path(
         "api/descricao-autocomplete.json",

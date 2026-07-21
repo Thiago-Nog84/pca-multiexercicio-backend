@@ -40,22 +40,51 @@ class ItemCatalogoAdmin(admin.ModelAdmin):
         "codigo_catalogo", "descricao_padrao", "categoria_display",
         "classificacao_badge", "modalidade_sugerida", "ativo",
     ]
-    list_filter   = ["classificacao", "categoria", "ativo"]
+    list_filter   = ["classificacao", "categoria", "grupo", "ativo"]
     search_fields = ["codigo_catalogo", "descricao_padrao", "codigo_catmat_catser"]
     ordering      = ["classificacao", "descricao_padrao"]
     list_per_page = 50
+    readonly_fields = ["conferencia_catalogo_oficial"]
+
+    class Media:
+        # Botao "Conferir na base oficial" ao lado do campo de codigo
+        js = ["pca/js/validar_codigo_catalogo.js"]
 
     fieldsets = [
         ("Identificacao", {
             "fields": ["codigo_catalogo", "descricao_padrao", "ativo"],
         }),
         ("Classificacao", {
-            "fields": ["categoria", "classificacao", "base_normativa"],
+            "fields": ["categoria", "grupo", "classificacao", "base_normativa"],
         }),
         ("Dados tecnicos", {
-            "fields": ["codigo_catmat_catser", "unidade_medida_padrao", "modalidade_sugerida"],
+            "fields": [
+                "codigo_catmat_catser", "conferencia_catalogo_oficial",
+                "unidade_medida_padrao", "valor_referencia", "modalidade_sugerida",
+                "descricao_detalhada",
+            ],
+            "description": (
+                "O codigo CATMAT/CATSER pode ser conferido contra a base oficial do "
+                "Governo Federal (dadosabertos.compras.gov.br) pelo botao abaixo do campo. "
+                "Para materiais, o nosso catalogo usa o codigo PDM (padrao descritivo), "
+                "que agrupa varios itens CATMAT especificos."
+            ),
         }),
     ]
+
+    @admin.display(description="Conferencia na base oficial")
+    def conferencia_catalogo_oficial(self, obj):
+        """Ancora onde o JS injeta o botao e o resultado da consulta a API."""
+        from django.utils.safestring import mark_safe
+
+        if not obj or not obj.pk:
+            return mark_safe(
+                '<span class="help">Salve o item para conferir o codigo na base oficial.</span>'
+            )
+        return mark_safe(
+            '<div id="conferencia-catalogo-oficial" '
+            'data-url="/pca/api/validar-codigo-catalogo.json"></div>'
+        )
 
     @admin.display(description="Categoria")
     def categoria_display(self, obj):
