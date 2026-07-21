@@ -645,6 +645,67 @@ class ContratacoesDecorrentesView(View):
             for linha in qs.values("status").annotate(n=models.Count("id"))
         }
 
+        # ─── Agregações para os gráficos gerenciais (respeitam os filtros) ───
+        import json
+
+        Count = models.Count
+        status_labels = dict(ContratacaoDecorrente.STATUS)
+
+        agg_exercicio = list(
+            qs.exclude(exercicio__isnull=True)
+            .values("exercicio")
+            .annotate(valor=Sum("valor_total"), n=Count("id"))
+            .order_by("exercicio")
+        )
+        agg_status = list(
+            qs.values("status")
+            .annotate(valor=Sum("valor_total"), n=Count("id"))
+            .order_by("-valor")
+        )
+        agg_unidade = list(
+            qs.values("unidade_requisitante__sigla")
+            .annotate(valor=Sum("valor_total"), n=Count("id"))
+            .order_by("-valor")[:12]
+        )
+        agg_arp = list(
+            qs.values("arp__id", "arp__numero_arp")
+            .annotate(valor=Sum("valor_total"), n=Count("id"))
+            .order_by("-valor")[:10]
+        )
+        agg_item = list(
+            qs.values("item_arp__descricao")
+            .annotate(valor=Sum("valor_total"), n=Count("id"))
+            .order_by("-valor")[:10]
+        )
+
+        chart_exercicio = json.dumps({
+            "labels": [str(x["exercicio"]) for x in agg_exercicio],
+            "valores": [float(x["valor"] or 0) for x in agg_exercicio],
+            "contagens": [x["n"] for x in agg_exercicio],
+        })
+        chart_status = json.dumps({
+            "labels": [status_labels.get(x["status"], x["status"]) for x in agg_status],
+            "chaves": [x["status"] for x in agg_status],
+            "valores": [float(x["valor"] or 0) for x in agg_status],
+            "contagens": [x["n"] for x in agg_status],
+        })
+        chart_unidade = json.dumps({
+            "labels": [x["unidade_requisitante__sigla"] or "—" for x in agg_unidade],
+            "valores": [float(x["valor"] or 0) for x in agg_unidade],
+            "contagens": [x["n"] for x in agg_unidade],
+        })
+        chart_arp = json.dumps({
+            "labels": [x["arp__numero_arp"] for x in agg_arp],
+            "ids": [x["arp__id"] for x in agg_arp],
+            "valores": [float(x["valor"] or 0) for x in agg_arp],
+            "contagens": [x["n"] for x in agg_arp],
+        })
+        chart_item = json.dumps({
+            "labels": [(x["item_arp__descricao"] or "—")[:45] for x in agg_item],
+            "valores": [float(x["valor"] or 0) for x in agg_item],
+            "contagens": [x["n"] for x in agg_item],
+        })
+
         # Opções de filtro
         arps_com_contratacoes = (
             AtaRegistroPrecos.objects
@@ -667,8 +728,26 @@ class ContratacoesDecorrentesView(View):
             .order_by("-exercicio")
         )
 
+        # Trilha de filtros ativos (para o usuário ver o "caminho" do drill-down
+        # e conseguir remover cada nível). Cada item: (rótulo legível, parâmetro).
+        filtros_ativos = []
+        if f_exercicio:
+            filtros_ativos.append({"label": f"Exercício {f_exercicio}", "param": "exercicio"})
+        if f_arp:
+            arp_obj = arps_com_contratacoes.filter(pk=f_arp).first()
+            if arp_obj:
+                filtros_ativos.append({"label": f"ARP {arp_obj.numero_arp}", "param": "arp"})
+        if f_status:
+            filtros_ativos.append(
+                {"label": dict(ContratacaoDecorrente.STATUS).get(f_status, f_status), "param": "status"}
+            )
+        if f_unidade:
+            filtros_ativos.append({"label": f"Unidade {f_unidade}", "param": "unidade"})
+        if busca:
+            filtros_ativos.append({"label": f'Busca "{busca}"', "param": "q"})
+
         context = {
-            "contratacoes": qs,
+            "contratacoes": qs[:300],  # tabela: limita exibição; gráficos usam o total
             "total": qs.count(),
             "valor_total": valor_total,
             "por_status": por_status,
@@ -681,5 +760,11 @@ class ContratacoesDecorrentesView(View):
             "f_exercicio": f_exercicio,
             "f_unidade": f_unidade,
             "busca": busca,
+            "filtros_ativos": filtros_ativos,
+            "chart_exercicio": chart_exercicio,
+            "chart_status": chart_status,
+            "chart_unidade": chart_unidade,
+            "chart_arp": chart_arp,
+            "chart_item": chart_item,
         }
         return render(request, self.template_name, context)

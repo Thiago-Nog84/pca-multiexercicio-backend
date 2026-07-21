@@ -26,6 +26,31 @@
   </a>
 </div>
 
+<!-- Trilha de drill-down (filtros ativos) -->
+{% if filtros_ativos %}
+<div class="d-flex align-items-center flex-wrap gap-2 mb-3">
+  <span class="text-muted small"><i class="bi bi-funnel me-1"></i>Detalhando:</span>
+  {% for f in filtros_ativos %}
+    <span class="badge rounded-pill d-inline-flex align-items-center gap-1"
+          style="background:#f0e3e5; color:var(--mppi-vermelho-escuro); font-size:.75rem; padding:.4em .7em;">
+      {{ f.label }}
+      <a href="#" class="text-reset text-decoration-none remover-filtro"
+         data-param="{{ f.param }}" title="Remover este nível" style="line-height:1;">
+        <i class="bi bi-x-circle-fill"></i>
+      </a>
+    </span>
+  {% endfor %}
+  <a href="{% url 'srp:contratacoes_decorrentes' %}" class="small text-decoration-none ms-1">
+    Limpar tudo
+  </a>
+</div>
+{% else %}
+<p class="text-muted small mb-3">
+  <i class="bi bi-mouse me-1"></i>Visão geral de todas as contratações.
+  Clique nas barras e fatias dos gráficos para ir detalhando por exercício, ARP, status, unidade ou item.
+</p>
+{% endif %}
+
 <!-- Cards de totais -->
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
@@ -56,8 +81,48 @@
   </div>
 </div>
 
+<!-- Gráficos gerenciais (drill-down por clique) -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-lg-8">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="fw-semibold small"><i class="bi bi-bar-chart me-1"></i>Valor por exercício</span>
+        <span class="text-muted" style="font-size:.72rem;">clique para filtrar o ano</span>
+      </div>
+      <div style="height:220px;"><canvas id="chartExercicio"></canvas></div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-4">
+    <div class="card stat-card p-3 h-100">
+      <div class="fw-semibold small mb-2"><i class="bi bi-pie-chart me-1"></i>Por status</div>
+      <div style="height:220px;"><canvas id="chartStatus"></canvas></div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="fw-semibold small"><i class="bi bi-file-earmark-text me-1"></i>Top ARPs por valor</span>
+        <span class="text-muted" style="font-size:.72rem;">clique para abrir a ARP</span>
+      </div>
+      <div style="height:260px;"><canvas id="chartArp"></canvas></div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card stat-card p-3 h-100">
+      <div class="fw-semibold small mb-2"><i class="bi bi-building me-1"></i>Por unidade requisitante</div>
+      <div style="height:260px;"><canvas id="chartUnidade"></canvas></div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="card stat-card p-3 h-100">
+      <div class="fw-semibold small mb-2"><i class="bi bi-box-seam me-1"></i>Top itens contratados (por valor)</div>
+      <div style="height:260px;"><canvas id="chartItem"></canvas></div>
+    </div>
+  </div>
+</div>
+
 <!-- Filtros -->
-<div class="card filtro-card mb-4">
+<div class="card filtro-card mb-4" id="secao-tabela">
   <div class="card-body py-2 px-3">
     <form method="get" class="row g-2 align-items-end">
       <div class="col-12 col-md-3">
@@ -177,4 +242,150 @@
   </div>
 </div>
 
+{% if total > 300 %}
+<p class="text-muted small mt-2">
+  <i class="bi bi-info-circle me-1"></i>Exibindo as 300 contratações mais recentes de {{ total }}.
+  Os gráficos e totais consideram todas. Use os filtros para restringir a lista.
+</p>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  const dExercicio = {{ chart_exercicio|safe }};
+  const dStatus    = {{ chart_status|safe }};
+  const dUnidade   = {{ chart_unidade|safe }};
+  const dArp       = {{ chart_arp|safe }};
+  const dItem      = {{ chart_item|safe }};
+
+  const VERMELHO = '#A61B2B';
+  const CORES = ['#A61B2B','#0d6efd','#198754','#fd7e14','#6f42c1','#20c997',
+                 '#d63384','#ffc107','#0dcaf0','#6c757d','#dc3545','#495057'];
+
+  const brl = v => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+  // Drill-down: adiciona/atualiza um filtro na URL, preservando os demais.
+  function drill(param, valor) {
+    const url = new URL(window.location.href);
+    url.searchParams.set(param, valor);
+    url.hash = '';
+    window.location.href = url.toString();
+  }
+
+  // Remover um nível de filtro (clique no X da trilha)
+  document.querySelectorAll('.remover-filtro').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      const url = new URL(window.location.href);
+      url.searchParams.delete(this.dataset.param);
+      window.location.href = url.toString();
+    });
+  });
+
+  const tooltipValor = {
+    callbacks: {
+      label: function (ctx) {
+        const d = ctx.dataset.data[ctx.dataIndex];
+        return brl(d);
+      }
+    }
+  };
+
+  // 1) Valor por exercício (barras verticais) -> filtra o ano
+  if (dExercicio.labels.length) {
+    new Chart(document.getElementById('chartExercicio'), {
+      type: 'bar',
+      data: {
+        labels: dExercicio.labels,
+        datasets: [{
+          label: 'Valor', data: dExercicio.valores,
+          backgroundColor: VERMELHO, borderRadius: 4,
+        }],
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: tooltipValor },
+        scales: { y: { ticks: { callback: v => 'R$ ' + (v/1000).toLocaleString('pt-BR') + 'k' } } },
+        onClick: (e, els) => { if (els.length) drill('exercicio', dExercicio.labels[els[0].index]); },
+      },
+    });
+  }
+
+  // 2) Por status (rosca) -> filtra status
+  if (dStatus.labels.length) {
+    new Chart(document.getElementById('chartStatus'), {
+      type: 'doughnut',
+      data: {
+        labels: dStatus.labels,
+        datasets: [{ data: dStatus.contagens, backgroundColor: CORES }],
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } },
+          tooltip: { callbacks: { label: ctx => ctx.label + ': ' + ctx.parsed + ' contratações' } },
+        },
+        onClick: (e, els) => { if (els.length) drill('status', dStatus.chaves[els[0].index]); },
+      },
+    });
+  }
+
+  // 3) Top ARPs por valor (barras horizontais) -> abre a ARP (filtra arp)
+  if (dArp.labels.length) {
+    new Chart(document.getElementById('chartArp'), {
+      type: 'bar',
+      data: {
+        labels: dArp.labels,
+        datasets: [{ label: 'Valor', data: dArp.valores, backgroundColor: '#0d6efd', borderRadius: 4 }],
+      },
+      options: {
+        indexAxis: 'y',
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: tooltipValor },
+        scales: { x: { ticks: { callback: v => 'R$ ' + (v/1000).toLocaleString('pt-BR') + 'k' } } },
+        onClick: (e, els) => { if (els.length) drill('arp', dArp.ids[els[0].index]); },
+      },
+    });
+  }
+
+  // 4) Por unidade (barras horizontais) -> filtra unidade
+  if (dUnidade.labels.length) {
+    new Chart(document.getElementById('chartUnidade'), {
+      type: 'bar',
+      data: {
+        labels: dUnidade.labels,
+        datasets: [{ label: 'Valor', data: dUnidade.valores, backgroundColor: '#198754', borderRadius: 4 }],
+      },
+      options: {
+        indexAxis: 'y',
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: tooltipValor },
+        scales: { x: { ticks: { callback: v => 'R$ ' + (v/1000).toLocaleString('pt-BR') + 'k' } } },
+        onClick: (e, els) => { if (els.length) drill('unidade', dUnidade.labels[els[0].index]); },
+      },
+    });
+  }
+
+  // 5) Top itens (barras horizontais) — informativo (busca por descrição)
+  if (dItem.labels.length) {
+    new Chart(document.getElementById('chartItem'), {
+      type: 'bar',
+      data: {
+        labels: dItem.labels,
+        datasets: [{ label: 'Valor', data: dItem.valores, backgroundColor: '#fd7e14', borderRadius: 4 }],
+      },
+      options: {
+        indexAxis: 'y',
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: tooltipValor },
+        scales: { x: { ticks: { callback: v => 'R$ ' + (v/1000).toLocaleString('pt-BR') + 'k' } } },
+        onClick: (e, els) => { if (els.length) drill('q', dItem.labels[els[0].index].split(',')[0].trim()); },
+      },
+    });
+  }
+})();
+</script>
 {% endblock %}
