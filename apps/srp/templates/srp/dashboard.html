@@ -14,6 +14,8 @@
 .val-disponivel { color:#198754; font-weight:700; }
 .val-contratado { color:#0d6efd; }
 .section-title { font-size:.85rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#6c757d; margin-bottom:.75rem; }
+.dim-card { border-radius:12px; border:1px solid #e8ecf0; position:relative; transition:.15s; }
+.dim-card:hover { transform:translateY(-2px); box-shadow:0 4px 14px rgba(0,0,0,.10); }
 {% endblock %}
 
 {% block content %}
@@ -89,6 +91,97 @@
         R$&nbsp;{{ valor_disponivel_total|floatformat:"2g" }}
       </div>
       <div class="text-muted small">Saldo disponível</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ AS 4 DIMENSÕES DO SRP ═══════════════ -->
+<div class="section-title">As 4 dimensões do registro de preços</div>
+<div class="row g-3 mb-4">
+
+  <!-- Dimensão 1: ARPs originadas -->
+  <div class="col-12 col-md-3">
+    <div class="card dim-card h-100 p-3" style="border-left:4px solid #0d6efd;">
+      <div class="d-flex align-items-center mb-2">
+        <i class="bi bi-file-earmark-ruled me-2" style="color:#0d6efd;"></i>
+        <span class="fw-bold small">1 · ARPs originadas</span>
+      </div>
+      <div class="text-muted" style="font-size:.75rem;">Atas gerenciadas pelo MPPI</div>
+      <div class="mt-2">
+        <span class="fs-4 fw-bold" style="color:#0d6efd;">{{ arps_vigentes }}</span>
+        <span class="text-muted small">vigentes de {{ total_arps }}</span>
+      </div>
+      <div class="small text-muted">R$&nbsp;{{ valor_total|floatformat:"2g" }} registrados</div>
+      <a href="#lista-arps" class="stretched-link"></a>
+    </div>
+  </div>
+
+  <!-- Dimensão 2: Contratações decorrentes -->
+  <div class="col-12 col-md-3">
+    <div class="card dim-card h-100 p-3" style="border-left:4px solid #198754;">
+      <div class="d-flex align-items-center mb-2">
+        <i class="bi bi-cart-check me-2" style="color:#198754;"></i>
+        <span class="fw-bold small">2 · Contratações decorrentes</span>
+      </div>
+      <div class="text-muted" style="font-size:.75rem;">Pedidos/contratos das ARPs próprias</div>
+      <div class="mt-2">
+        <span class="fs-4 fw-bold" style="color:#198754;">{{ dim_contratacoes.total }}</span>
+        <span class="text-muted small">em {{ dim_contratacoes.arps_distintas }} ARP{{ dim_contratacoes.arps_distintas|pluralize }}</span>
+      </div>
+      <div class="small text-muted">
+        R$&nbsp;{{ dim_contratacoes.valor_total|floatformat:"2g" }}
+        {% if dim_contratacoes.contratos_api %}· {{ dim_contratacoes.contratos_api }} via API{% endif %}
+      </div>
+      <a href="/admin/srp/contratacaodecorrente/" class="stretched-link"></a>
+    </div>
+  </div>
+
+  <!-- Dimensão 3: Caronas cedidas -->
+  <div class="col-12 col-md-3">
+    <div class="card dim-card h-100 p-3" style="border-left:4px solid #fd7e14;">
+      <div class="d-flex align-items-center mb-2">
+        <i class="bi bi-box-arrow-up-right me-2" style="color:#fd7e14;"></i>
+        <span class="fw-bold small">3 · Caronas cedidas</span>
+      </div>
+      <div class="text-muted" style="font-size:.75rem;">Outros órgãos aderindo a ARPs do MPPI</div>
+      <div class="mt-2">
+        <span class="fs-4 fw-bold" style="color:#fd7e14;">{{ dim_caronas_cedidas.total }}</span>
+        <span class="text-muted small">autorizada{{ dim_caronas_cedidas.total|pluralize }}</span>
+        {% if dim_caronas_cedidas.pendentes %}
+          <span class="badge bg-warning text-dark ms-1">{{ dim_caronas_cedidas.pendentes }} pendente{{ dim_caronas_cedidas.pendentes|pluralize }}</span>
+        {% endif %}
+      </div>
+      <div class="small text-muted">
+        {% if dim_caronas_cedidas.total %}
+          R$&nbsp;{{ dim_caronas_cedidas.valor_total|floatformat:"2g" }} · {{ dim_caronas_cedidas.orgaos_distintos }} órgão{{ dim_caronas_cedidas.orgaos_distintos|pluralize }}
+        {% else %}
+          Nenhuma adesão registrada
+        {% endif %}
+      </div>
+      <a href="/admin/srp/adesaoarp/" class="stretched-link"></a>
+    </div>
+  </div>
+
+  <!-- Dimensão 4: Caronas recebidas -->
+  <div class="col-12 col-md-3">
+    <div class="card dim-card h-100 p-3" style="border-left:4px solid #6f42c1;">
+      <div class="d-flex align-items-center mb-2">
+        <i class="bi bi-box-arrow-in-down-left me-2" style="color:#6f42c1;"></i>
+        <span class="fw-bold small">4 · Caronas recebidas</span>
+      </div>
+      <div class="text-muted" style="font-size:.75rem;">MPPI aderindo a ARPs de outros órgãos</div>
+      <div class="mt-2">
+        <span class="fs-4 fw-bold" style="color:#6f42c1;">{{ dim_caronas_recebidas.ativas }}</span>
+        <span class="text-muted small">ativa{{ dim_caronas_recebidas.ativas|pluralize }} de {{ dim_caronas_recebidas.total }}</span>
+        {% if dim_caronas_recebidas.vencendo_30d %}
+          <span class="badge bg-danger ms-1">{{ dim_caronas_recebidas.vencendo_30d }} vencendo</span>
+        {% endif %}
+      </div>
+      <div class="small text-muted">
+        R$&nbsp;{{ dim_caronas_recebidas.valor_utilizado|floatformat:"2g" }} usados de
+        R$&nbsp;{{ dim_caronas_recebidas.valor_autorizado|floatformat:"2g" }}
+      </div>
+      <a href="/admin/srp/arpexterna/" class="stretched-link"></a>
     </div>
   </div>
 </div>
@@ -198,7 +291,7 @@
 </div>
 
 <!-- ═══════════════ TABELA DE ARPs ═══════════════ -->
-<div class="card arp-card">
+<div class="card arp-card" id="lista-arps">
   <div class="card-header py-3">
     <div class="row g-2 align-items-center">
       <div class="col-12 col-md-5">

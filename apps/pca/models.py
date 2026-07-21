@@ -425,6 +425,23 @@ class ItemCatalogo(models.Model):
         help_text="Ex: Art. 3, I — Ato PGJ 1.415/2024",
     )
     codigo_catmat_catser = models.CharField(max_length=20, blank=True)
+    descricao_detalhada = models.TextField(
+        blank=True,
+        help_text="Especificação completa do item (catálogo interno 2027).",
+    )
+    grupo = models.CharField(
+        max_length=100,
+        blank=True,
+        db_index=True,
+        help_text="Grupo do catálogo interno (ex: Copa e Cozinha, Informática - Equipamentos).",
+    )
+    valor_referencia = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Valor unitário de referência do catálogo interno.",
+    )
     unidade_medida_padrao = models.CharField(max_length=30, blank=True)
     modalidade_sugerida = models.CharField(
         max_length=20,

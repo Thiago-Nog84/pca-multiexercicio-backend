@@ -136,8 +136,12 @@
         <label class="form-label small">Descrição</label>
         <input type="text" class="form-control form-control-sm descricao-input" data-field="descricao"
                required autocomplete="off"
-               placeholder="Ex: Açúcar tipo Cristal — pacote 1kg (digite para buscar itens já cadastrados)">
+               placeholder="Digite para buscar e SELECIONE um item do catálogo (obrigatório)">
         <input type="hidden" data-field="item_catalogo_id" class="hidden-item-catalogo-id">
+        <div class="invalid-feedback small aviso-catalogo">
+          Selecione um item do catálogo institucional na busca — texto livre não é aceito.
+          Detalhe especificidades na justificativa.
+        </div>
         <div class="descricao-resultado d-none" style="position:absolute; z-index:20; top:100%; left:0; right:0;
              background:var(--bs-body-bg,#fff); border:1px solid #dee2e6; border-radius:.375rem;
              box-shadow:0 4px 10px rgba(0,0,0,.1); max-height:280px; overflow-y:auto;"></div>
@@ -365,10 +369,16 @@
     row.querySelector('[data-field="unidade_fornecimento"]').value = item.unidade_fornecimento || '';
     row.querySelector('[data-field="classificacao_continuidade"]').value = item.classificacao_continuidade || 'eventual';
     row.querySelector('.descricao-input').value = item.descricao;
-    row.querySelector('.hidden-item-catalogo-id').value = origem === 'catalogo' ? item.id : '';
+    row.querySelector('.hidden-item-catalogo-id').value =
+      origem === 'catalogo' ? item.id : (item.item_catalogo_id || '');
+    validarVinculoCatalogo(row);
     if (origem === 'historico') {
       row.querySelector('[data-field="valor_unitario_estimado"]').value = item.valor_unitario_estimado;
       row.querySelector('[data-field="quantidade_estimada"]').value = item.quantidade_estimada;
+      recalcularLinha(row);
+    } else if (origem === 'catalogo' && item.valor_referencia != null) {
+      // Catalogo interno 2027: pre-preenche o valor unitario de referencia
+      row.querySelector('[data-field="valor_unitario_estimado"]').value = item.valor_referencia;
       recalcularLinha(row);
     }
     row.querySelector('.descricao-resultado').classList.add('d-none');
@@ -390,6 +400,8 @@
           <button type="button" class="dropdown-item-like d-block w-100 text-start border-0 bg-transparent px-2 py-1 small btn-selecionar-desc"
                   data-origem="catalogo" data-idx="${data.catalogo.indexOf(it)}">
             <span class="badge bg-secondary-subtle text-secondary me-1">Catálogo</span>${it.descricao}
+            ${it.grupo ? `<span class="text-muted"> — ${it.grupo}</span>` : ''}
+            ${it.valor_referencia != null ? `<span class="text-muted"> · R$ ${it.valor_referencia.toLocaleString('pt-BR',{minimumFractionDigits:2})}/un. (ref.)</span>` : ''}
           </button>`;
       });
     }
@@ -401,6 +413,7 @@
                   data-origem="historico" data-idx="${data.historico.indexOf(it)}">
             <span class="badge bg-info-subtle text-info me-1">PCA ${it.exercicio}</span>${it.descricao}
             <span class="text-muted"> — ${it.unidade_sigla} · R$ ${it.valor_unitario_estimado.toLocaleString('pt-BR',{minimumFractionDigits:2})}/un.</span>
+            ${!it.item_catalogo_id ? '<span class="badge bg-warning-subtle text-warning ms-1" title="Este item histórico não tem vínculo com o catálogo — será preciso selecionar também um item do catálogo">sem vínculo ao catálogo</span>' : ''}
           </button>`;
       });
     }
@@ -597,6 +610,8 @@
     const descInput = row.querySelector('.descricao-input');
     const descBuscaDebounced = debounce(() => buscarDescricaoAutocomplete(row), 300);
     descInput.addEventListener('input', () => {
+      // Digitacao manual quebra o vinculo com o catalogo — o usuario precisa
+      // selecionar de novo um resultado da busca (catalogo obrigatorio).
       row.querySelector('.hidden-item-catalogo-id').value = '';
       descBuscaDebounced();
     });
@@ -614,12 +629,32 @@
     });
   });
 
+  function validarVinculoCatalogo(row) {
+    const input = row.querySelector('.descricao-input');
+    const ok = !!row.querySelector('.hidden-item-catalogo-id').value;
+    input.classList.toggle('is-invalid', !ok);
+    return ok;
+  }
+
   document.getElementById('btn-add-item').addEventListener('click', addRow);
   document.getElementById('form-grupo').addEventListener('submit', function (e) {
     atualizarLinhasEResumo();
     if (!container.querySelector('.item-row')) {
       e.preventDefault();
       alert('Adicione ao menos um item ao grupo antes de salvar.');
+      return;
+    }
+    // Catalogo institucional obrigatorio: todo item deve ter sido selecionado
+    // da busca (validado tambem no servidor).
+    let semCatalogo = 0;
+    container.querySelectorAll('.item-row').forEach(row => {
+      if (!validarVinculoCatalogo(row)) semCatalogo++;
+    });
+    if (semCatalogo) {
+      e.preventDefault();
+      alert(`${semCatalogo} item(ns) sem vínculo com o catálogo institucional. ` +
+            `Busque pela descrição e selecione um item do catálogo — texto livre não é aceito.`);
+      container.querySelector('.descricao-input.is-invalid')?.focus();
     }
   });
 

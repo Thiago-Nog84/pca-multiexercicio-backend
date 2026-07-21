@@ -82,6 +82,24 @@ def _decimal(valor, default="0"):
         return Decimal(default)
 
 
+def _catalogo_id_por_catmat(codigo):
+    """
+    Fallback de vinculo ao catalogo para itens historicos sem FK: casa pelo
+    codigo CATMAT/CATSER, mas SOMENTE se exatamente 1 item ativo do catalogo
+    tiver aquele codigo (codigos PDM podem se repetir entre itens distintos —
+    ex: dois modelos de bebedouro com PDM 3492 — e nesse caso nao da para
+    escolher automaticamente sem risco de vincular errado).
+    """
+    if not codigo:
+        return None
+    ids = list(
+        ItemCatalogo.objects.filter(
+            codigo_catmat_catser=str(codigo).strip(), ativo=True
+        ).values_list("pk", flat=True)[:2]
+    )
+    return ids[0] if len(ids) == 1 else None
+
+
 @method_decorator(login_required, name="dispatch")
 class CadastroGrupoDemandaView(View):
     """
@@ -230,11 +248,24 @@ class CadastroGrupoDemandaView(View):
                         if not item.data_vencimento_contrato_anterior:
                             item.data_vencimento_contrato_anterior = contrato.data_fim_vigencia
 
-                    if item_catalogo_id:
-                        # Vinculo apenas informativo (autocomplete) — se o catalogo
-                        # tiver sido alterado/removido nesse meio tempo, nao bloqueia
-                        # o cadastro do grupo, so deixa de linkar.
-                        item.item_catalogo = ItemCatalogo.objects.filter(pk=item_catalogo_id).first()
+                    # Catalogo institucional OBRIGATORIO (padrao PCA 2027):
+                    # a demanda deve referenciar um item do catalogo — descricao
+                    # 100% livre nao e mais aceita. Especificidades vao na
+                    # justificativa do DFD, nao em texto livre do item.
+                    if not item_catalogo_id:
+                        raise ValidationError(
+                            f"Item \"{descricao[:40]}\": selecione um item do catálogo "
+                            f"institucional na busca da descrição. O cadastro com texto "
+                            f"livre foi desativado — detalhe especificidades na justificativa."
+                        )
+                    item.item_catalogo = ItemCatalogo.objects.filter(
+                        pk=item_catalogo_id, ativo=True
+                    ).first()
+                    if item.item_catalogo is None:
+                        raise ValidationError(
+                            f"Item \"{descricao[:40]}\": o item do catálogo selecionado "
+                            f"não existe mais ou foi desativado. Refaça a busca."
+                        )
 
                     item.full_clean(exclude=["codigo_pca"])
                     item.save()
@@ -480,6 +511,8 @@ class DescricaoAutocompleteJSON(View):
                 "unidade_fornecimento": c.unidade_medida_padrao,
                 "classificacao_continuidade": c.classificacao,
                 "base_normativa": c.base_normativa,
+                "grupo": c.grupo,
+                "valor_referencia": float(c.valor_referencia) if c.valor_referencia is not None else None,
             }
             for c in catalogo_qs
         ]
@@ -503,6 +536,9 @@ class DescricaoAutocompleteJSON(View):
                 "quantidade_estimada": float(h.quantidade_estimada),
                 "exercicio": h.dfd.pca.exercicio,
                 "unidade_sigla": h.dfd.unidade.sigla,
+                # Vinculo ao catalogo (obrigatorio no cadastro): usa o FK se
+                # existir; senao tenta casar pelo codigo CATMAT/CATSER.
+                "item_catalogo_id": h.item_catalogo_id or _catalogo_id_por_catmat(h.codigo_catmat_catser),
             }
             for h in historico_qs
         ]

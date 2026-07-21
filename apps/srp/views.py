@@ -10,7 +10,7 @@ Rotas:
 """
 
 import io
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -21,7 +21,15 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
 from django.views import View
 
-from .models import AtaRegistroPrecos, ContratoARP, ItemARP, VinculoARPUnidade
+from .models import (
+    AdesaoARP,
+    ARPExterna,
+    AtaRegistroPrecos,
+    ContratacaoDecorrente,
+    ContratoARP,
+    ItemARP,
+    VinculoARPUnidade,
+)
 
 
 @method_decorator(login_required, name="dispatch")
@@ -158,7 +166,49 @@ class DashboardSRPView(View):
             "pks": [t[3] for t in top_valor],
         })
 
+        # ═══════════ As 4 dimensões do SRP ═══════════
+        # 1. ARPs originadas (gerenciadas pelo MPPI) — já coberto acima
+        #    (total_arps, arps_vigentes, valor_total).
+        # 2. Contratações decorrentes das ARPs próprias
+        contratacoes = ContratacaoDecorrente.objects.exclude(status="cancelado")
+        dim_contratacoes = {
+            "total": contratacoes.count(),
+            "valor_total": contratacoes.aggregate(v=Sum("valor_total"))["v"] or 0,
+            "em_execucao": contratacoes.filter(status="em_execucao").count(),
+            "arps_distintas": contratacoes.values("arp").distinct().count(),
+            "contratos_api": ContratoARP.objects.count(),
+        }
+        # 3. Caronas cedidas — outro órgão aderiu a ARP do MPPI
+        adesoes = AdesaoARP.objects.filter(status="autorizada")
+        adesoes_pendentes = AdesaoARP.objects.filter(status="solicitada").count()
+        dim_caronas_cedidas = {
+            "total": adesoes.count(),
+            "pendentes": adesoes_pendentes,
+            "valor_total": adesoes.aggregate(v=Sum("valor_total"))["v"] or 0,
+            "orgaos_distintos": adesoes.values("orgao_aderente_cnpj").distinct().count(),
+        }
+        # 4. Caronas recebidas — MPPI aderiu a ARP de outro órgão
+        externas = ARPExterna.objects.all()
+        externas_ativas = externas.filter(status="ativa", data_fim_vigencia__gte=hoje)
+        valor_utilizado_externas = sum(
+            (e.valor_utilizado for e in externas_ativas), start=0
+        )
+        dim_caronas_recebidas = {
+            "total": externas.count(),
+            "ativas": externas_ativas.count(),
+            "valor_autorizado": externas_ativas.aggregate(
+                v=Sum("valor_total_autorizado")
+            )["v"] or 0,
+            "valor_utilizado": valor_utilizado_externas,
+            "vencendo_30d": externas_ativas.filter(
+                data_fim_vigencia__lte=hoje + timedelta(days=30)
+            ).count(),
+        }
+
         context = {
+            "dim_contratacoes": dim_contratacoes,
+            "dim_caronas_cedidas": dim_caronas_cedidas,
+            "dim_caronas_recebidas": dim_caronas_recebidas,
             "arps_lista": arps_lista,
             "total_arps": total_arps,
             "arps_vigentes": arps_vigentes,
