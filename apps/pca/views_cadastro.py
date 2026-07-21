@@ -291,7 +291,7 @@ class ItensARPDisponiveisJSON(View):
         qs = (
             ItemARP.objects
             .filter(arp__status="vigente", arp__data_fim_vigencia__gte=hoje)
-            .filter(Q(descricao__icontains=q) | Q(codigo_catmat_catser__icontains=q))
+            .filter(Q(descricao__unaccent__icontains=q) | Q(codigo_catmat_catser__icontains=q))
             .select_related("arp")
             .order_by("arp__numero_arp", "numero_item")[:30]
         )
@@ -362,9 +362,9 @@ class ContratosVigentesDisponiveisJSON(View):
             Contrato.objects
             .filter(status="vigente", data_fim_vigencia__gte=hoje)
             .filter(
-                Q(objeto__icontains=q)
+                Q(objeto__unaccent__icontains=q)
                 | Q(numero_contrato__icontains=q)
-                | Q(contratado_razao_social__icontains=q)
+                | Q(contratado_razao_social__unaccent__icontains=q)
             )
             .order_by("-data_assinatura")[:20]
         )
@@ -396,9 +396,9 @@ class ContratosVigentesDisponiveisJSON(View):
             # (confirmado em 2026-07-07 — contratos 00035/00036 vieram sem elas).
             .filter(Q(data_fim_vigencia__gte=hoje) | Q(data_fim_vigencia__isnull=True))
             .filter(
-                Q(arp__objeto__icontains=q)
+                Q(arp__objeto__unaccent__icontains=q)
                 | Q(numero_contrato__icontains=q)
-                | Q(contratado_nome__icontains=q)
+                | Q(contratado_nome__unaccent__icontains=q)
             )
             .exclude(numero_contrato__in=numeros_ja_cadastrados)
             .select_related("arp")
@@ -465,7 +465,7 @@ class DescricaoAutocompleteJSON(View):
             ItemCatalogo.objects
             .filter(ativo=True)
             .filter(
-                Q(descricao_padrao__icontains=q)
+                Q(descricao_padrao__unaccent__icontains=q)
                 | Q(codigo_catalogo__icontains=q)
                 | Q(codigo_catmat_catser__icontains=q)
             )
@@ -486,7 +486,7 @@ class DescricaoAutocompleteJSON(View):
 
         historico_qs = (
             ItemPCA.objects
-            .filter(descricao__icontains=q)
+            .filter(descricao__unaccent__icontains=q)
             .exclude(status="suspenso")
             .select_related("dfd__pca", "dfd__unidade")
             .order_by("-dfd__pca__exercicio", "-numero_item")[:8]
