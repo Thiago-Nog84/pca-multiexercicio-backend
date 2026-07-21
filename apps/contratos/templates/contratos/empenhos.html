@@ -137,6 +137,43 @@
   {% endfor %}
 </div>
 
+<!-- ═══════════════ GRÁFICOS GERENCIAIS (drill-down) ═══════════════ -->
+<div class="row g-3 mb-4">
+  <div class="col-12 col-lg-6">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="fw-semibold small"><i class="bi bi-building me-1"></i>Empenhado por órgão</span>
+        <span class="text-muted" style="font-size:.72rem;">clique para filtrar</span>
+      </div>
+      <div style="height:240px;"><canvas id="chartOrg"></canvas></div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="fw-semibold small"><i class="bi bi-cash-stack me-1"></i>Por fonte de recurso</span>
+        <span class="text-muted" style="font-size:.72rem;">clique para filtrar</span>
+      </div>
+      <div style="height:240px;"><canvas id="chartFonte"></canvas></div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="fw-semibold small"><i class="bi bi-tags me-1"></i>Por elemento de despesa</span>
+        <span class="text-muted" style="font-size:.72rem;">clique para filtrar</span>
+      </div>
+      <div style="height:260px;"><canvas id="chartElemento"></canvas></div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card stat-card p-3 h-100">
+      <div class="fw-semibold small mb-2"><i class="bi bi-people me-1"></i>Top favorecidos (por valor)</div>
+      <div style="height:260px;"><canvas id="chartFavorecido"></canvas></div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════ TABS: NOTAS DE EMPENHO / SEM EMPENHO ═══════════════ -->
 <ul class="nav nav-pills gap-2 mb-3" id="empTab" role="tablist">
   <li class="nav-item">
@@ -155,28 +192,44 @@
   <!-- TAB: NOTAS DE EMPENHO -->
   <div class="tab-pane fade show active" id="ne-panel" role="tabpanel">
     <!-- Filtros -->
-    <div class="filter-bar p-3 mb-3 d-flex align-items-center gap-3 flex-wrap">
-      <form method="get" class="d-flex gap-2 flex-wrap mb-0">
-        <select name="orgao" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+    <div class="filter-bar p-3 mb-3">
+      <form method="get" class="d-flex gap-2 flex-wrap align-items-center mb-0">
+        <input type="search" name="q" value="{{ busca }}" class="form-control form-control-sm"
+               style="width:220px;" placeholder="NE, favorecido, contrato ou descrição">
+        <select name="orgao" class="form-select form-select-sm" style="width:auto;">
           <option value="">Todos os Órgãos</option>
           {% for o in orgaos %}
             <option value="{{ o }}" {% if filtro_orgao == o %}selected{% endif %}>{{ o }}</option>
           {% endfor %}
         </select>
-        <select name="status" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+        <select name="fonte" class="form-select form-select-sm" style="width:auto;">
+          <option value="">Todas as fontes</option>
+          {% for f in fontes %}
+            <option value="{{ f }}" {% if filtro_fonte == f %}selected{% endif %}>Fonte {{ f }}</option>
+          {% endfor %}
+        </select>
+        <select name="exercicio" class="form-select form-select-sm" style="width:auto;">
+          <option value="">Todos os exercícios</option>
+          {% for ex in exercicios %}
+            <option value="{{ ex }}" {% if filtro_exercicio == ex|stringformat:"s" %}selected{% endif %}>{{ ex }}</option>
+          {% endfor %}
+        </select>
+        <select name="status" class="form-select form-select-sm" style="width:auto;">
           <option value="">Todos os Status</option>
           {% for k, v in status_choices %}
             <option value="{{ k }}" {% if filtro_status == k %}selected{% endif %}>{{ v }}</option>
           {% endfor %}
         </select>
-        {% if filtro_orgao or filtro_status %}
+        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search me-1"></i>Filtrar</button>
+        {% if filtro_orgao or filtro_status or filtro_fonte or filtro_elemento or filtro_exercicio or busca %}
           <a href="{% url 'contratos:empenhos' %}" class="btn btn-sm btn-outline-secondary">Limpar</a>
         {% endif %}
+        <input type="hidden" name="sort" value="{{ sort }}">
+        <input type="hidden" name="dir" value="{{ dir }}">
+        <span class="ms-auto chip chip-info">
+          <i class="bi bi-cash-coin"></i>{{ empenhos_filtrados }} NE · R$ {{ valor_empenhos_filtrados|floatformat:2|intcomma }}
+        </span>
       </form>
-      <div class="ms-auto d-flex gap-3" style="font-size:.8rem;">
-        <span class="chip chip-info"><i class="bi bi-cash-coin"></i>Empenhado: R$ {{ total_valor_empenhado|floatformat:2|intcomma }}</span>
-        <span class="chip chip-success"><i class="bi bi-check2-all"></i>Liquidado: R$ {{ total_valor_liquidado|floatformat:2|intcomma }}</span>
-      </div>
     </div>
 
     <div class="card shadow-sm border-0 rounded-3">
@@ -184,14 +237,14 @@
         <table class="table tbl-empenhos table-hover align-middle mb-0">
           <thead class="table-light">
             <tr style="font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;">
-              <th class="ps-3">Nota de Empenho</th>
-              <th>Contrato</th>
-              <th>Órgão</th>
-              <th>Favorecido</th>
-              <th>El. Despesa</th>
-              <th class="text-end">Valor Empenhado</th>
-              <th class="text-end">Liquidado</th>
-              <th class="text-center pe-3">Status</th>
+              {% include "contratos/_th_sort.html" with campo="ne" titulo="Nota de Empenho" classe="ps-3" %}
+              {% include "contratos/_th_sort.html" with campo="contrato" titulo="Contrato" %}
+              {% include "contratos/_th_sort.html" with campo="orgao" titulo="Órgão" %}
+              {% include "contratos/_th_sort.html" with campo="favorecido" titulo="Favorecido" %}
+              {% include "contratos/_th_sort.html" with campo="elemento" titulo="El. Despesa" %}
+              {% include "contratos/_th_sort.html" with campo="valor" titulo="Valor Empenhado" classe="text-end" %}
+              {% include "contratos/_th_sort.html" with campo="liquidado" titulo="Liquidado" classe="text-end" %}
+              {% include "contratos/_th_sort.html" with campo="status" titulo="Status" classe="text-center pe-3" %}
             </tr>
           </thead>
           <tbody>
@@ -294,4 +347,86 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  const dOrg   = {{ chart_org|safe }};
+  const dFonte = {{ chart_fonte|safe }};
+  const dElem  = {{ chart_elemento|safe }};
+  const dFav   = {{ chart_favorecido|safe }};
+
+  const CORES = ['#1a56db','#166534','#3730a3','#b45309','#9333ea','#0891b2',
+                 '#dc2626','#ca8a04','#0d9488','#6b7280','#db2777','#4b5563'];
+  const brl = v => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const kfmt = v => 'R$ ' + (v/1000).toLocaleString('pt-BR', {maximumFractionDigits: 0}) + 'k';
+
+  function drill(param, valor) {
+    const url = new URL(window.location.href);
+    url.searchParams.set(param, valor);
+    window.location.href = url.toString();
+  }
+  const tipVal = { callbacks: { label: c => brl(c.dataset.data[c.dataIndex]) } };
+
+  // Empenhado por órgão (barras V) -> filtra órgão
+  if (dOrg.labels.length) {
+    new Chart(document.getElementById('chartOrg'), {
+      type: 'bar',
+      data: { labels: dOrg.labels, datasets: [{ data: dOrg.valores, backgroundColor: '#1a56db', borderRadius: 4 }] },
+      options: {
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: tipVal },
+        scales: { y: { ticks: { callback: kfmt } } },
+        onClick: (e, els) => { if (els.length) drill('orgao', dOrg.labels[els[0].index]); },
+      },
+    });
+  }
+
+  // Por fonte de recurso (rosca) -> filtra fonte
+  if (dFonte.labels.length) {
+    new Chart(document.getElementById('chartFonte'), {
+      type: 'doughnut',
+      data: { labels: dFonte.labels.map(l => 'Fonte ' + l), datasets: [{ data: dFonte.valores, backgroundColor: CORES }] },
+      options: {
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } },
+          tooltip: { callbacks: { label: c => c.label + ': ' + brl(c.parsed) } },
+        },
+        onClick: (e, els) => { if (els.length) { const k = dFonte.chaves[els[0].index]; if (k) drill('fonte', k); } },
+      },
+    });
+  }
+
+  // Por elemento de despesa (barras H) -> filtra elemento
+  if (dElem.labels.length) {
+    new Chart(document.getElementById('chartElemento'), {
+      type: 'bar',
+      data: { labels: dElem.labels, datasets: [{ data: dElem.valores, backgroundColor: '#3730a3', borderRadius: 4 }] },
+      options: {
+        indexAxis: 'y', maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: tipVal },
+        scales: { x: { ticks: { callback: kfmt } } },
+        onClick: (e, els) => { if (els.length) drill('elemento', dElem.chaves[els[0].index]); },
+      },
+    });
+  }
+
+  // Top favorecidos (barras H) -> busca por nome
+  if (dFav.labels.length) {
+    new Chart(document.getElementById('chartFavorecido'), {
+      type: 'bar',
+      data: { labels: dFav.labels, datasets: [{ data: dFav.valores, backgroundColor: '#166534', borderRadius: 4 }] },
+      options: {
+        indexAxis: 'y', maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: tipVal },
+        scales: { x: { ticks: { callback: kfmt } } },
+        onClick: (e, els) => { if (els.length) drill('q', dFav.labels[els[0].index].split(' ').slice(0,2).join(' ')); },
+      },
+    });
+  }
+})();
+</script>
 {% endblock %}

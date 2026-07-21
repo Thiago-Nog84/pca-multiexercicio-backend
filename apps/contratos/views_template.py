@@ -289,12 +289,95 @@ class EmpenhosSIAFEView(View):
         # Filtros GET
         filtro_orgao = request.GET.get("orgao", "")
         filtro_status = request.GET.get("status", "")
+        filtro_fonte = request.GET.get("fonte", "")
+        filtro_elemento = request.GET.get("elemento", "")
+        filtro_exercicio = request.GET.get("exercicio", "")
+        busca = request.GET.get("q", "").strip()
 
         qs_empenhos = empenhos
         if filtro_orgao:
             qs_empenhos = qs_empenhos.filter(contrato__orgao__sigla=filtro_orgao)
         if filtro_status:
             qs_empenhos = qs_empenhos.filter(status_liquidacao=filtro_status)
+        if filtro_fonte:
+            qs_empenhos = qs_empenhos.filter(fonte_recurso=filtro_fonte)
+        if filtro_elemento:
+            qs_empenhos = qs_empenhos.filter(elemento_despesa=filtro_elemento)
+        if filtro_exercicio:
+            qs_empenhos = qs_empenhos.filter(ano_exercicio=filtro_exercicio)
+        if busca:
+            qs_empenhos = qs_empenhos.filter(
+                Q(numero_empenho__icontains=busca)
+                | Q(nome_favorecido__icontains=busca)
+                | Q(contrato__numero_contrato__icontains=busca)
+                | Q(descricao__icontains=busca)
+            )
+
+        # Ordenação por coluna (cabeçalhos clicáveis)
+        ORDENAVEIS = {
+            "ne": "numero_empenho",
+            "contrato": "contrato__numero_contrato",
+            "orgao": "contrato__orgao__sigla",
+            "favorecido": "nome_favorecido",
+            "elemento": "elemento_despesa",
+            "valor": "valor_empenhado",
+            "liquidado": "valor_liquidado",
+            "status": "status_liquidacao",
+            "data": "data_emissao",
+        }
+        sort = request.GET.get("sort", "valor")
+        direcao = request.GET.get("dir", "desc")
+        campo_ord = ORDENAVEIS.get(sort, "valor_empenhado")
+        prefixo = "-" if direcao == "desc" else ""
+        qs_empenhos = qs_empenhos.order_by(f"{prefixo}{campo_ord}", "-ano_exercicio")
+
+        # ─── Agregações para gráficos gerenciais (drill-down) ───
+        import json
+
+        agg_org = list(
+            qs_empenhos.values("contrato__orgao__sigla")
+            .annotate(valor=Sum("valor_empenhado"), n=Count("id"))
+            .order_by("-valor")
+        )
+        agg_fonte = list(
+            qs_empenhos.values("fonte_recurso")
+            .annotate(valor=Sum("valor_empenhado"), n=Count("id"))
+            .order_by("-valor")
+        )
+        agg_elemento = list(
+            qs_empenhos.exclude(elemento_despesa="")
+            .values("elemento_despesa")
+            .annotate(valor=Sum("valor_empenhado"), n=Count("id"))
+            .order_by("-valor")[:10]
+        )
+        agg_favorecido = list(
+            qs_empenhos.exclude(nome_favorecido="")
+            .values("nome_favorecido")
+            .annotate(valor=Sum("valor_empenhado"), n=Count("id"))
+            .order_by("-valor")[:10]
+        )
+
+        chart_org = json.dumps({
+            "labels": [x["contrato__orgao__sigla"] or "—" for x in agg_org],
+            "valores": [float(x["valor"] or 0) for x in agg_org],
+        })
+        chart_fonte = json.dumps({
+            "labels": [x["fonte_recurso"] or "—" for x in agg_fonte],
+            "chaves": [x["fonte_recurso"] or "" for x in agg_fonte],
+            "valores": [float(x["valor"] or 0) for x in agg_fonte],
+        })
+        chart_elemento = json.dumps({
+            "labels": [x["elemento_despesa"] for x in agg_elemento],
+            "chaves": [x["elemento_despesa"] for x in agg_elemento],
+            "valores": [float(x["valor"] or 0) for x in agg_elemento],
+        })
+        chart_favorecido = json.dumps({
+            "labels": [(x["nome_favorecido"] or "—")[:32] for x in agg_favorecido],
+            "valores": [float(x["valor"] or 0) for x in agg_favorecido],
+        })
+
+        # Totais do recorte filtrado (para os cards da aba de empenhos)
+        agg_filtrado = qs_empenhos.aggregate(v=Sum("valor_empenhado"), n=Count("id"))
 
         context = {
             "hoje": hoje,
@@ -306,16 +389,30 @@ class EmpenhosSIAFEView(View):
             "pct_empenhado": pct_empenhado,
             "contratos_sem_empenho": sem_empenho,
             "contratos_com_empenho": com_empenho[:20],
-            "empenhos": qs_empenhos,
+            "empenhos": qs_empenhos[:400],
             "total_empenhos": total_empenhos,
+            "empenhos_filtrados": agg_filtrado["n"] or 0,
+            "valor_empenhos_filtrados": agg_filtrado["v"] or Decimal("0.00"),
             "total_valor_empenhado": total_valor_empenhado,
             "total_valor_liquidado": total_valor_liquidado,
             "total_valor_pago": total_valor_pago,
             "por_orgao": list(por_orgao),
             "filtro_orgao": filtro_orgao,
             "filtro_status": filtro_status,
+            "filtro_fonte": filtro_fonte,
+            "filtro_elemento": filtro_elemento,
+            "filtro_exercicio": filtro_exercicio,
+            "busca": busca,
+            "sort": sort,
+            "dir": direcao,
             "orgaos": Contrato.objects.values_list("orgao__sigla", flat=True).distinct().order_by("orgao__sigla"),
             "status_choices": Empenho.STATUS_LIQUIDACAO,
+            "fontes": Empenho.objects.exclude(fonte_recurso="").values_list("fonte_recurso", flat=True).distinct().order_by("fonte_recurso"),
+            "exercicios": Empenho.objects.values_list("ano_exercicio", flat=True).distinct().order_by("-ano_exercicio"),
+            "chart_org": chart_org,
+            "chart_fonte": chart_fonte,
+            "chart_elemento": chart_elemento,
+            "chart_favorecido": chart_favorecido,
         }
         return render(request, self.template_name, context)
 

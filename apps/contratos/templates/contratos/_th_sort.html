@@ -1,0 +1,14 @@
+{% comment %}
+Cabeçalho de coluna clicável para ordenação (empenhos).
+Params: campo (chave), titulo, classe (opcional).
+Preserva os filtros da querystring e alterna asc/desc.
+{% endcomment %}
+<th class="{{ classe }}" style="white-space:nowrap;">
+  <a href="?{% for k, v in request.GET.items %}{% if k != 'sort' and k != 'dir' %}{{ k }}={{ v }}&{% endif %}{% endfor %}sort={{ campo }}&dir={% if sort == campo and dir == 'asc' %}desc{% else %}asc{% endif %}"
+     class="text-reset text-decoration-none">
+    {{ titulo }}
+    {% if sort == campo and dir == 'asc' %}<i class="bi bi-sort-up"></i>
+    {% elif sort == campo and dir == 'desc' %}<i class="bi bi-sort-down"></i>
+    {% else %}<i class="bi bi-arrow-down-up text-muted" style="font-size:.7rem;opacity:.45;"></i>{% endif %}
+  </a>
+</th>
