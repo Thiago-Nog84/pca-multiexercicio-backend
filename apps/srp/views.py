@@ -610,7 +610,6 @@ class ContratacoesDecorrentesView(View):
         qs = (
             ContratacaoDecorrente.objects
             .select_related("arp", "item_arp", "unidade_requisitante")
-            .order_by("-data_emissao", "-criado_em")
         )
 
         # Filtros
@@ -618,6 +617,7 @@ class ContratacoesDecorrentesView(View):
         f_status     = request.GET.get("status", "")
         f_exercicio  = request.GET.get("exercicio", "")
         f_unidade    = request.GET.get("unidade", "")
+        f_fonte      = request.GET.get("fonte", "")
         busca        = request.GET.get("q", "").strip()
 
         if f_arp:
@@ -628,6 +628,8 @@ class ContratacoesDecorrentesView(View):
             qs = qs.filter(exercicio=f_exercicio)
         if f_unidade:
             qs = qs.filter(unidade_requisitante__sigla=f_unidade)
+        if f_fonte:
+            qs = qs.filter(unidade_orcamentaria=f_fonte)
         if busca:
             qs = qs.filter(
                 Q(numero_pedido__icontains=busca)
@@ -635,6 +637,26 @@ class ContratacoesDecorrentesView(View):
                 | Q(item_arp__descricao__icontains=busca)
                 | Q(arp__numero_arp__icontains=busca)
             )
+
+        # ─── Ordenação por coluna (cabeçalhos clicáveis) ───
+        # Mapeia a chave da querystring para o campo real do ORM (evita injeção).
+        ORDENAVEIS = {
+            "pedido": "numero_contrato",
+            "arp": "arp__numero_arp",
+            "item": "item_arp__descricao",
+            "unidade": "unidade_requisitante__sigla",
+            "fonte": "unidade_orcamentaria",
+            "qtd": "quantidade",
+            "valor": "valor_total",
+            "exercicio": "exercicio",
+            "emissao": "data_emissao",
+            "status": "status",
+        }
+        sort = request.GET.get("sort", "emissao")
+        direcao = request.GET.get("dir", "desc")
+        campo = ORDENAVEIS.get(sort, "data_emissao")
+        prefixo = "-" if direcao == "desc" else ""
+        qs = qs.order_by(f"{prefixo}{campo}", "-criado_em")
 
         # Totais (respeitam os filtros)
         agregados = qs.aggregate(total=Sum("valor_total"))
@@ -677,6 +699,12 @@ class ContratacoesDecorrentesView(View):
             .annotate(valor=Sum("valor_total"), n=Count("id"))
             .order_by("-valor")[:10]
         )
+        fonte_labels = dict(ContratacaoDecorrente.UNIDADE_ORCAMENTARIA)
+        agg_fonte = list(
+            qs.values("unidade_orcamentaria")
+            .annotate(valor=Sum("valor_total"), n=Count("id"))
+            .order_by("-valor")
+        )
 
         chart_exercicio = json.dumps({
             "labels": [str(x["exercicio"]) for x in agg_exercicio],
@@ -704,6 +732,13 @@ class ContratacoesDecorrentesView(View):
             "labels": [(x["item_arp__descricao"] or "—")[:45] for x in agg_item],
             "valores": [float(x["valor"] or 0) for x in agg_item],
             "contagens": [x["n"] for x in agg_item],
+        })
+        chart_fonte = json.dumps({
+            "labels": [fonte_labels.get(x["unidade_orcamentaria"], "Não informado").split(" — ")[0]
+                       for x in agg_fonte],
+            "chaves": [x["unidade_orcamentaria"] or "" for x in agg_fonte],
+            "valores": [float(x["valor"] or 0) for x in agg_fonte],
+            "contagens": [x["n"] for x in agg_fonte],
         })
 
         # Opções de filtro
@@ -743,6 +778,10 @@ class ContratacoesDecorrentesView(View):
             )
         if f_unidade:
             filtros_ativos.append({"label": f"Unidade {f_unidade}", "param": "unidade"})
+        if f_fonte:
+            filtros_ativos.append(
+                {"label": fonte_labels.get(f_fonte, f_fonte).split(" — ")[0], "param": "fonte"}
+            )
         if busca:
             filtros_ativos.append({"label": f'Busca "{busca}"', "param": "q"})
 
@@ -759,12 +798,17 @@ class ContratacoesDecorrentesView(View):
             "f_status": f_status,
             "f_exercicio": f_exercicio,
             "f_unidade": f_unidade,
+            "f_fonte": f_fonte,
+            "fonte_choices": ContratacaoDecorrente.UNIDADE_ORCAMENTARIA,
             "busca": busca,
+            "sort": sort,
+            "dir": direcao,
             "filtros_ativos": filtros_ativos,
             "chart_exercicio": chart_exercicio,
             "chart_status": chart_status,
             "chart_unidade": chart_unidade,
             "chart_arp": chart_arp,
             "chart_item": chart_item,
+            "chart_fonte": chart_fonte,
         }
         return render(request, self.template_name, context)

@@ -483,6 +483,12 @@ class ContratacaoDecorrente(models.Model):
         ("concluido", "Concluído"),
         ("cancelado", "Cancelado"),
     ]
+    # Fonte orçamentária / unidade gestora do MPPI (mesmas do PCA).
+    UNIDADE_ORCAMENTARIA = [
+        ("pgj", "PGJ — Procuradoria-Geral de Justiça"),
+        ("fmmp", "FMMP — Fundo de Modernização do Ministério Público"),
+        ("fepdc", "FEPDC — Fundo Estadual de Proteção e Defesa do Consumidor"),
+    ]
     arp = models.ForeignKey(
         AtaRegistroPrecos,
         on_delete=models.PROTECT,
@@ -513,6 +519,22 @@ class ContratacaoDecorrente(models.Model):
         ),
     )
     numero_sei = models.CharField(max_length=30, blank=True)
+    unidade_orcamentaria = models.CharField(
+        max_length=10,
+        choices=UNIDADE_ORCAMENTARIA,
+        blank=True,
+        db_index=True,
+        verbose_name="Unidade gestora / fonte",
+        help_text="Fonte orçamentária que custeia a contratação (PGJ, FMMP ou FEPDC).",
+    )
+    link_contrato = models.URLField(
+        blank=True,
+        verbose_name="Link do contrato assinado",
+        help_text=(
+            "URL para visualização do instrumento contratual assinado "
+            "(PNCP, SEI ou repositório do MPPI). Abre em nova aba."
+        ),
+    )
     quantidade = models.DecimalField(max_digits=14, decimal_places=4)
     valor_unitario = models.DecimalField(max_digits=14, decimal_places=2)
     valor_total = models.DecimalField(max_digits=16, decimal_places=2)
@@ -539,6 +561,14 @@ class ContratacaoDecorrente(models.Model):
     def __str__(self):
         ref = self.numero_contrato or self.numero_pedido
         return f"{ref} — ARP {self.arp.numero_arp}"
+
+    @property
+    def link_visualizacao(self):
+        """
+        Melhor link disponível para o contrato assinado: usa o link próprio
+        se informado; senão cai para a ata no PNCP (contexto do instrumento).
+        """
+        return self.link_contrato or self.arp.link_ata_pncp or ""
 
     def save(self, *args, **kwargs):
         """

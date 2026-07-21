@@ -101,16 +101,25 @@
   <div class="col-12 col-lg-6">
     <div class="card stat-card p-3 h-100">
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <span class="fw-semibold small"><i class="bi bi-file-earmark-text me-1"></i>Top ARPs por valor</span>
-        <span class="text-muted" style="font-size:.72rem;">clique para abrir a ARP</span>
+        <span class="fw-semibold small"><i class="bi bi-bank me-1"></i>Por unidade gestora / fonte</span>
+        <span class="text-muted" style="font-size:.72rem;">PGJ · FMMP · FEPDC · clique para filtrar</span>
       </div>
-      <div style="height:260px;"><canvas id="chartArp"></canvas></div>
+      <div style="height:240px;"><canvas id="chartFonte"></canvas></div>
     </div>
   </div>
   <div class="col-12 col-lg-6">
     <div class="card stat-card p-3 h-100">
       <div class="fw-semibold small mb-2"><i class="bi bi-building me-1"></i>Por unidade requisitante</div>
-      <div style="height:260px;"><canvas id="chartUnidade"></canvas></div>
+      <div style="height:240px;"><canvas id="chartUnidade"></canvas></div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="card stat-card p-3 h-100">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="fw-semibold small"><i class="bi bi-file-earmark-text me-1"></i>Top ARPs por valor</span>
+        <span class="text-muted" style="font-size:.72rem;">clique para abrir a ARP</span>
+      </div>
+      <div style="height:260px;"><canvas id="chartArp"></canvas></div>
     </div>
   </div>
   <div class="col-12">
@@ -159,6 +168,15 @@
           {% endfor %}
         </select>
       </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-1">Fonte</label>
+        <select name="fonte" class="form-select form-select-sm">
+          <option value="">Todas</option>
+          {% for val, label in fonte_choices %}
+            <option value="{{ val }}" {% if f_fonte == val %}selected{% endif %}>{{ label|truncatechars:18 }}</option>
+          {% endfor %}
+        </select>
+      </div>
       <div class="col-6 col-md-2 d-flex gap-2">
         <button type="submit" class="btn btn-primary btn-sm flex-fill">
           <i class="bi bi-search me-1"></i>Filtrar
@@ -167,6 +185,9 @@
           <i class="bi bi-x"></i>
         </a>
       </div>
+      {# preserva a ordenação atual ao submeter os filtros #}
+      <input type="hidden" name="sort" value="{{ sort }}">
+      <input type="hidden" name="dir" value="{{ dir }}">
     </form>
   </div>
 </div>
@@ -178,24 +199,26 @@
       <table class="table table-hover table-sm mb-0 tabela-contratacoes">
         <thead class="table-light">
           <tr>
-            <th>Pedido / Contrato</th>
-            <th>ARP</th>
-            <th>Item</th>
-            <th>Unidade</th>
-            <th class="text-end">Qtd</th>
-            <th class="text-end">Valor total</th>
-            <th class="text-center">Exerc.</th>
-            <th>Emissão</th>
-            <th class="text-center">Status</th>
+            {% include "srp/_th_sort.html" with campo="pedido" titulo="Pedido / Contrato" %}
+            {% include "srp/_th_sort.html" with campo="arp" titulo="ARP" %}
+            {% include "srp/_th_sort.html" with campo="item" titulo="Item" %}
+            {% include "srp/_th_sort.html" with campo="fonte" titulo="Fonte" %}
+            {% include "srp/_th_sort.html" with campo="unidade" titulo="Unidade" %}
+            {% include "srp/_th_sort.html" with campo="qtd" titulo="Qtd" classe="text-end" %}
+            {% include "srp/_th_sort.html" with campo="valor" titulo="Valor total" classe="text-end" %}
+            {% include "srp/_th_sort.html" with campo="exercicio" titulo="Exerc." classe="text-center" %}
+            {% include "srp/_th_sort.html" with campo="emissao" titulo="Emissão" %}
+            {% include "srp/_th_sort.html" with campo="status" titulo="Status" classe="text-center" %}
+            <th class="text-center">Contrato</th>
           </tr>
         </thead>
         <tbody>
           {% if not contratacoes %}
           <tr>
-            <td colspan="9" class="text-center text-muted py-4">
+            <td colspan="11" class="text-center text-muted py-4">
               <i class="bi bi-inbox fs-3 d-block mb-2"></i>
               Nenhuma contratação decorrente encontrada.
-              {% if f_arp or f_status or f_exercicio or f_unidade or busca %}
+              {% if f_arp or f_status or f_exercicio or f_unidade or f_fonte or busca %}
                 <a href="{% url 'srp:contratacoes_decorrentes' %}" class="d-block mt-1">Limpar filtros</a>
               {% endif %}
             </td>
@@ -219,11 +242,20 @@
                 {{ c.item_arp.descricao|truncatechars:55 }}
               </div>
             </td>
+            <td>
+              {% if c.unidade_orcamentaria %}
+                <span class="badge bg-light text-dark border" style="font-size:.66rem;">
+                  {{ c.get_unidade_orcamentaria_display|truncatechars:8 }}
+                </span>
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
             <td>{{ c.unidade_requisitante.sigla|default:"—" }}</td>
             <td class="text-end">{{ c.quantidade|floatformat:"0g" }}</td>
             <td class="text-end fw-bold">R$ {{ c.valor_total|floatformat:"2g" }}</td>
             <td class="text-center">{{ c.exercicio|default:"—" }}</td>
-            <td>{{ c.data_emissao|date:"d/m/Y" }}</td>
+            <td class="text-nowrap">{{ c.data_emissao|date:"d/m/Y" }}</td>
             <td class="text-center">
               <span class="badge rounded-pill
                 {% if c.status == 'concluido' %}bg-secondary
@@ -233,6 +265,17 @@
                 " style="font-size:.68rem;">
                 {{ c.get_status_display }}
               </span>
+            </td>
+            <td class="text-center">
+              {% if c.link_visualizacao %}
+                <a href="{{ c.link_visualizacao }}" target="_blank" rel="noopener"
+                   class="btn btn-sm btn-outline-primary py-0 px-2"
+                   title="Abrir contrato assinado em nova aba{% if not c.link_contrato %} (ata no PNCP){% endif %}">
+                  <i class="bi bi-box-arrow-up-right"></i>
+                </a>
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
             </td>
           </tr>
           {% endfor %}
@@ -260,6 +303,7 @@
   const dUnidade   = {{ chart_unidade|safe }};
   const dArp       = {{ chart_arp|safe }};
   const dItem      = {{ chart_item|safe }};
+  const dFonte     = {{ chart_fonte|safe }};
 
   const VERMELHO = '#A61B2B';
   const CORES = ['#A61B2B','#0d6efd','#198754','#fd7e14','#6f42c1','#20c997',
@@ -369,7 +413,31 @@
     });
   }
 
-  // 5) Top itens (barras horizontais) — informativo (busca por descrição)
+  // 5) Por unidade gestora / fonte (rosca) -> filtra fonte
+  if (dFonte.labels.length) {
+    new Chart(document.getElementById('chartFonte'), {
+      type: 'doughnut',
+      data: {
+        labels: dFonte.labels,
+        datasets: [{ data: dFonte.valores, backgroundColor: ['#A61B2B','#0d6efd','#198754','#6c757d'] }],
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } },
+          tooltip: { callbacks: { label: ctx => ctx.label + ': ' + brl(ctx.parsed) } },
+        },
+        onClick: (e, els) => {
+          if (els.length) {
+            const chave = dFonte.chaves[els[0].index];
+            if (chave) drill('fonte', chave);
+          }
+        },
+      },
+    });
+  }
+
+  // 6) Top itens (barras horizontais) — informativo (busca por descrição)
   if (dItem.labels.length) {
     new Chart(document.getElementById('chartItem'), {
       type: 'bar',

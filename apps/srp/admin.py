@@ -132,7 +132,19 @@ class ItemARPAdmin(admin.ModelAdmin):
     list_select_related = ("arp",)
 
 
-admin.site.register(ContratacaoDecorrente)
+@admin.register(ContratacaoDecorrente)
+class ContratacaoDecorrenteAdmin(admin.ModelAdmin):
+    list_display = [
+        "numero_contrato", "numero_pedido", "arp", "unidade_orcamentaria",
+        "unidade_requisitante", "valor_total", "exercicio", "status",
+    ]
+    list_filter = ["status", "unidade_orcamentaria", "exercicio"]
+    list_editable = ["unidade_orcamentaria"]  # preenchimento rápido da fonte
+    search_fields = ["numero_contrato", "numero_pedido", "item_arp__descricao", "arp__numero_arp"]
+    autocomplete_fields = ["arp", "item_arp"]
+    raw_id_fields = ["unidade_requisitante"]
+
+
 admin.site.register(AdesaoARP)
 admin.site.register(ARPExterna)
 admin.site.register(VinculoPCAItemARP)

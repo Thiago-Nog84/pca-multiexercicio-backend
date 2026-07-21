@@ -1,0 +1,23 @@
+{% comment %}
+Cabeçalho de coluna clicável para ordenação.
+Params: campo (chave de ordenação), titulo (texto), classe (opcional, ex: text-end).
+Preserva todos os filtros da querystring, alternando asc/desc na coluna clicada.
+{% endcomment %}
+<th class="{{ classe }} th-sort" style="white-space:nowrap; cursor:pointer;">
+  {% if sort == campo and dir == "asc" %}
+    <a href="?{% for k, v in request.GET.items %}{% if k != 'sort' and k != 'dir' %}{{ k }}={{ v }}&{% endif %}{% endfor %}sort={{ campo }}&dir=desc"
+       class="text-reset text-decoration-none">
+      {{ titulo }} <i class="bi bi-sort-up"></i>
+    </a>
+  {% elif sort == campo and dir == "desc" %}
+    <a href="?{% for k, v in request.GET.items %}{% if k != 'sort' and k != 'dir' %}{{ k }}={{ v }}&{% endif %}{% endfor %}sort={{ campo }}&dir=asc"
+       class="text-reset text-decoration-none">
+      {{ titulo }} <i class="bi bi-sort-down"></i>
+    </a>
+  {% else %}
+    <a href="?{% for k, v in request.GET.items %}{% if k != 'sort' and k != 'dir' %}{{ k }}={{ v }}&{% endif %}{% endfor %}sort={{ campo }}&dir=asc"
+       class="text-reset text-decoration-none">
+      {{ titulo }} <i class="bi bi-arrow-down-up text-muted" style="font-size:.7rem; opacity:.5;"></i>
+    </a>
+  {% endif %}
+</th>
