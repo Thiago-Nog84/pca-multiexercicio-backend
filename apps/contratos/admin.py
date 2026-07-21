@@ -22,6 +22,7 @@ class ContratoAdmin(admin.ModelAdmin):
     list_display = (
         "numero_contrato",
         "orgao",
+        "unidade_orcamentaria",
         "unidade_requisitante",
         "contratado_razao_social",
         "tipo",
@@ -29,9 +30,11 @@ class ContratoAdmin(admin.ModelAdmin):
         "data_fim_vigencia",
         "valor_atual",
     )
+    list_editable = ("unidade_orcamentaria",)  # preencher rápido os 84 sem sufixo
     list_filter = (
         "status",
         "tipo",
+        "unidade_orcamentaria",
         "orgao",
         "unidade_requisitante",
     )

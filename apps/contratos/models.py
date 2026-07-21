@@ -98,6 +98,40 @@ class Contrato(models.Model):
     data_fim_vigencia = models.DateField()
     data_publicacao_pncp = models.DateTimeField(null=True, blank=True)
 
+    # Fonte orçamentária / unidade gestora (mesmas do PCA e do SRP)
+    UNIDADE_ORCAMENTARIA = [
+        ("pgj", "PGJ — Procuradoria-Geral de Justiça"),
+        ("fmmp", "FMMP — Fundo de Modernização do Ministério Público"),
+        ("fepdc", "FEPDC — Fundo Estadual de Proteção e Defesa do Consumidor"),
+    ]
+    unidade_orcamentaria = models.CharField(
+        max_length=10,
+        choices=UNIDADE_ORCAMENTARIA,
+        blank=True,
+        db_index=True,
+        verbose_name="Unidade gestora / fonte",
+        help_text=(
+            "Fonte orçamentária do contrato. Pode ser inferida do sufixo do "
+            "número (ex: 05/2026/FPDC) pelo comando inferir_fonte_contratos."
+        ),
+    )
+
+    # Documento assinado (importado do Comprasnet Contratos ou preenchido manualmente)
+    link_contrato = models.URLField(
+        blank=True,
+        verbose_name="Link do contrato assinado",
+        help_text=(
+            "URL do instrumento contratual assinado (PDF no Comprasnet/SEI/PNCP). "
+            "Preenchido automaticamente pelo comando importar_links_contratos."
+        ),
+    )
+    comprasnet_id = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="ID no Comprasnet Contratos",
+        help_text="Identificador do contrato em contratos.comprasnet.gov.br (para sincronizações).",
+    )
+
     # Unidade que originou a demanda
     unidade_requisitante = models.ForeignKey(
         "core.UnidadeRequisitante",

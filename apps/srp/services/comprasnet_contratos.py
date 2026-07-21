@@ -250,6 +250,18 @@ class ComprasnetContratosClient:
         result = self._get(f"/api/contrato/ugorigem/{uasg}/numeroano/{numero_contrato}")
         return result if isinstance(result, dict) else {}
 
+    def get_contrato_arquivos(self, contrato_id: int) -> list[dict]:
+        """
+        GET /api/contrato/{id}/arquivos
+
+        Retorna os documentos do contrato. O item com tipo "Contrato" traz em
+        `path_arquivo` a URL direta do PDF do instrumento assinado
+        (ex: https://contratos.comprasnet.gov.br/storage/contrato/.../xxx.pdf),
+        geralmente com origem SEI.
+        """
+        result = self._get(f"/api/contrato/{contrato_id}/arquivos")
+        return result if isinstance(result, list) else []
+
     # ------------------------------------------------------------------
     # Endpoints v1 autenticados
     # ------------------------------------------------------------------
