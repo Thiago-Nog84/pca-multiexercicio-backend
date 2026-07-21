@@ -17,6 +17,7 @@ from .views_cadastro import (
     DescricaoAutocompleteJSON,
     ItensARPDisponiveisJSON,
 )
+from .views_analise import AnalisarItemPCAView, AnalisarLoteItensPCAView
 from .views_duplicatas import DuplicatasPCAView
 from .views_suspensas import DemandasSuspensasView
 from .views_template import (
@@ -42,6 +43,16 @@ app_name = "pca"
 urlpatterns = [
     path("", DashboardPCAView.as_view(), name="dashboard"),
     path("demandas/", DemandasPCAView.as_view(), name="demandas"),
+    path(
+        "demandas/<int:pk>/analisar/",
+        AnalisarItemPCAView.as_view(),
+        name="analisar_item",
+    ),
+    path(
+        "demandas/analisar-lote/",
+        AnalisarLoteItensPCAView.as_view(),
+        name="analisar_lote",
+    ),
     path("cadastro-grupo/", CadastroGrupoDemandaView.as_view(), name="cadastro_grupo"),
     path("api/arp-itens-disponiveis.json", ItensARPDisponiveisJSON.as_view(), name="arp_itens_disponiveis_json"),
     path(

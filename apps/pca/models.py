@@ -259,6 +259,58 @@ class ItemPCA(models.Model):
     status = models.CharField(max_length=20, choices=STATUS, default="nao_iniciado")
     observacoes = models.TextField(blank=True)
 
+    # ------------------------------------------------------------------
+    # Analise da demanda (workflow de aprovacao)
+    # A unidade requisitante propoe; a area gestora (APG/Autoridade) decide.
+    # Aprovacao parcial e reprovacao exigem motivo — o sistema nao permite
+    # corte silencioso de quantidade/valor.
+    # ------------------------------------------------------------------
+    STATUS_APROVACAO = [
+        ("pendente", "Pendente de análise"),
+        ("aprovada_integral", "Aprovada integralmente"),
+        ("aprovada_parcial", "Aprovada parcialmente"),
+        ("nao_aprovada", "Não aprovada"),
+    ]
+    status_aprovacao = models.CharField(
+        max_length=20,
+        choices=STATUS_APROVACAO,
+        default="pendente",
+        db_index=True,
+        help_text="Resultado da análise da área gestora sobre esta demanda.",
+    )
+    motivo_analise = models.TextField(
+        blank=True,
+        help_text=(
+            "Justificativa da decisão — obrigatória em aprovação parcial "
+            "(o que foi cortado e por quê) e em não aprovação."
+        ),
+    )
+    quantidade_solicitada = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text=(
+            "Quantidade originalmente pedida pela unidade, preservada quando a "
+            "análise reduz `quantidade_estimada` (aprovação parcial)."
+        ),
+    )
+    valor_unitario_solicitado = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Valor unitário originalmente pedido, preservado na aprovação parcial.",
+    )
+    analisado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="itens_pca_analisados",
+    )
+    analisado_em = models.DateTimeField(null=True, blank=True)
+
     # SRP
     is_srp = models.BooleanField(default=False)
     justificativa_srp = models.TextField(blank=True)
@@ -369,6 +421,49 @@ class ItemPCA(models.Model):
     def is_filho(self):
         """Indica se este item é resultado de uma suspensão parcial."""
         return self.item_pai_id is not None
+
+    # ------------------------------------------------------------------
+    # Workflow de aprovação
+    # ------------------------------------------------------------------
+    @property
+    def foi_analisada(self):
+        """True quando a área gestora já emitiu um veredito sobre a demanda."""
+        return self.status_aprovacao != "pendente"
+
+    @property
+    def editavel_pela_unidade(self):
+        """
+        A unidade requisitante só pode editar/excluir enquanto a demanda
+        estiver pendente de análise. Após o veredito, ela vira documento
+        oficial do planejamento (somente leitura para a unidade).
+        """
+        return not self.foi_analisada
+
+    @property
+    def houve_corte(self):
+        """True se a análise reduziu quantidade ou valor unitário pedidos."""
+        if self.status_aprovacao != "aprovada_parcial":
+            return False
+        if self.quantidade_solicitada is not None and self.quantidade_estimada < self.quantidade_solicitada:
+            return True
+        if (
+            self.valor_unitario_solicitado is not None
+            and self.valor_unitario_estimado < self.valor_unitario_solicitado
+        ):
+            return True
+        return False
+
+    @property
+    def valor_total_solicitado(self):
+        """Valor total originalmente pedido pela unidade (antes do corte)."""
+        if self.quantidade_solicitada is None or self.valor_unitario_solicitado is None:
+            return self.valor_total_estimado
+        return self.quantidade_solicitada * self.valor_unitario_solicitado
+
+    @property
+    def valor_cortado(self):
+        """Diferença entre o que foi pedido e o que foi aprovado."""
+        return self.valor_total_solicitado - self.valor_total_estimado
 
     def _gerar_codigo_pca(self):
         """Gera código único no formato PCA-XXXX-AAAA."""

@@ -184,10 +184,13 @@ class DemandasPCAView(View):
         categoria_filtro = request.GET.get("categoria", "")
         modalidade_filtro = request.GET.get("modalidade", "")
         unidade_filtro   = request.GET.get("unidade", "")
+        aprovacao_filtro = request.GET.get("aprovacao", "")
         busca = request.GET.get("q", "").strip()
 
         if status_filtro:
             itens_qs = itens_qs.filter(status=status_filtro)
+        if aprovacao_filtro:
+            itens_qs = itens_qs.filter(status_aprovacao=aprovacao_filtro)
         if categoria_filtro:
             itens_qs = itens_qs.filter(categoria=categoria_filtro)
         if modalidade_filtro:
@@ -205,6 +208,15 @@ class DemandasPCAView(View):
                 documentoformalizacaodemanda__pca=pca
             ).distinct()
 
+        # Resumo da analise para os cards de situacao (respeita os filtros ativos)
+        from django.db.models import Count
+        from .views_analise import pode_analisar
+
+        resumo_aprovacao = {
+            linha["status_aprovacao"]: linha["n"]
+            for linha in itens_qs.values("status_aprovacao").annotate(n=Count("id"))
+        }
+
         context = {
             "pca": pca,
             "todos_pcas": todos_pcas_qs,
@@ -214,11 +226,15 @@ class DemandasPCAView(View):
             "categoria_filtro": categoria_filtro,
             "modalidade_filtro": modalidade_filtro,
             "unidade_filtro": unidade_filtro,
+            "aprovacao_filtro": aprovacao_filtro,
             "unidades": unidades_qs,
             "busca": busca,
             "status_choices": ItemPCA.STATUS,
             "categoria_choices": ItemPCA.CATEGORIAS,
             "modalidade_choices": ItemPCA.MODALIDADE,
+            "aprovacao_choices": ItemPCA.STATUS_APROVACAO,
+            "resumo_aprovacao": resumo_aprovacao,
+            "pode_analisar": pode_analisar(request.user),
         }
         return render(request, self.template_name, context)
 

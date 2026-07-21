@@ -68,6 +68,14 @@
           {% endfor %}
         </select>
       </div>
+      <div class="col-6 col-md-2">
+        <select name="aprovacao" class="form-select form-select-sm">
+          <option value="">Toda situação</option>
+          {% for val, label in aprovacao_choices %}
+            <option value="{{ val }}" {% if aprovacao_filtro == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
       <div class="col-6 col-md-2 d-flex gap-2">
         <button type="submit" class="btn btn-primary btn-sm flex-fill">
           <i class="bi bi-search me-1"></i>Filtrar
@@ -78,6 +86,44 @@
       </div>
     </form>
   </div>
+</div>
+
+<!-- Resumo da análise (respeita os filtros ativos) -->
+<div class="row g-2 mb-3">
+  {% with base=request.GET.urlencode %}
+  <div class="col-6 col-md-3">
+    <a href="?{% if pca %}pca_id={{ pca.pk }}&{% endif %}aprovacao=pendente" class="text-decoration-none">
+      <div class="card p-2 h-100 border-start border-3 border-secondary">
+        <div class="fs-5 fw-bold">{{ resumo_aprovacao.pendente|default:0 }}</div>
+        <div class="text-muted small">Pendentes de análise</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="?{% if pca %}pca_id={{ pca.pk }}&{% endif %}aprovacao=aprovada_integral" class="text-decoration-none">
+      <div class="card p-2 h-100 border-start border-3 border-success">
+        <div class="fs-5 fw-bold text-success">{{ resumo_aprovacao.aprovada_integral|default:0 }}</div>
+        <div class="text-muted small">Aprovadas integralmente</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="?{% if pca %}pca_id={{ pca.pk }}&{% endif %}aprovacao=aprovada_parcial" class="text-decoration-none">
+      <div class="card p-2 h-100 border-start border-3 border-warning">
+        <div class="fs-5 fw-bold text-warning">{{ resumo_aprovacao.aprovada_parcial|default:0 }}</div>
+        <div class="text-muted small">Aprovadas parcialmente</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="?{% if pca %}pca_id={{ pca.pk }}&{% endif %}aprovacao=nao_aprovada" class="text-decoration-none">
+      <div class="card p-2 h-100 border-start border-3 border-danger">
+        <div class="fs-5 fw-bold text-danger">{{ resumo_aprovacao.nao_aprovada|default:0 }}</div>
+        <div class="text-muted small">Não aprovadas</div>
+      </div>
+    </a>
+  </div>
+  {% endwith %}
 </div>
 
 <!-- Tabela -->
@@ -96,13 +142,14 @@
             <th class="text-end">Qtd</th>
             <th class="text-end">Valor Est.</th>
             <th class="text-center">Status</th>
+            <th class="text-center">Situação</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
           {% if not itens %}
           <tr>
-            <td colspan="9" class="text-center text-muted py-4">
+            <td colspan="10" class="text-center text-muted py-4">
               <i class="bi bi-inbox fs-3 d-block mb-2"></i>
               Nenhuma demanda encontrada.
               {% if busca or status_filtro or categoria_filtro or modalidade_filtro or unidade_filtro %}
@@ -115,7 +162,7 @@
             {% if grupo.grouper %}
             {# ── Cabeçalho de lote ── #}
             <tr style="background:#f9e5e7;">
-              <td colspan="9" class="py-1 px-3" style="border-left:3px solid var(--mppi-vermelho);">
+              <td colspan="10" class="py-1 px-3" style="border-left:3px solid var(--mppi-vermelho);">
                 <i class="bi bi-collection me-1" style="color:var(--mppi-vermelho);"></i>
                 <strong style="color:var(--mppi-vermelho-escuro);">Lote {{ grupo.grouper }}</strong>
                 <span class="text-muted ms-2" style="font-size:.8rem;">
@@ -167,10 +214,64 @@
                   {{ item.get_status_display }}
                 </span>
               </td>
-              <td>
+              <td class="text-center" style="min-width:150px;">
+                <span class="badge rounded-pill
+                  {% if item.status_aprovacao == 'aprovada_integral' %}bg-success
+                  {% elif item.status_aprovacao == 'aprovada_parcial' %}bg-warning text-dark
+                  {% elif item.status_aprovacao == 'nao_aprovada' %}bg-danger
+                  {% else %}bg-light text-dark border{% endif %}
+                  " style="font-size:.68rem;">
+                  {{ item.get_status_aprovacao_display }}
+                </span>
+                {% if item.motivo_analise %}
+                <button type="button" class="btn btn-link btn-sm p-0 ms-1 align-baseline"
+                        style="font-size:.68rem;" data-bs-toggle="modal"
+                        data-bs-target="#modalMotivo{{ item.pk }}">
+                  Ver motivo
+                </button>
+                {% endif %}
+                {% if item.houve_corte %}
+                <div class="text-muted" style="font-size:.65rem;" title="Quantidade/valor reduzidos na análise">
+                  <i class="bi bi-scissors"></i>
+                  de {{ item.quantidade_solicitada|floatformat:"0g" }} &rarr; {{ item.quantidade_estimada|floatformat:"0g" }}
+                  {% if item.valor_cortado > 0 %}
+                    · &minus;R$ {{ item.valor_cortado|floatformat:"2g" }}
+                  {% endif %}
+                </div>
+                {% endif %}
+              </td>
+              <td style="min-width:120px;">
                 <a href="{% url 'pca:item_detalhe' item.pk %}" class="btn btn-ghost btn-sm p-1" title="Ver detalhe">
                   <i class="bi bi-eye text-secondary"></i>
                 </a>
+                {% if pode_analisar %}
+                  {% if item.status_aprovacao == 'pendente' %}
+                  <form method="post" action="{% url 'pca:analisar_item' item.pk %}" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="decisao" value="aprovada_integral">
+                    <button type="submit" class="btn btn-ghost btn-sm p-1" title="Aprovar integralmente">
+                      <i class="bi bi-check-circle text-success"></i>
+                    </button>
+                  </form>
+                  <button type="button" class="btn btn-ghost btn-sm p-1" title="Aprovar parcialmente"
+                          data-bs-toggle="modal" data-bs-target="#modalParcial{{ item.pk }}">
+                    <i class="bi bi-scissors text-warning"></i>
+                  </button>
+                  <button type="button" class="btn btn-ghost btn-sm p-1" title="Não aprovar"
+                          data-bs-toggle="modal" data-bs-target="#modalRejeitar{{ item.pk }}">
+                    <i class="bi bi-x-circle text-danger"></i>
+                  </button>
+                  {% else %}
+                  <form method="post" action="{% url 'pca:analisar_item' item.pk %}" class="d-inline"
+                        onsubmit="return confirm('Reabrir esta demanda para análise? A quantidade e o valor originalmente pedidos pela unidade serão restaurados.');">
+                    {% csrf_token %}
+                    <input type="hidden" name="decisao" value="reabrir">
+                    <button type="submit" class="btn btn-ghost btn-sm p-1" title="Reabrir para análise">
+                      <i class="bi bi-arrow-counterclockwise text-secondary"></i>
+                    </button>
+                  </form>
+                  {% endif %}
+                {% endif %}
               </td>
             </tr>
             {% endfor %}
@@ -180,4 +281,114 @@
     </div>
   </div>
 </div>
+
+{# ═══════════ Modais de análise (um conjunto por item) ═══════════ #}
+{% for item in itens %}
+  {% if item.motivo_analise %}
+  <div class="modal fade" id="modalMotivo{{ item.pk }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h6 class="modal-title">Motivo da decisão — {{ item.codigo_pca }}</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted mb-1">{{ item.get_status_aprovacao_display }}</p>
+          <p class="mb-2" style="white-space:pre-wrap;">{{ item.motivo_analise }}</p>
+          {% if item.houve_corte %}
+          <div class="alert alert-warning py-2 small mb-2">
+            Pedido original: {{ item.quantidade_solicitada|floatformat:"0g" }} un. ×
+            R$ {{ item.valor_unitario_solicitado|floatformat:"2g" }}
+            = R$ {{ item.valor_total_solicitado|floatformat:"2g" }}<br>
+            Aprovado: {{ item.quantidade_estimada|floatformat:"0g" }} un. ×
+            R$ {{ item.valor_unitario_estimado|floatformat:"2g" }}
+            = R$ {{ item.valor_total_estimado|floatformat:"2g" }}
+          </div>
+          {% endif %}
+          <p class="text-muted mb-0" style="font-size:.75rem;">
+            Analisado por {{ item.analisado_por|default:"—" }}
+            em {{ item.analisado_em|date:"d/m/Y H:i"|default:"—" }}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if pode_analisar and item.status_aprovacao == 'pendente' %}
+  {# Aprovação parcial #}
+  <div class="modal fade" id="modalParcial{{ item.pk }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <form method="post" action="{% url 'pca:analisar_item' item.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="decisao" value="aprovada_parcial">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h6 class="modal-title">Aprovar parcialmente — {{ item.codigo_pca }}</h6>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="small text-muted">{{ item.descricao|truncatechars:120 }}</p>
+            <p class="small mb-3">
+              Pedido pela unidade: <strong>{{ item.quantidade_estimada|floatformat:"0g" }}</strong>
+              {{ item.unidade_fornecimento }} ×
+              R$ {{ item.valor_unitario_estimado|floatformat:"2g" }}
+              = R$ {{ item.valor_total_estimado|floatformat:"2g" }}
+            </p>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label small">Quantidade aprovada</label>
+                <input type="number" step="any" min="0.0001" name="quantidade_aprovada"
+                       class="form-control form-control-sm" required
+                       value="{{ item.quantidade_estimada|stringformat:'s' }}"
+                       max="{{ item.quantidade_estimada|stringformat:'s' }}">
+              </div>
+              <div class="col-6">
+                <label class="form-label small">Valor unitário aprovado (R$)</label>
+                <input type="number" step="0.01" min="0.01" name="valor_unitario_aprovado"
+                       class="form-control form-control-sm" required
+                       value="{{ item.valor_unitario_estimado|stringformat:'s' }}">
+              </div>
+            </div>
+            <label class="form-label small">Motivo do corte <span class="text-danger">*</span></label>
+            <textarea name="motivo" rows="3" required class="form-control form-control-sm"
+                      placeholder="Explique o que foi reduzido e por quê (ex: contingenciamento, histórico de preços)."></textarea>
+            <div class="form-text">A unidade requisitante verá esta justificativa.</div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-sm btn-warning">Aprovar parcialmente</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# Não aprovação #}
+  <div class="modal fade" id="modalRejeitar{{ item.pk }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <form method="post" action="{% url 'pca:analisar_item' item.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="decisao" value="nao_aprovada">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h6 class="modal-title">Não aprovar — {{ item.codigo_pca }}</h6>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="small text-muted">{{ item.descricao|truncatechars:120 }}</p>
+            <label class="form-label small">Motivo da não aprovação <span class="text-danger">*</span></label>
+            <textarea name="motivo" rows="3" required class="form-control form-control-sm"
+                      placeholder="Justifique o indeferimento — a unidade requisitante verá este texto."></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-sm btn-danger">Não aprovar</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+{% endfor %}
 {% endblock %}

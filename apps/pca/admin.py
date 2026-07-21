@@ -221,11 +221,11 @@ class ItemPCAAdmin(admin.ModelAdmin):
         "modalidade", "valor_total_estimado", "status",
     ]
     list_filter = [
-        "dfd__pca__exercicio", "status", "categoria",
+        "dfd__pca__exercicio", "status_aprovacao", "status", "categoria",
         "classificacao_continuidade", "tipo_demanda", "modalidade",
     ]
     search_fields     = ["codigo_pca", "descricao", "codigo_catmat_catser"]
-    readonly_fields   = ["codigo_pca"]
+    readonly_fields   = ["codigo_pca", "analisado_por", "analisado_em"]
     autocomplete_fields = ["item_catalogo"]
     raw_id_fields     = ["origem_item", "item_pai"]
     actions           = [renovar_para_proximo_exercicio]
@@ -249,6 +249,18 @@ class ItemPCAAdmin(admin.ModelAdmin):
                 "unidade_fornecimento", "quantidade_estimada",
                 "valor_unitario_estimado", "valor_total_estimado",
             ],
+        }),
+        ("Analise da Demanda", {
+            "fields": [
+                "status_aprovacao", "motivo_analise",
+                "quantidade_solicitada", "valor_unitario_solicitado",
+                "analisado_por", "analisado_em",
+            ],
+            "description": (
+                "Veredito da area gestora. Aprovacao parcial e nao aprovacao exigem "
+                "motivo (a unidade requisitante ve essa justificativa). Os campos "
+                "'solicitada/solicitado' preservam o pedido original quando ha corte."
+            ),
         }),
         ("Contratacao", {
             "fields": [
