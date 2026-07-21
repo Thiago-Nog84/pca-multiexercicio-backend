@@ -582,6 +582,61 @@ class ContratacaoDecorrente(models.Model):
             self.item_arp.quantidade_contratada += self.quantidade
             self.item_arp.save(update_fields=["quantidade_contratada"])
         super().save(*args, **kwargs)
+
+    @classmethod
+    def criar_em_lote(cls, objs, update_fields=None):
+        """
+        Substitui o uso direto de ``bulk_create`` para criação em lote de
+        ContratacaoDecorrente.  Além de persistir os registros, atualiza
+        atomicamente ``ItemARP.quantidade_contratada`` de cada item envolvido
+        — operação que o ``bulk_create`` puro ignora (não chama ``save()``).
+
+        Usar este método garante que o Dashboard SRP sempre exibirá o
+        percentual de consumo correto, mesmo em importações em lote.
+
+        Args:
+            objs: iterável de instâncias ``ContratacaoDecorrente`` não salvas.
+            update_fields: repassado ao ``bulk_create`` (opcional).
+
+        Returns:
+            Lista de objetos criados (com PKs preenchidos).
+
+        Exemplo::
+
+            cds = [ContratacaoDecorrente(arp=arp, item_arp=item, quantidade=q, ...) ...]
+            ContratacaoDecorrente.criar_em_lote(cds)
+        """
+        from collections import defaultdict
+        from django.db import transaction
+        from django.db.models import F
+
+        objs = list(objs)
+        if not objs:
+            return []
+
+        # Preenche exercicio automaticamente, igual ao save()
+        for obj in objs:
+            if obj.data_emissao and not obj.exercicio:
+                obj.exercicio = obj.data_emissao.year
+
+        with transaction.atomic():
+            kwargs = {}
+            if update_fields is not None:
+                kwargs["update_fields"] = update_fields
+            criados = cls.objects.bulk_create(objs, **kwargs)
+
+            # Acumula a quantidade total por ItemARP para fazer um único
+            # UPDATE por item (em vez de N updates individuais)
+            delta_por_item = defaultdict(lambda: 0)
+            for obj in objs:
+                delta_por_item[obj.item_arp_id] += obj.quantidade
+
+            for item_id, delta in delta_por_item.items():
+                ItemARP.objects.filter(pk=item_id).update(
+                    quantidade_contratada=F("quantidade_contratada") + delta
+                )
+
+        return criados
 class AdesaoARP(models.Model):
     """
     Carona CEDIDA: outro órgão aderiu à ARP do MPPI.

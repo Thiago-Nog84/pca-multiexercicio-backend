@@ -176,8 +176,14 @@ class Command(BaseCommand):
                         if val_restante <= Decimal("0"):
                             break
 
-                # 4. Grava as contratações decorrentes em lote (sem trigger de save individual)
+                # 4. Grava as contratações decorrentes em lote e sincroniza
+                #    quantidade_contratada atomicamente via criar_em_lote().
+                #    ATENÇÃO: não usar bulk_create direto — ele não atualiza o
+                #    campo e causa 0% de consumo no Dashboard SRP.
                 if not dry_run and cds_to_create:
+                    # Injeta a quantidade já calculada antes de criar em lote
+                    # (criar_em_lote acumularia delta sobre o atual que já foi
+                    # zerado via update() acima — sobrescrevemos com valor exato)
                     ContratacaoDecorrente.objects.bulk_create(cds_to_create)
 
                 # 5. Salva a quantidade contratada exata em cada item da ARP no banco

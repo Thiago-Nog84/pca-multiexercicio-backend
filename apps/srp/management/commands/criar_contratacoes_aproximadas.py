@@ -17,7 +17,6 @@ from decimal import Decimal, ROUND_HALF_UP
 from difflib import SequenceMatcher
 
 from django.core.management.base import BaseCommand
-from django.db.models import F
 
 from apps.contratos.models import Contrato
 from apps.srp.models import AtaRegistroPrecos, ContratacaoDecorrente, ItemARP
@@ -168,10 +167,9 @@ class Command(BaseCommand):
                     status="concluido",
                     unidade_requisitante=c.unidade_requisitante,
                 )
-                ContratacaoDecorrente.objects.bulk_create([cd])
-                ItemARP.objects.filter(pk=item.pk).update(
-                    quantidade_contratada=F("quantidade_contratada") + qtd
-                )
+                # criar_em_lote() encapsula bulk_create + update de
+                # quantidade_contratada em transação atômica.
+                ContratacaoDecorrente.criar_em_lote([cd])
             criados += 1
 
         # ── Relatório ───────────────────────────────────────────────
