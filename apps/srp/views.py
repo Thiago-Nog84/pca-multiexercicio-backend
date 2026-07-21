@@ -592,3 +592,94 @@ class SRPUnidadeView(View):
             "outras_unidades": todas_unidades,
         }
         return render(request, self.template_name, context)
+
+
+@method_decorator(login_required, name="dispatch")
+class ContratacoesDecorrentesView(View):
+    """
+    Lista as contratações decorrentes de ARPs próprias do MPPI (dimensão 2 do
+    SRP). Substitui o acesso ao admin cru — página com filtros por ARP, status,
+    exercício e unidade, além de totais.
+    """
+
+    template_name = "srp/contratacoes_decorrentes.html"
+
+    def get(self, request):
+        from django.db.models import Sum
+
+        qs = (
+            ContratacaoDecorrente.objects
+            .select_related("arp", "item_arp", "unidade_requisitante")
+            .order_by("-data_emissao", "-criado_em")
+        )
+
+        # Filtros
+        f_arp        = request.GET.get("arp", "")
+        f_status     = request.GET.get("status", "")
+        f_exercicio  = request.GET.get("exercicio", "")
+        f_unidade    = request.GET.get("unidade", "")
+        busca        = request.GET.get("q", "").strip()
+
+        if f_arp:
+            qs = qs.filter(arp_id=f_arp)
+        if f_status:
+            qs = qs.filter(status=f_status)
+        if f_exercicio:
+            qs = qs.filter(exercicio=f_exercicio)
+        if f_unidade:
+            qs = qs.filter(unidade_requisitante__sigla=f_unidade)
+        if busca:
+            qs = qs.filter(
+                Q(numero_pedido__icontains=busca)
+                | Q(numero_contrato__icontains=busca)
+                | Q(item_arp__descricao__icontains=busca)
+                | Q(arp__numero_arp__icontains=busca)
+            )
+
+        # Totais (respeitam os filtros)
+        agregados = qs.aggregate(total=Sum("valor_total"))
+        valor_total = agregados["total"] or 0
+
+        por_status = {
+            linha["status"]: linha["n"]
+            for linha in qs.values("status").annotate(n=models.Count("id"))
+        }
+
+        # Opções de filtro
+        arps_com_contratacoes = (
+            AtaRegistroPrecos.objects
+            .filter(contratacoes_decorrentes__isnull=False)
+            .distinct()
+            .order_by("-data_inicio_vigencia")
+        )
+        from apps.core.models import UnidadeRequisitante
+        unidades = (
+            UnidadeRequisitante.objects
+            .filter(contratacoes_decorrentes__isnull=False)
+            .distinct()
+            .order_by("sigla")
+        )
+        exercicios = (
+            ContratacaoDecorrente.objects
+            .exclude(exercicio__isnull=True)
+            .values_list("exercicio", flat=True)
+            .distinct()
+            .order_by("-exercicio")
+        )
+
+        context = {
+            "contratacoes": qs,
+            "total": qs.count(),
+            "valor_total": valor_total,
+            "por_status": por_status,
+            "arps": arps_com_contratacoes,
+            "unidades": unidades,
+            "exercicios": exercicios,
+            "status_choices": ContratacaoDecorrente.STATUS,
+            "f_arp": f_arp,
+            "f_status": f_status,
+            "f_exercicio": f_exercicio,
+            "f_unidade": f_unidade,
+            "busca": busca,
+        }
+        return render(request, self.template_name, context)

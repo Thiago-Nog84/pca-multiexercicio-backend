@@ -132,7 +132,7 @@
         R$&nbsp;{{ dim_contratacoes.valor_total|floatformat:"2g" }}
         {% if dim_contratacoes.contratos_api %}· {{ dim_contratacoes.contratos_api }} via API{% endif %}
       </div>
-      <a href="/admin/srp/contratacaodecorrente/" class="stretched-link"></a>
+      <a href="{% url 'srp:contratacoes_decorrentes' %}" class="stretched-link"></a>
     </div>
   </div>
 
