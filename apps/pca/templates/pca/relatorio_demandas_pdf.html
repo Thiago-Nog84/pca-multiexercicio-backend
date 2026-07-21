@@ -1,0 +1,169 @@
+{% load humanize %}<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <title>Demandas do PCA {% if pca %}{{ pca.exercicio }}{% endif %} — MPPI</title>
+  <style>
+    /* xhtml2pdf: CSS limitado — evitar flex/grid, usar tabelas e @frame */
+    @page {
+      size: A4 landscape;
+      margin: 1.4cm 1.2cm 1.8cm 1.2cm;
+      @frame rodape {
+        -pdf-frame-content: rodape-conteudo;
+        bottom: 0.7cm; left: 1.2cm; right: 1.2cm; height: 1cm;
+      }
+    }
+    body { font-family: Helvetica, Arial, sans-serif; font-size: 8.5pt; color: #222; }
+
+    .cabecalho { border-bottom: 2px solid #A61B2B; padding-bottom: 6px; margin-bottom: 10px; }
+    .orgao { font-size: 12pt; font-weight: bold; color: #A61B2B; margin: 0; }
+    .subtitulo { font-size: 9pt; color: #555; margin: 2px 0 0 0; }
+    .meta { font-size: 7.5pt; color: #666; margin-top: 4px; }
+
+    .resumo { background: #f5f5f5; border: 1px solid #ddd; padding: 5px 7px; margin-bottom: 10px; }
+    .resumo td { font-size: 8pt; padding: 1px 0; }
+    .resumo .rot { color: #666; }
+    .resumo .val { font-weight: bold; color: #A61B2B; }
+
+    table.dados { width: 100%; border-collapse: collapse; }
+    table.dados th {
+      background: #A61B2B; color: #fff; font-size: 7.5pt; text-align: left;
+      padding: 4px 5px; font-weight: bold;
+    }
+    table.dados td { border-bottom: 1px solid #e3e3e3; padding: 4px 5px; font-size: 7.5pt; }
+    .num { text-align: right; }
+    .cen { text-align: center; }
+
+    .unidade-cab {
+      background: #f0e3e5; border-left: 3px solid #A61B2B;
+      padding: 4px 6px; margin-top: 12px; margin-bottom: 0;
+      font-size: 9pt; font-weight: bold; color: #7d1420;
+    }
+    .subtotal td {
+      background: #fafafa; font-weight: bold; font-size: 8pt;
+      border-top: 1px solid #A61B2B; border-bottom: 2px solid #ddd;
+    }
+    .total-geral {
+      margin-top: 14px; border-top: 2px solid #A61B2B; padding-top: 6px;
+      font-size: 10pt; font-weight: bold; color: #A61B2B; text-align: right;
+    }
+    .badge { font-size: 6.5pt; padding: 1px 3px; border: 1px solid #ccc; }
+    .b-ok   { background: #d8f0e0; border-color: #9cc9ac; }
+    .b-parc { background: #fdf0cf; border-color: #e0c479; }
+    .b-nao  { background: #f9d9d9; border-color: #d99; }
+    .corte { color: #8a6d00; font-size: 6.5pt; }
+    .vazio { text-align: center; color: #888; padding: 20px; font-style: italic; }
+    #rodape-conteudo { font-size: 7pt; color: #777; text-align: center; }
+  </style>
+</head>
+<body>
+
+<div class="cabecalho">
+  <p class="orgao">MINISTÉRIO PÚBLICO DO ESTADO DO PIAUÍ</p>
+  <p class="subtitulo">
+    Plano de Contratações Anual{% if pca %} — Exercício {{ pca.exercicio }}{% endif %}
+    · Relatório de Demandas
+  </p>
+  <p class="meta">
+    Emitido em {{ gerado_em|date:"d/m/Y \à\s H:i" }} por {{ gerado_por }}
+    · UASG 926092
+  </p>
+</div>
+
+<table class="resumo">
+  <tr>
+    <td class="rot" width="12%">Total de itens:</td>
+    <td class="val" width="20%">{{ total_itens }}</td>
+    <td class="rot" width="12%">Valor estimado:</td>
+    <td class="val">R$ {{ total_geral|floatformat:"2g" }}</td>
+  </tr>
+  {% if filtros_ativos %}
+  <tr>
+    <td class="rot">Filtros aplicados:</td>
+    <td colspan="3">{{ filtros_ativos|join:" · " }}</td>
+  </tr>
+  {% else %}
+  <tr>
+    <td class="rot">Filtros aplicados:</td>
+    <td colspan="3">Nenhum — relatório completo do exercício</td>
+  </tr>
+  {% endif %}
+</table>
+
+{% if not grupos %}
+  <p class="vazio">Nenhuma demanda encontrada para os filtros selecionados.</p>
+{% endif %}
+
+{% for grupo in grupos %}
+  <p class="unidade-cab">
+    {{ grupo.sigla }}{% if grupo.unidade and grupo.unidade.nome %} — {{ grupo.unidade.nome }}{% endif %}
+    ({{ grupo.qtd }} {% if grupo.qtd == 1 %}item{% else %}itens{% endif %})
+  </p>
+  <table class="dados" repeat="1">
+    <thead>
+      <tr>
+        <th width="9%">Código PCA</th>
+        <th width="31%">Descrição</th>
+        <th width="10%">DFD</th>
+        <th width="11%">Categoria</th>
+        <th width="7%" class="num">Qtd</th>
+        <th width="11%" class="num">Valor unit.</th>
+        <th width="11%" class="num">Valor total</th>
+        <th width="10%" class="cen">Situação</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in grupo.itens %}
+      <tr>
+        <td>{{ item.codigo_pca }}</td>
+        <td>
+          {{ item.descricao|truncatechars:110 }}
+          {% if item.numero_lote_pca %}<br><span class="corte">Lote {{ item.numero_lote_pca }}</span>{% endif %}
+        </td>
+        <td>{{ item.dfd.numero_dfd|default:"—" }}</td>
+        <td>{{ item.get_categoria_display }}</td>
+        <td class="num">{{ item.quantidade_estimada|floatformat:"0g" }}</td>
+        <td class="num">R$ {{ item.valor_unitario_estimado|floatformat:"2g" }}</td>
+        <td class="num">R$ {{ item.valor_total_estimado|floatformat:"2g" }}</td>
+        <td class="cen">
+          {% if item.status_aprovacao == 'aprovada_integral' %}
+            <span class="badge b-ok">Aprovada</span>
+          {% elif item.status_aprovacao == 'aprovada_parcial' %}
+            <span class="badge b-parc">Parcial</span>
+            {% if item.houve_corte %}
+            <br><span class="corte">
+              {{ item.quantidade_solicitada|floatformat:"0g" }}&rarr;{{ item.quantidade_estimada|floatformat:"0g" }}
+            </span>
+            {% endif %}
+          {% elif item.status_aprovacao == 'nao_aprovada' %}
+            <span class="badge b-nao">Não aprovada</span>
+          {% else %}
+            <span class="badge">Pendente</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      <tr class="subtotal">
+        <td colspan="6" class="num">Subtotal {{ grupo.sigla }}</td>
+        <td class="num">R$ {{ grupo.total|floatformat:"2g" }}</td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+{% endfor %}
+
+{% if grupos %}
+<p class="total-geral">
+  TOTAL GERAL ({{ total_itens }} {% if total_itens == 1 %}item{% else %}itens{% endif %}):
+  R$ {{ total_geral|floatformat:"2g" }}
+</p>
+{% endif %}
+
+<div id="rodape-conteudo">
+  MPPI — Plano de Contratações Anual{% if pca %} {{ pca.exercicio }}{% endif %}
+  · Documento gerado pelo sistema em {{ gerado_em|date:"d/m/Y H:i" }}
+  · Página <pdf:pagenumber> de <pdf:pagecount>
+</div>
+
+</body>
+</html>

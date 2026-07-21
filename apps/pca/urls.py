@@ -19,6 +19,7 @@ from .views_cadastro import (
 )
 from .views_analise import AnalisarItemPCAView, AnalisarLoteItensPCAView
 from .views_duplicatas import DuplicatasPCAView
+from .views_relatorio import ExportarDemandasPDFView
 from .views_suspensas import DemandasSuspensasView
 from .views_template import (
     CatalogoSearchView,
@@ -52,6 +53,11 @@ urlpatterns = [
         "demandas/analisar-lote/",
         AnalisarLoteItensPCAView.as_view(),
         name="analisar_lote",
+    ),
+    path(
+        "demandas/exportar.pdf",
+        ExportarDemandasPDFView.as_view(),
+        name="exportar_demandas_pdf",
     ),
     path("cadastro-grupo/", CadastroGrupoDemandaView.as_view(), name="cadastro_grupo"),
     path("api/arp-itens-disponiveis.json", ItensARPDisponiveisJSON.as_view(), name="arp_itens_disponiveis_json"),

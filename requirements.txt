@@ -15,3 +15,11 @@ tzdata==2025.2
 
 # Cliente HTTP (integração PNCP e SEI — Estágio 2)
 requests==2.32.3
+
+# Planilhas (importação do catálogo interno)
+openpyxl==3.1.5
+
+# Relatórios em PDF (exportação da tela de demandas).
+# xhtml2pdf é Python puro — não exige GTK/Pango instalados no sistema,
+# ao contrário do WeasyPrint (que não roda no Windows sem o runtime GTK).
+xhtml2pdf==0.2.17

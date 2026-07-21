@@ -12,7 +12,12 @@
     </h1>
     <p>{{ total }} item{{ total|pluralize:"ns" }} encontrado{{ total|pluralize:"s" }}.</p>
   </div>
-  <div>
+  <div class="d-flex gap-2">
+    {# Repassa a querystring atual para o PDF refletir exatamente estes filtros #}
+    <a href="{% url 'pca:exportar_demandas_pdf' %}{% if request.GET.urlencode %}?{{ request.GET.urlencode }}{% endif %}"
+       class="btn btn-outline-danger btn-sm" title="Exportar em PDF respeitando os filtros aplicados">
+      <i class="bi bi-file-earmark-pdf me-1"></i>Exportar PDF
+    </a>
     <a href="/admin/pca/itempca/add/" class="btn btn-primary btn-sm">
       <i class="bi bi-plus-lg me-1"></i>Nova Demanda
     </a>

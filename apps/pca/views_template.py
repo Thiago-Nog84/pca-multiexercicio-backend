@@ -165,6 +165,48 @@ class DashboardPCAView(View):
         return render(request, self.template_name, context)
 
 
+def filtrar_demandas(request, pca):
+    """
+    Aplica os filtros da querystring ao conjunto de demandas do PCA.
+
+    Compartilhado entre a tela (DemandasPCAView) e a exportação em PDF
+    (ExportarDemandasPDFView) — assim o relatório reflete EXATAMENTE o que
+    o usuário está vendo na tela, sem risco de as regras divergirem.
+
+    Retorna (queryset, dicionario_de_filtros_aplicados).
+    """
+    itens_qs = ItemPCA.objects.select_related(
+        "dfd", "dfd__pca", "dfd__unidade"
+    ).order_by("dfd__pca__exercicio", "numero_lote_pca", "dfd__numero_dfd", "numero_item")
+
+    if pca:
+        itens_qs = itens_qs.filter(dfd__pca=pca)
+
+    filtros = {
+        "status": request.GET.get("status", ""),
+        "categoria": request.GET.get("categoria", ""),
+        "modalidade": request.GET.get("modalidade", ""),
+        "unidade": request.GET.get("unidade", ""),
+        "aprovacao": request.GET.get("aprovacao", ""),
+        "q": request.GET.get("q", "").strip(),
+    }
+
+    if filtros["status"]:
+        itens_qs = itens_qs.filter(status=filtros["status"])
+    if filtros["aprovacao"]:
+        itens_qs = itens_qs.filter(status_aprovacao=filtros["aprovacao"])
+    if filtros["categoria"]:
+        itens_qs = itens_qs.filter(categoria=filtros["categoria"])
+    if filtros["modalidade"]:
+        itens_qs = itens_qs.filter(modalidade=filtros["modalidade"])
+    if filtros["unidade"]:
+        itens_qs = itens_qs.filter(dfd__unidade_id=filtros["unidade"])
+    if filtros["q"]:
+        itens_qs = itens_qs.filter(descricao__unaccent__icontains=filtros["q"])
+
+    return itens_qs, filtros
+
+
 @method_decorator(login_required, name="dispatch")
 class DemandasPCAView(View):
     template_name = "pca/demandas.html"
@@ -173,32 +215,14 @@ class DemandasPCAView(View):
         todos_pcas_qs = PlanoContratacaoAnual.objects.order_by("-exercicio")
         pca = _resolver_pca(request, todos_pcas_qs)
 
-        itens_qs = ItemPCA.objects.select_related(
-            "dfd", "dfd__pca", "dfd__unidade"
-        ).order_by("dfd__pca__exercicio", "numero_lote_pca", "dfd__numero_dfd", "numero_item")
+        itens_qs, filtros = filtrar_demandas(request, pca)
 
-        if pca:
-            itens_qs = itens_qs.filter(dfd__pca=pca)
-
-        status_filtro    = request.GET.get("status", "")
-        categoria_filtro = request.GET.get("categoria", "")
-        modalidade_filtro = request.GET.get("modalidade", "")
-        unidade_filtro   = request.GET.get("unidade", "")
-        aprovacao_filtro = request.GET.get("aprovacao", "")
-        busca = request.GET.get("q", "").strip()
-
-        if status_filtro:
-            itens_qs = itens_qs.filter(status=status_filtro)
-        if aprovacao_filtro:
-            itens_qs = itens_qs.filter(status_aprovacao=aprovacao_filtro)
-        if categoria_filtro:
-            itens_qs = itens_qs.filter(categoria=categoria_filtro)
-        if modalidade_filtro:
-            itens_qs = itens_qs.filter(modalidade=modalidade_filtro)
-        if unidade_filtro:
-            itens_qs = itens_qs.filter(dfd__unidade_id=unidade_filtro)
-        if busca:
-            itens_qs = itens_qs.filter(descricao__icontains=busca)
+        status_filtro     = filtros["status"]
+        categoria_filtro  = filtros["categoria"]
+        modalidade_filtro = filtros["modalidade"]
+        unidade_filtro    = filtros["unidade"]
+        aprovacao_filtro  = filtros["aprovacao"]
+        busca             = filtros["q"]
 
         # So unidades que tem DFD no PCA exibido — evita opcoes que filtram para vazio
         from apps.core.models import UnidadeRequisitante
