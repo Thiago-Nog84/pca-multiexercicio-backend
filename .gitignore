@@ -32,6 +32,9 @@ media/
 .DS_Store
 Thumbs.db
 
+# Locks temporários do Excel/Office
+~$*
+
 # Conflitos OneDrive (arquivos gerados quando o mesmo arquivo é editado
 # em duas máquinas simultaneamente via OneDrive)
 *-CLC2432*
