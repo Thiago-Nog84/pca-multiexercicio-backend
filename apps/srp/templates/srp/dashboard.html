@@ -495,12 +495,22 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script>
 (function () {
+  if (window.ChartDataLabels) Chart.register(window.ChartDataLabels);
 
-  // ── Paleta ─────────────────────────────────────────────────────────────────
-  const CORES = ['#2563eb','#16a34a','#dc2626','#d97706','#7c3aed','#0891b2','#db2777','#65a30d','#ea580c','#475569'];
+  // ── Cor institucional única por gráfico (cap. 4-5: cor com propósito) ───────
+  const AZUL = '#2563eb';
   const STATUS_COR = { vigente:'#16a34a', encerrada:'#6b7280', suspensa:'#d97706', cancelada:'#dc2626' };
+
+  // Cap. 3: rótulo direto do valor, dispensando o eixo.
+  const dlBase = { color:'#334155', font:{size:9, weight:'600'}, clamp:true, clip:false };
+  const dlNum  = Object.assign({ anchor:'end', align:'end', formatter:v=>v }, dlBase);
+  const dlNumTopo = Object.assign({ anchor:'end', align:'top', formatter:v=>v }, dlBase);
+  const dlMi   = Object.assign({ anchor:'end', align:'end', formatter:v=>'R$ '+(v/1e6).toFixed(1)+'M' }, dlBase);
+  const semEixo = { display:false };
+  const soCat = { grid:{display:false}, border:{display:false} };
 
   // ── Gráfico Status (barras horizontais — barra > rosca, cap. 2) ─────────────
   // Aqui a cor CODIFICA o dado (verde=vigente, cinza=encerrada…), uso legítimo
@@ -514,11 +524,13 @@
     },
     options: {
       indexAxis: 'y',
+      layout: { padding: { right: 30 } },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ctx.parsed.x + ' ARP' + (ctx.parsed.x === 1 ? '' : 's') } }
+        tooltip: { callbacks: { label: ctx => ctx.parsed.x + ' ARP' + (ctx.parsed.x === 1 ? '' : 's') } },
+        datalabels: dlNum
       },
-      scales: { x: { grid: { display: false }, ticks: { precision: 0 } }, y: { grid: { display: false } } },
+      scales: { x: semEixo, y: soCat },
       onClick(e, els) {
         if (els.length) {
           const label = ds.labels[els[0].index];
@@ -557,9 +569,10 @@
     },
     options: {
       responsive: true,
-      plugins: { legend: { labels: { font: { size:11 } } } },
+      // Gráfico de 2 séries (valor + contagem): rótulo direto poluiria — mantém eixos, sem grade.
+      plugins: { legend: { labels: { font: { size:11 } } }, datalabels: { display: false } },
       scales: {
-        y:  { ticks: { callback: v => 'R$ ' + (v/1e6).toFixed(1) + 'M', font:{size:10} } },
+        y:  { grid: { display: false }, ticks: { callback: v => 'R$ ' + (v/1e6).toFixed(1) + 'M', font:{size:10} } },
         y2: { position:'right', grid:{drawOnChartArea:false}, ticks:{ font:{size:10} } }
       },
       onClick(e, els) {
@@ -578,16 +591,18 @@
     type: 'bar',
     data: {
       labels: dt.labels,
-      datasets: [{ label: 'Valor (R$)', data: dt.valores, backgroundColor: CORES, borderRadius: 4 }]
+      datasets: [{ label: 'Valor (R$)', data: dt.valores, backgroundColor: AZUL, borderRadius: 4 }]
     },
     options: {
       indexAxis: 'y',
       responsive: true,
+      layout: { padding: { right: 54 } },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => 'R$ ' + ctx.raw.toLocaleString('pt-BR', {minimumFractionDigits:2}) + ' — ' + dt.objetos[ctx.dataIndex] } }
+        tooltip: { callbacks: { label: ctx => 'R$ ' + ctx.raw.toLocaleString('pt-BR', {minimumFractionDigits:2}) + ' — ' + dt.objetos[ctx.dataIndex] } },
+        datalabels: dlMi
       },
-      scales: { x: { ticks: { callback: v => 'R$' + (v/1e6).toFixed(1) + 'M', font:{size:9} } }, y: { ticks:{font:{size:10}} } },
+      scales: { x: semEixo, y: soCat },
       onClick(e, els) {
         if (els.length) {
           window.location = '/srp/arp/' + dt.pks[els[0].index] + '/';
@@ -605,11 +620,12 @@
       type: 'bar',
       data: {
         labels: unLabels,
-        datasets: [{ data: unData, backgroundColor: CORES, borderRadius:4 }]
+        datasets: [{ data: unData, backgroundColor: AZUL, borderRadius:4 }]
       },
       options: {
-        plugins: { legend: { display:false } },
-        scales: { y: { ticks: { stepSize:1, font:{size:10} } }, x: { ticks:{font:{size:10}} } },
+        layout: { padding: { top: 18 } },
+        plugins: { legend: { display:false }, datalabels: dlNumTopo },
+        scales: { y: semEixo, x: soCat },
         onClick(e, els) {
           if (els.length) {
             window.location = '/srp/unidade/' + unLabels[els[0].index] + '/';

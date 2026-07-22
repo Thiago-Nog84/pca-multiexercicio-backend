@@ -895,8 +895,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
         integrity="sha512-ZwR1/gSZM3ai6vCdI+LVF1zSq/5HznD3oD+sCoJrzXJ+yKogTopovMvbaPlEucAzt3RIEqAlXA1n3NC1QDTCQ=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script>
 (function () {
+  if (window.ChartDataLabels) Chart.register(window.ChartDataLabels);
   // ── Dados do Django ────────────────────────────────────────────
   const statusData    = {{ grafico_status|safe }};
   const execucaoData  = {{ grafico_execucao|safe }};
@@ -924,6 +926,7 @@
       options: {
         indexAxis: 'y',
         responsive: true,
+        layout: { padding: { right: 28 } },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -931,8 +934,9 @@
               label: ctx => ` ${ctx.parsed.x} contrato${ctx.parsed.x !== 1 ? 's' : ''}`,
             },
           },
+          datalabels: { anchor: 'end', align: 'end', color: '#334155', font: { size: 10, weight: '600' }, clamp: true, clip: false, formatter: v => v },
         },
-        scales: { x: { grid: { display: false }, ticks: { precision: 0 } }, y: { grid: { display: false } } },
+        scales: { x: { display: false }, y: { grid: { display: false }, border: { display: false } } },
       },
     });
   }
@@ -969,19 +973,18 @@
           tooltip: {
             callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtR(ctx.parsed.x)}` },
           },
+          // Barra empilhada (2 segmentos por linha): rótulo direto poluiria — fica no tooltip.
+          datalabels: { display: false },
         },
         scales: {
           x: {
             stacked: true,
-            ticks: {
-              callback: fmtR,
-              font: { size: 10 },
-              maxTicksLimit: 6,
-            },
-            grid: { color: 'rgba(0,0,0,.05)' },
+            ticks: { callback: fmtR, font: { size: 10 }, maxTicksLimit: 6 },
+            grid: { display: false },
           },
           y: {
             stacked: true,
+            grid: { display: false },
             ticks: { font: { size: 10 } },
           },
         },

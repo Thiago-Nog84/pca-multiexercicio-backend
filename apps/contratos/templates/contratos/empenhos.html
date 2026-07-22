@@ -351,15 +351,16 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script>
 (function () {
+  if (window.ChartDataLabels) Chart.register(window.ChartDataLabels);
+
   const dOrg   = {{ chart_org|safe }};
   const dFonte = {{ chart_fonte|safe }};
   const dElem  = {{ chart_elemento|safe }};
   const dFav   = {{ chart_favorecido|safe }};
 
-  const CORES = ['#1a56db','#166534','#3730a3','#b45309','#9333ea','#0891b2',
-                 '#dc2626','#ca8a04','#0d9488','#6b7280','#db2777','#4b5563'];
   const brl = v => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   const kfmt = v => 'R$ ' + (v/1000).toLocaleString('pt-BR', {maximumFractionDigits: 0}) + 'k';
 
@@ -370,6 +371,13 @@
   }
   const tipVal = { callbacks: { label: c => brl(c.dataset.data[c.dataIndex]) } };
 
+  // Rótulo direto do valor (cap. 3: rótulo direto > eixo + grade)
+  const rotulo = { color: '#334155', font: { size: 10, weight: '600' }, clamp: true, clip: false, formatter: kfmt };
+  const rotuloH = Object.assign({ anchor: 'end', align: 'end' }, rotulo);  // barras horizontais
+  const rotuloV = Object.assign({ anchor: 'end', align: 'top' }, rotulo);   // barras verticais
+  const semEixoX = { display: false };  // valor vai no rótulo, não no eixo
+  const soCategoria = { grid: { display: false }, border: { display: false } };
+
   // Empenhado por órgão (barras V) -> filtra órgão
   if (dOrg.labels.length) {
     new Chart(document.getElementById('chartOrg'), {
@@ -377,8 +385,9 @@
       data: { labels: dOrg.labels, datasets: [{ data: dOrg.valores, backgroundColor: '#1a56db', borderRadius: 4 }] },
       options: {
         maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: tipVal },
-        scales: { x: { grid: { display: false } }, y: { grid: { display: false }, ticks: { callback: kfmt } } },
+        layout: { padding: { top: 20 } },
+        plugins: { legend: { display: false }, tooltip: tipVal, datalabels: rotuloV },
+        scales: { x: soCategoria, y: semEixoX },
         onClick: (e, els) => { if (els.length) drill('orgao', dOrg.labels[els[0].index]); },
       },
     });
@@ -391,8 +400,9 @@
       data: { labels: dFonte.labels.map(l => 'Fonte ' + l), datasets: [{ data: dFonte.valores, backgroundColor: '#3730a3', borderRadius: 4 }] },
       options: {
         indexAxis: 'y', maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => brl(c.parsed.x) } } },
-        scales: { x: { grid: { display: false }, ticks: { callback: kfmt } }, y: { grid: { display: false } } },
+        layout: { padding: { right: 52 } },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => brl(c.parsed.x) } }, datalabels: rotuloH },
+        scales: { x: semEixoX, y: soCategoria },
         onClick: (e, els) => { if (els.length) { const k = dFonte.chaves[els[0].index]; if (k) drill('fonte', k); } },
       },
     });
@@ -405,8 +415,9 @@
       data: { labels: dElem.labels, datasets: [{ data: dElem.valores, backgroundColor: '#3730a3', borderRadius: 4 }] },
       options: {
         indexAxis: 'y', maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: tipVal },
-        scales: { x: { grid: { display: false }, ticks: { callback: kfmt } }, y: { grid: { display: false } } },
+        layout: { padding: { right: 52 } },
+        plugins: { legend: { display: false }, tooltip: tipVal, datalabels: rotuloH },
+        scales: { x: semEixoX, y: soCategoria },
         onClick: (e, els) => { if (els.length) drill('elemento', dElem.chaves[els[0].index]); },
       },
     });
@@ -419,8 +430,9 @@
       data: { labels: dFav.labels, datasets: [{ data: dFav.valores, backgroundColor: '#166534', borderRadius: 4 }] },
       options: {
         indexAxis: 'y', maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: tipVal },
-        scales: { x: { grid: { display: false }, ticks: { callback: kfmt } }, y: { grid: { display: false } } },
+        layout: { padding: { right: 52 } },
+        plugins: { legend: { display: false }, tooltip: tipVal, datalabels: rotuloH },
+        scales: { x: semEixoX, y: soCategoria },
         onClick: (e, els) => { if (els.length) drill('q', dFav.labels[els[0].index].split(' ').slice(0,2).join(' ')); },
       },
     });

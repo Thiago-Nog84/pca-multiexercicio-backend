@@ -296,8 +296,11 @@
 
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script>
 (function () {
+  if (window.ChartDataLabels) Chart.register(window.ChartDataLabels);
+
   const dExercicio = {{ chart_exercicio|safe }};
   const dStatus    = {{ chart_status|safe }};
   const dUnidade   = {{ chart_unidade|safe }};
@@ -312,8 +315,14 @@
 
   const brl = v => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   const kfmt = v => 'R$ ' + (v/1000).toLocaleString('pt-BR', {maximumFractionDigits: 0}) + 'k';
-  // Eixos sem linhas de grade (cap. 3: declutter)
-  const semGrade = { grid: { display: false } };
+
+  // Cap. 3 (declutter): rótulo direto do valor na barra, dispensando o eixo.
+  const base = { color: '#334155', font: { size: 10, weight: '600' }, clamp: true, clip: false };
+  const rotuloRS   = Object.assign({ anchor: 'end', align: 'end', formatter: kfmt }, base);            // R$ horizontal
+  const rotuloTopo = Object.assign({ anchor: 'end', align: 'top', formatter: kfmt }, base);            // R$ vertical
+  const rotuloNum  = Object.assign({ anchor: 'end', align: 'end', formatter: v => v }, base);          // contagem horizontal
+  const semEixoX = { display: false };
+  const soCategoria = { grid: { display: false }, border: { display: false } };
 
   // Drill-down: adiciona/atualiza um filtro na URL, preservando os demais.
   function drill(param, valor) {
@@ -355,8 +364,9 @@
       },
       options: {
         maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: tooltipValor },
-        scales: { y: { ticks: { callback: v => 'R$ ' + (v/1000).toLocaleString('pt-BR') + 'k' } } },
+        layout: { padding: { top: 20 } },
+        plugins: { legend: { display: false }, tooltip: tooltipValor, datalabels: rotuloTopo },
+        scales: { x: soCategoria, y: semEixoX },
         onClick: (e, els) => { if (els.length) drill('exercicio', dExercicio.labels[els[0].index]); },
       },
     });
@@ -373,11 +383,13 @@
       options: {
         indexAxis: 'y',
         maintainAspectRatio: false,
+        layout: { padding: { right: 36 } },
         plugins: {
           legend: { display: false },
           tooltip: { callbacks: { label: ctx => ctx.parsed.x + ' contratações' } },
+          datalabels: rotuloNum,
         },
-        scales: { x: { grid: { display: false }, ticks: { precision: 0 } }, y: semGrade },
+        scales: { x: semEixoX, y: soCategoria },
         onClick: (e, els) => { if (els.length) drill('status', dStatus.chaves[els[0].index]); },
       },
     });
@@ -394,8 +406,9 @@
       options: {
         indexAxis: 'y',
         maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: tooltipValor },
-        scales: { x: { ticks: { callback: v => 'R$ ' + (v/1000).toLocaleString('pt-BR') + 'k' } } },
+        layout: { padding: { right: 52 } },
+        plugins: { legend: { display: false }, tooltip: tooltipValor, datalabels: rotuloRS },
+        scales: { x: semEixoX, y: soCategoria },
         onClick: (e, els) => { if (els.length) drill('arp', dArp.ids[els[0].index]); },
       },
     });
@@ -412,8 +425,9 @@
       options: {
         indexAxis: 'y',
         maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: tooltipValor },
-        scales: { x: { ticks: { callback: v => 'R$ ' + (v/1000).toLocaleString('pt-BR') + 'k' } } },
+        layout: { padding: { right: 52 } },
+        plugins: { legend: { display: false }, tooltip: tooltipValor, datalabels: rotuloRS },
+        scales: { x: semEixoX, y: soCategoria },
         onClick: (e, els) => { if (els.length) drill('unidade', dUnidade.labels[els[0].index]); },
       },
     });
@@ -430,11 +444,13 @@
       options: {
         indexAxis: 'y',
         maintainAspectRatio: false,
+        layout: { padding: { right: 52 } },
         plugins: {
           legend: { display: false },
           tooltip: { callbacks: { label: ctx => brl(ctx.parsed.x) } },
+          datalabels: rotuloRS,
         },
-        scales: { x: { grid: { display: false }, ticks: { callback: kfmt } }, y: semGrade },
+        scales: { x: semEixoX, y: soCategoria },
         onClick: (e, els) => {
           if (els.length) {
             const chave = dFonte.chaves[els[0].index];
@@ -456,8 +472,9 @@
       options: {
         indexAxis: 'y',
         maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: tooltipValor },
-        scales: { x: { ticks: { callback: v => 'R$ ' + (v/1000).toLocaleString('pt-BR') + 'k' } } },
+        layout: { padding: { right: 52 } },
+        plugins: { legend: { display: false }, tooltip: tooltipValor, datalabels: rotuloRS },
+        scales: { x: semEixoX, y: soCategoria },
         onClick: (e, els) => { if (els.length) drill('q', dItem.labels[els[0].index].split(',')[0].trim()); },
       },
     });
