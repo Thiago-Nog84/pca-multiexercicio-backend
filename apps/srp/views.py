@@ -318,8 +318,22 @@ class ARPDetalheView(View):
                             "valor_total": p.valor_total,
                             "item_pk": det["item"].pk,
                         })
-            url_pdf = "/static/documentos/Portal_Nacional_de_Contratacoes_Publicas10.pdf" if cp.numero_contrato == "10/2026/FPDC" else None
-            url_pncp = "https://pncp.gov.br/app/editais/05805924000189/2025/42" if cp.numero_contrato == "10/2026/FPDC" else None
+            url_pdf = cp.link_contrato if cp.link_contrato else None
+            
+            # Tentar derivar a url_pncp caso o contrato tenha numero_pncp cadastrado
+            url_pncp = None
+            if cp.numero_pncp:
+                # O formato do PNCP e.g. 10551559000163-2-000036/2026 -> url /app/contratos/{cnpj}/{ano}/{num}
+                try:
+                    parts = cp.numero_pncp.split('-')
+                    if len(parts) >= 3:
+                        cnpj = parts[0]
+                        num_ano = parts[2].split('/')
+                        if len(num_ano) == 2:
+                            url_pncp = f"https://pncp.gov.br/app/contratos/{cnpj}/{num_ano[1]}/{int(num_ano[0])}"
+                except Exception:
+                    pass
+                    
             lista_contratos.append({
                 "pk": cp.pk,
                 "numero_contrato": cp.numero_contrato,
@@ -369,8 +383,19 @@ class ARPDetalheView(View):
                     "valor_total": ic.valor_total,
                     "item_pk": ic.item_arp.pk if ic.item_arp else None,
                 })
-            url_pdf_ca = "/static/documentos/Portal_Nacional_de_Contratacoes_Publicas10.pdf" if ca.numero_contrato == "10/2026/FPDC" else None
-            url_pncp_ca = "https://pncp.gov.br/app/editais/05805924000189/2025/42" if ca.numero_contrato == "10/2026/FPDC" else None
+            url_pdf_ca = ca.link_contrato if hasattr(ca, 'link_contrato') and ca.link_contrato else None
+            
+            url_pncp_ca = None
+            if ca.numero_pncp:
+                try:
+                    parts = ca.numero_pncp.split('-')
+                    if len(parts) >= 3:
+                        cnpj = parts[0]
+                        num_ano = parts[2].split('/')
+                        if len(num_ano) == 2:
+                            url_pncp_ca = f"https://pncp.gov.br/app/contratos/{cnpj}/{num_ano[1]}/{int(num_ano[0])}"
+                except Exception:
+                    pass
             lista_contratos.append({
                 "pk": ca.pk,
                 "numero_contrato": ca.numero_contrato,

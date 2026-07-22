@@ -101,9 +101,9 @@ class Command(BaseCommand):
                 locais = idx_contratos.get(chave, [])
                 if not locais:
                     sem_local += 1
+                    obj_str = str(capi.get('objeto') or '')[:55].encode("ascii", "replace").decode("ascii")
                     self.stdout.write(self.style.WARNING(
-                        f"  [SEM CONTRATO LOCAL] {numero_api} — "
-                        f"{(capi.get('objeto') or '')[:55]}"
+                        f"  [SEM CONTRATO LOCAL] {numero_api} -- {obj_str}"
                     ))
                 elif len(locais) > 1:
                     ambiguos += 1
