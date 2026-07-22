@@ -249,7 +249,9 @@ class Command(BaseCommand):
                 val_diff = (ratio_val > 2.5 or ratio_val < 0.4)
                 sim_razao = sim_text(razao_file, ct.contratado_razao_social)
 
-                if cnpj_diff and val_diff and sim_razao < 0.3:
+                # Trava se Razao Social diverge MUITO (sim_razao < 0.3) e CNPJ divergem,
+                # OU se (CNPJ diverge E val_diff E sim_razao < 0.5)
+                if (cnpj_diff and sim_razao < 0.3) or (cnpj_diff and val_diff and sim_razao < 0.5):
                     colisoes += 1
                     s_razao = str(razao_file).encode("ascii", "replace").decode("ascii")
                     self.stdout.write(
