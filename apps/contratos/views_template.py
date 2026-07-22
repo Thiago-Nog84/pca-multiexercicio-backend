@@ -5,11 +5,13 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 import io
+import urllib.request
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.management import call_command
 from django.db.models import Count, Q, Sum
-from django.shortcuts import redirect, render
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
 from django.views import View
 
@@ -22,6 +24,32 @@ try:
     _tem_dados_externos = True
 except ImportError:
     _tem_dados_externos = False
+
+
+@login_required
+def proxy_instrumento_pdf(request, pk):
+    """
+    Busca o PDF do instrumento contratual no Comprasnet e o serve com
+    Content-Disposition: inline, para que o navegador abra em nova aba
+    em vez de forçar download.
+    """
+    contrato = get_object_or_404(Contrato, pk=pk)
+    url = contrato.link_contrato
+    if not url:
+        return HttpResponse("Link do instrumento não disponível para este contrato.", status=404)
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            content = resp.read()
+        response = HttpResponse(content, content_type="application/pdf")
+        response["Content-Disposition"] = "inline; filename=\"instrumento.pdf\""
+        return response
+    except Exception as exc:
+        return HttpResponse(
+            f"Não foi possível recuperar o instrumento contratual: {exc}",
+            status=502,
+        )
 
 
 @method_decorator(login_required, name="dispatch")

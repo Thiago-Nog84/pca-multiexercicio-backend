@@ -382,7 +382,7 @@
                 <span>{{ contrato.numero_contrato }}</span>
                 <div class="d-flex gap-1">
                   {% if contrato.url_instrumento_pdf %}
-                  <a href="{{ contrato.url_instrumento_pdf }}" target="_blank" class="btn btn-sm btn-primary" style="font-size: 0.75rem;" title="Visualizar PDF do Documento de Instrumento">
+                  <a href="{% url 'contratos:instrumento_pdf' contrato.pk %}" target="_blank" class="btn btn-sm btn-primary" style="font-size: 0.75rem;" title="Visualizar PDF do Documento de Instrumento">
                     <i class="bi bi-file-earmark-pdf me-1"></i>Ver Instrumento (PDF)
                   </a>
                   {% elif contrato.admin_url %}
