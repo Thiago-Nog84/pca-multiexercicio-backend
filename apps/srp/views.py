@@ -38,29 +38,72 @@ from .models import (
 _NE_PATTERN = re.compile(r"^\d{4}NE\d+$", re.IGNORECASE)
 
 
-def _resolver_instrumento_contrato(cp):
+def _derivar_url_pncp_contrato(numero_pncp):
     """
-    Decide como resolver o botão "Ver Instrumento" de um Contrato na tela da
-    ARP, em ordem de prioridade:
+    Deriva o link da página do contrato no PNCP a partir do `numero_pncp`
+    cadastrado (formato ex: 10551559000163-2-000036/2026).
+
+    Padrão confirmado manualmente por Thiago em 2026-07-23 (URL real de
+    contrato, ex: https://pncp.gov.br/contratos/05805924000189/2026/42) —
+    SEM "/app/" antes de "contratos", diferente do padrão usado pras atas
+    (que é https://pncp.gov.br/app/atas/...). Corrigido: antes esta função
+    gerava "/app/contratos/..." (nunca confirmado, provavelmente errado).
+
+    Não é um PDF direto — é a página do contrato no site do PNCP.
+    Retorna None se o formato não bater ou o campo estiver vazio.
+    """
+    if not numero_pncp:
+        return None
+    try:
+        parts = numero_pncp.split("-")
+        if len(parts) >= 3:
+            cnpj = parts[0]
+            num_ano = parts[2].split("/")
+            if len(num_ano) == 2:
+                return f"https://pncp.gov.br/contratos/{cnpj}/{num_ano[1]}/{int(num_ano[0])}"
+    except (ValueError, IndexError):
+        pass
+    return None
+
+
+def _resolver_instrumento_contrato(cp, url_pncp_pagina=None, url_ata_pncp=None):
+    """
+    Decide como resolver o botão "Ver Instrumento" de um contrato na tela da
+    ARP, em ordem de prioridade. Aceita tanto `apps.contratos.models.Contrato`
+    quanto `apps.srp.models.ContratoARP` (usa getattr com default pra tolerar
+    campos que só existem num dos dois modelos — ContratoARP não tem
+    `arquivo_instrumento`, `link_contrato` nem `unidade_orcamentaria`).
+
       1. PDF (upload manual ou link Comprasnet) — servido pela proxy
-         contratos:instrumento_pdf (comportamento já existente).
+         contratos:instrumento_pdf (só existe pra `Contrato`).
       2. Nota de Empenho — quando o "contrato" é, na prática, uma NE com
          força de contrato (numero_contrato no formato AAAANEnnnnnn), não
          existe instrumento formal separado; linka para a tela de empenhos
          filtrada por esse número.
-      3. Site institucional do MPPI — fallback de ÚLTIMA instância quando o
-         contrato não foi localizado no Comprasnet/PNCP; abre a página de
-         listagem do fundo/ano (PaginaContratosMPPI) para busca MANUAL — não
-         é um link direto ao PDF, por isso sempre marcado com observação.
-      4. Nenhum — sobra só o link para o registro no admin (comportamento
+      3. Site institucional do MPPI — fallback quando o contrato não foi
+         localizado no Comprasnet/PNCP; abre a página de listagem do
+         fundo/ano (PaginaContratosMPPI) para busca MANUAL — não é um link
+         direto ao PDF, por isso sempre marcado com observação. Só se aplica
+         a `Contrato` (que tem `unidade_orcamentaria`).
+      4. Página do contrato no PNCP — quando o chamador já calculou um link
+         pro app do PNCP (`url_pncp_pagina`, a partir de `numero_pncp` do
+         PRÓPRIO contrato). Não é PDF direto, mas é melhor que cair no admin.
+      5. Ata de origem no PNCP — quando o contrato não tem `numero_pncp`
+         próprio, mas a ARP de origem já tem `link_ata_pncp` cadastrado
+         (`url_ata_pncp`). Não é o contrato específico, é a ata que o
+         originou — por isso sempre marcado com observação, só usado se
+         nada melhor foi encontrado.
+      6. Nenhum — sobra só o link para o registro no admin (comportamento
          anterior, quando nada mais se aplica).
 
     Retorna dict: {"tipo", "url", "label", "titulo"}.
     """
-    if cp.arquivo_instrumento or cp.link_contrato:
+    arquivo_instrumento = getattr(cp, "arquivo_instrumento", None)
+    link_contrato = getattr(cp, "link_contrato", None)
+    if arquivo_instrumento or link_contrato:
         return {"tipo": "pdf", "url": None, "label": None, "titulo": None}
 
-    numero = (cp.numero_contrato or "").strip()
+    numero = (getattr(cp, "numero_contrato", "") or "").strip()
     if _NE_PATTERN.match(numero):
         from django.urls import reverse
         return {
@@ -73,11 +116,39 @@ def _resolver_instrumento_contrato(cp):
             ),
         }
 
-    ano = cp.data_assinatura.year if cp.data_assinatura else None
-    if cp.unidade_orcamentaria and ano:
+    # PNCP (página oficial, mesmo sem PDF direto) tem prioridade sobre o site
+    # do MPPI (busca manual, sem garantia de achar) — primeiro tenta a página
+    # do PRÓPRIO contrato, depois a ata que o originou.
+    if url_pncp_pagina:
+        return {
+            "tipo": "pncp_pagina",
+            "url": url_pncp_pagina,
+            "label": "Ver no PNCP",
+            "titulo": (
+                "Contrato não tem PDF direto cadastrado. Este link abre a página "
+                "do contrato no Portal Nacional de Contratações Públicas (PNCP)."
+            ),
+        }
+
+    if url_ata_pncp:
+        return {
+            "tipo": "ata_pncp",
+            "url": url_ata_pncp,
+            "label": "Ver ata de origem no PNCP",
+            "titulo": (
+                "Este contrato não tem página própria cadastrada no PNCP. Este "
+                "link abre a ata de registro de preços que o originou — não é "
+                "o contrato específico, mas ajuda a localizá-lo manualmente."
+            ),
+        }
+
+    unidade_orcamentaria = getattr(cp, "unidade_orcamentaria", None)
+    data_assinatura = getattr(cp, "data_assinatura", None)
+    ano = data_assinatura.year if data_assinatura else None
+    if unidade_orcamentaria and ano:
         from apps.contratos.models import PaginaContratosMPPI
         pagina = PaginaContratosMPPI.objects.filter(
-            unidade_orcamentaria=cp.unidade_orcamentaria, ano=ano
+            unidade_orcamentaria=unidade_orcamentaria, ano=ano
         ).first()
         if pagina:
             return {
@@ -427,22 +498,13 @@ class ARPDetalheView(View):
                             "valor_total": p.valor_total,
                             "item_pk": det["item"].pk,
                         })
-            instrumento = _resolver_instrumento_contrato(cp)
+            # Deriva a página do PNCP primeiro — se não houver PDF/NE/site MPPI,
+            # o resolver usa esse link como penúltimo fallback (antes do admin).
+            url_pncp = _derivar_url_pncp_contrato(cp.numero_pncp)
+            instrumento = _resolver_instrumento_contrato(
+                cp, url_pncp_pagina=url_pncp, url_ata_pncp=arp.link_ata_pncp or None
+            )
 
-            # Tentar derivar a url_pncp caso o contrato tenha numero_pncp cadastrado
-            url_pncp = None
-            if cp.numero_pncp:
-                # O formato do PNCP e.g. 10551559000163-2-000036/2026 -> url /app/contratos/{cnpj}/{ano}/{num}
-                try:
-                    parts = cp.numero_pncp.split('-')
-                    if len(parts) >= 3:
-                        cnpj = parts[0]
-                        num_ano = parts[2].split('/')
-                        if len(num_ano) == 2:
-                            url_pncp = f"https://pncp.gov.br/app/contratos/{cnpj}/{num_ano[1]}/{int(num_ano[0])}"
-                except Exception:
-                    pass
-                    
             lista_contratos.append({
                 "pk": cp.pk,
                 "numero_contrato": cp.numero_contrato,
@@ -496,19 +558,14 @@ class ARPDetalheView(View):
                     "valor_total": ic.valor_total,
                     "item_pk": ic.item_arp.pk if ic.item_arp else None,
                 })
-            url_pdf_ca = ca.link_contrato if hasattr(ca, 'link_contrato') and ca.link_contrato else None
-            
-            url_pncp_ca = None
-            if ca.numero_pncp:
-                try:
-                    parts = ca.numero_pncp.split('-')
-                    if len(parts) >= 3:
-                        cnpj = parts[0]
-                        num_ano = parts[2].split('/')
-                        if len(num_ano) == 2:
-                            url_pncp_ca = f"https://pncp.gov.br/app/contratos/{cnpj}/{num_ano[1]}/{int(num_ano[0])}"
-                except Exception:
-                    pass
+            # ContratoARP não tem arquivo_instrumento/link_contrato/unidade_orcamentaria
+            # (é um registro importado do dadosabertos.compras.gov.br) — o resolver
+            # tolera os campos ausentes via getattr e ainda cobre NE + página do PNCP.
+            url_pncp_ca = _derivar_url_pncp_contrato(ca.numero_pncp)
+            instrumento_ca = _resolver_instrumento_contrato(
+                ca, url_pncp_pagina=url_pncp_ca, url_ata_pncp=arp.link_ata_pncp or None
+            )
+
             lista_contratos.append({
                 "pk": ca.pk,
                 "numero_contrato": ca.numero_contrato,
@@ -524,7 +581,11 @@ class ARPDetalheView(View):
                 "itens_lista": itens_contrato,
                 "is_carona": ca.is_carona,
                 "admin_url": f"/admin/srp/contratoarp/{ca.pk}/change/",
-                "url_instrumento_pdf": url_pdf_ca,
+                "url_instrumento_pdf": (instrumento_ca["tipo"] == "pdf") or None,
+                "instrumento_tipo": instrumento_ca["tipo"],
+                "instrumento_url": instrumento_ca["url"],
+                "instrumento_label": instrumento_ca["label"],
+                "instrumento_titulo": instrumento_ca["titulo"],
                 "url_pncp": url_pncp_ca,
             })
 
