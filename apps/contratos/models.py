@@ -131,6 +131,17 @@ class Contrato(models.Model):
         verbose_name="ID no Comprasnet Contratos",
         help_text="Identificador do contrato em contratos.comprasnet.gov.br (para sincronizações).",
     )
+    arquivo_instrumento = models.FileField(
+        upload_to="contratos/instrumentos/%Y/",
+        blank=True,
+        null=True,
+        verbose_name="PDF do instrumento (upload manual)",
+        help_text=(
+            "Upload manual do PDF do instrumento contratual assinado, para contratos "
+            "sem link automático no Comprasnet (ex: fundos FPDC/FEPDC, contratos com "
+            "instrumento apenas no SEI). Tem prioridade sobre link_contrato quando preenchido."
+        ),
+    )
 
     # Unidade que originou a demanda
     unidade_requisitante = models.ForeignKey(

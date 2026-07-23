@@ -50,6 +50,24 @@
              title="Abrir texto integral da ARP em nova aba">
             <i class="bi bi-file-earmark-pdf me-1"></i>Ver texto da ARP
           </a>
+        {% elif arp.link_documento_pncp_direto %}
+          {# Sem documento MPPI cadastrado — abre o PDF real da ata direto do PNCP #}
+          <a href="{% url 'srp:ata_pdf' arp.pk %}"
+             target="_blank"
+             rel="noopener noreferrer"
+             class="btn btn-sm btn-outline-light ms-2"
+             title="Abrir o PDF da ata (documento oficial do PNCP)">
+            <i class="bi bi-file-earmark-pdf me-1"></i>Ver texto da ARP
+          </a>
+        {% elif arp.link_ata_pncp %}
+          {# Último recurso: página do app PNCP (SPA, não é o documento em si) #}
+          <a href="{{ arp.link_ata_pncp }}"
+             target="_blank"
+             rel="noopener noreferrer"
+             class="btn btn-sm btn-outline-light ms-2"
+             title="Abrir a ata no Portal Nacional de Contratações Públicas">
+            <i class="bi bi-box-arrow-up-right me-1"></i>Ver ata no PNCP
+          </a>
         {% endif %}
 
         <form method="post" action="{% url 'srp:arp_sincronizar_pncp' arp.pk %}" class="d-inline ms-2">

@@ -32,6 +32,33 @@ from .models import (
 )
 
 
+@login_required
+def proxy_ata_pdf(request, pk):
+    """
+    Busca o PDF da ata no PNCP (arquivo binário, não a página HTML do app)
+    e o serve com Content-Disposition: inline, para abrir em nova aba como
+    documento em vez de forçar download.
+    """
+    import urllib.request
+
+    from django.http import HttpResponse
+
+    arp = get_object_or_404(AtaRegistroPrecos, pk=pk)
+    url = arp.link_documento_pncp_direto
+    if not url:
+        return HttpResponse("Não foi possível montar o link direto do documento para esta ARP.", status=404)
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            content = resp.read()
+        response = HttpResponse(content, content_type="application/pdf")
+        response["Content-Disposition"] = "inline; filename=\"ata.pdf\""
+        return response
+    except Exception as exc:
+        return HttpResponse(f"Não foi possível recuperar o documento da ata: {exc}", status=502)
+
+
 @method_decorator(login_required, name="dispatch")
 class DashboardSRPView(View):
     """
@@ -318,8 +345,12 @@ class ARPDetalheView(View):
                             "valor_total": p.valor_total,
                             "item_pk": det["item"].pk,
                         })
-            url_pdf = cp.link_contrato if cp.link_contrato else None
-            
+            # Prioridade: upload manual (arquivo_instrumento) > link automático
+            # (Comprasnet). Ambos são servidos pela mesma view autenticada
+            # contratos:instrumento_pdf, então o template só precisa saber se
+            # existe "alguma" fonte de PDF.
+            url_pdf = bool(cp.arquivo_instrumento) or bool(cp.link_contrato) or None
+
             # Tentar derivar a url_pncp caso o contrato tenha numero_pncp cadastrado
             url_pncp = None
             if cp.numero_pncp:
@@ -452,7 +483,9 @@ class SincronizarARPPNCPView(View):
 
         # 2. Sincronizar/importar contratos da ARP via PNCP/Compras.gov.br
         try:
-            uasg = arp.orgao_gerenciador.codigo_uasg if arp.orgao_gerenciador else "926092"
+            # Orgao não tem campo de UASG (só cnpj/pncp_codigo_orgao) — o MPPI
+            # usa uma única UASG de gestão (926092) para todos os módulos.
+            uasg = "926092"
             ano_inicio = arp.data_inicio_vigencia.year if arp.data_inicio_vigencia else 2024
             call_command(
                 "importar_contratos_arp",

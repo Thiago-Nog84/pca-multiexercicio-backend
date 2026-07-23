@@ -29,11 +29,27 @@ except ImportError:
 @login_required
 def proxy_instrumento_pdf(request, pk):
     """
-    Busca o PDF do instrumento contratual no Comprasnet e o serve com
-    Content-Disposition: inline, para que o navegador abra em nova aba
-    em vez de forçar download.
+    Serve o PDF do instrumento contratual assinado, em nova aba (inline).
+
+    Prioridade da fonte:
+      1. Upload manual (Contrato.arquivo_instrumento) — usado quando não há
+         link automático (ex: contratos de fundos FPDC/FEPDC, só disponíveis
+         no SEI, sem contrapartida pública no Comprasnet).
+      2. Link remoto (Contrato.link_contrato) — PDF importado do Comprasnet
+         Contratos, buscado ao vivo e repassado com Content-Disposition: inline.
     """
     contrato = get_object_or_404(Contrato, pk=pk)
+
+    if contrato.arquivo_instrumento:
+        try:
+            with contrato.arquivo_instrumento.open("rb") as f:
+                content = f.read()
+        except Exception as exc:
+            return HttpResponse(f"Não foi possível ler o arquivo enviado: {exc}", status=500)
+        response = HttpResponse(content, content_type="application/pdf")
+        response["Content-Disposition"] = "inline; filename=\"instrumento.pdf\""
+        return response
+
     url = contrato.link_contrato
     if not url:
         return HttpResponse("Link do instrumento não disponível para este contrato.", status=404)

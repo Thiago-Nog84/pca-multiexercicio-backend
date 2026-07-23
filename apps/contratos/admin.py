@@ -78,6 +78,14 @@ class ContratoAdmin(admin.ModelAdmin):
                 "data_publicacao_pncp",
             )
         }),
+        ("Documento (instrumento assinado)", {
+            "fields": ("arquivo_instrumento", "link_contrato", "comprasnet_id"),
+            "description": (
+                "Se o contrato não tiver link automático do Comprasnet (comum em "
+                "contratos dos fundos FPDC/FEPDC), faça upload do PDF aqui — ele "
+                "passa a ter prioridade sobre o link ao abrir \"Ver Instrumento\"."
+            ),
+        }),
         ("Vínculos", {
             "fields": ("item_pca", "arp_origem", "arp_externa_origem"),
             "classes": ("collapse",),

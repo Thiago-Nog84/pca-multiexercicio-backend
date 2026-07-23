@@ -105,6 +105,12 @@ LOGOUT_REDIRECT_URL = "/admin/login/"
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
+
+# Uploads manuais (ex: PDF de instrumento contratual quando não há link automático).
+# Servidos via view autenticada (contratos:instrumento_pdf), não expostos publicamente.
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
