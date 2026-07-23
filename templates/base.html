@@ -271,6 +271,13 @@
     /* ── Footer ───────────────────────────────────────────── */
     footer { font-size: .76rem; color: #94a3b8; }
 
+    /* ── Tabelas: bordas ao fundo, dados à frente ────────────
+       (Storytelling com Dados, cap. 3 — Knaflic). Clareia a borda
+       interna padrão do Bootstrap (#dee2e6) e reforça só a linha
+       abaixo do cabeçalho. Vale para toda tabela .table do sistema. */
+    .table { --bs-border-color: #eef1f4; }
+    .table thead th { border-bottom: 2px solid #e2e8f0 !important; }
+
     /* ── Responsive: mobile ───────────────────────────────── */
     @media (max-width: 768px) {
       .sidebar { transform: translateX(-100%); transition: transform .2s ease; }
