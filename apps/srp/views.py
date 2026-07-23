@@ -238,9 +238,13 @@ class DashboardSRPView(View):
         ]
 
         # JSON para Chart.js
+        # P5: sem ordem natural entre status, ordena por valor (contagem) desc.
+        # A cor é por lookup de label no JS (STATUS_COR[l]), não por posição —
+        # reordenar aqui não quebra o mapeamento de cor.
+        status_ordenado = sorted(por_status.items(), key=lambda x: -x[1])
         chart_status = json.dumps({
-            "labels": list(por_status.keys()),
-            "data": list(por_status.values()),
+            "labels": [k for k, v in status_ordenado],
+            "data": [v for k, v in status_ordenado],
         })
         anos_sorted = sorted(por_ano.keys())
         chart_ano = json.dumps({

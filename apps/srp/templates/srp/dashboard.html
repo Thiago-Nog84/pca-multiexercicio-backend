@@ -16,6 +16,11 @@
 .section-title { font-size:.85rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#6c757d; margin-bottom:.75rem; }
 .section-title.tem-subtitulo { margin-bottom:.15rem; }
 .chart-subtitle { font-size:.8rem; color:#334155; font-weight:600; margin-bottom:.6rem; }
+/* P7 (Storytelling com Dados, cap. 3): bordas ao fundo, dados à frente — clareia as
+   bordas internas das tabelas (Bootstrap usa #dee2e6 por padrão) e reforça só a
+   linha abaixo do cabeçalho; realce fica por conta do table-hover já em uso. */
+.table { --bs-border-color: #eef1f4; }
+.table thead th { border-bottom: 2px solid #e2e8f0 !important; }
 .dim-card { border-radius:12px; border:1px solid #e8ecf0; position:relative; transition:.15s; }
 .dim-card:hover { transform:translateY(-2px); box-shadow:0 4px 14px rgba(0,0,0,.10); }
 {% endblock %}

@@ -147,11 +147,24 @@ class DashboardContratosView(View):
         ).count()
 
         # ── Dados para gráfico de rosca — distribuição por status ─────────
+        # P5 (Storytelling com Dados, cap. 2): sem ordem natural entre status,
+        # então ordena por valor desc. Cor continua codificando o status (não
+        # é lookup por label no JS — é array paralelo), por isso reordenamos
+        # labels/dados/cores juntos, na mesma posição.
         suspensos = contratos.filter(status="suspenso").count()
+        _status_pares = sorted(
+            [
+                ("Vigente", vigentes_local, "#198754"),
+                ("Encerrado", encerrados, "#6c757d"),
+                ("Rescindido", rescindidos, "#dc3545"),
+                ("Suspenso", suspensos, "#f59e0b"),
+            ],
+            key=lambda p: -p[1],
+        )
         grafico_status = json.dumps({
-            "labels": ["Vigente", "Encerrado", "Rescindido", "Suspenso"],
-            "data": [vigentes_local, encerrados, rescindidos, suspensos],
-            "cores": ["#198754", "#6c757d", "#dc3545", "#f59e0b"],
+            "labels": [p[0] for p in _status_pares],
+            "data": [p[1] for p in _status_pares],
+            "cores": [p[2] for p in _status_pares],
         })
 
         # ── Dados para gráfico de barras — Empenhado vs Saldo (top 10) ───
