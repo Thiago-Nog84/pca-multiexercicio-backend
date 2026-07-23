@@ -170,6 +170,38 @@ class AtaRegistroPrecos(models.Model):
                 if obj:
                     return obj
         return None
+
+    @property
+    def link_documento_pncp_direto(self):
+        """
+        Deriva a URL direta do arquivo PDF da ata no PNCP (baixa o binário do
+        documento, não a página HTML do app). Construída a partir de
+        `numero_controle_pncp_ata`, formato "{cnpj}-{modalidade}-{compra}/{ano}-{ata}"
+        (ex: "05805924000189-1-000042/2025-000001").
+
+        Padrão confirmado manualmente por Thiago em 2026-07-23:
+            https://pncp.gov.br/pncp-api/v1/orgaos/{cnpj}/compras/{ano}/{compra}/atas/{ata}/arquivos/1
+
+        Retorna "" se o número de controle não estiver no formato esperado.
+        Servida via proxy autenticado (srp:ata_pdf) para abrir inline em nova
+        aba — o endpoint do PNCP devolve o binário como
+        application/octet-stream, sem Content-Disposition, então o navegador
+        tende a baixar em vez de exibir se acessado direto.
+        """
+        valor = (self.numero_controle_pncp_ata or "").strip()
+        if not valor:
+            return ""
+        try:
+            cnpj, _modalidade, compra_ano, ata_seq = valor.split("-")
+            compra_seq, ano = compra_ano.split("/")
+            return (
+                f"https://pncp.gov.br/pncp-api/v1/orgaos/{cnpj}/compras/"
+                f"{int(ano)}/{int(compra_seq)}/atas/{int(ata_seq)}/arquivos/1"
+            )
+        except (ValueError, TypeError):
+            return ""
+
+
 class ItemARP(models.Model):
     """
     Item registrado na ARP com quantidade, valor unitário e saldo disponível.
