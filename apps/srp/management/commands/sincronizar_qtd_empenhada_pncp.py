@@ -4,6 +4,15 @@ retornado pela API dadosabertos.compras.gov.br via endpoint:
 
     GET /modulo-arp/2.1_consultarARPItem_Id?numeroControlePncpAta=<valor>
 
+ATENÇÃO (2026-07-23): confirmado ao vivo que o PNCP não recebe do MPPI
+atualização desse campo — `quantidadeEmpenhada` volta 0.0 para praticamente
+todos os itens, mesmo quando há consumo real e já registrado localmente
+(controlado pelo SIAFE-PI, não pelo PNCP). Por isso este comando SÓ AUMENTA
+`quantidade_contratada` — nunca grava um valor menor que o já existente no
+banco. Isso evita repetir o bug de "consumo 0% no Dashboard SRP" que já
+ocorreu (ver memória project_pca_arquitetura.md). Reduções que a API sugerir
+são reportadas mas puladas, mesmo sem --dry-run.
+
 Uso:
     python manage.py sincronizar_qtd_empenhada_pncp
     python manage.py sincronizar_qtd_empenhada_pncp --arp 00015/2025
@@ -57,6 +66,7 @@ class Command(BaseCommand):
 
         atualizados = 0
         sem_alteracao = 0
+        reducoes_bloqueadas = 0
         erros = 0
 
         for arp in qs.order_by("numero_arp"):
@@ -134,8 +144,24 @@ class Command(BaseCommand):
                     sem_alteracao += 1
                     continue
 
+                # TRAVA DE SEGURANÇA: só aceita o valor do PNCP se ele for MAIOR
+                # que o já registrado. O PNCP normalmente não reflete o consumo
+                # real do MPPI (ver aviso no topo do arquivo) — aceitar reduções
+                # cegamente já causou dados de consumo zerados indevidamente.
+                if float(qtd_empenhada) <= float(item_db.quantidade_contratada) + 0.0001:
+                    reducoes_bloqueadas += 1
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"  item={numero_item}: PNCP sugere {item_db.quantidade_contratada} → {qtd_empenhada} "
+                            f"(REDUÇÃO/IGUAL — ignorado por segurança)"
+                        )
+                    )
+                    continue
+
                 self.stdout.write(
-                    f"  item={numero_item}: {item_db.quantidade_contratada} → {qtd_empenhada}"
+                    self.style.SUCCESS(
+                        f"  item={numero_item}: {item_db.quantidade_contratada} → {qtd_empenhada}"
+                    )
                 )
 
                 if not dry:
@@ -146,5 +172,6 @@ class Command(BaseCommand):
 
         self.stdout.write(
             f"\n{'[DRY-RUN] ' if dry else ''}Concluído — "
-            f"atualizados={atualizados} | sem_alteracao={sem_alteracao} | erros={erros}"
+            f"atualizados={atualizados} | sem_alteracao={sem_alteracao} | "
+            f"reducoes_bloqueadas={reducoes_bloqueadas} | erros={erros}"
         )
