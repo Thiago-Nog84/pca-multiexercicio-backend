@@ -403,6 +403,17 @@
                   <a href="{% url 'contratos:instrumento_pdf' contrato.pk %}" target="_blank" class="btn btn-sm btn-primary" style="font-size: 0.75rem;" title="Visualizar PDF do Documento de Instrumento">
                     <i class="bi bi-file-earmark-pdf me-1"></i>Ver Instrumento (PDF)
                   </a>
+                  {% elif contrato.instrumento_tipo == "empenho" %}
+                  <a href="{{ contrato.instrumento_url }}" target="_blank" class="btn btn-sm btn-outline-info" style="font-size: 0.75rem;" title="{{ contrato.instrumento_titulo }}">
+                    <i class="bi bi-receipt me-1"></i>{{ contrato.instrumento_label }}
+                  </a>
+                  {% elif contrato.instrumento_tipo == "mppi_site" %}
+                  <a href="{{ contrato.instrumento_url }}" target="_blank" class="btn btn-sm btn-outline-warning" style="font-size: 0.75rem;" title="{{ contrato.instrumento_titulo }}">
+                    <i class="bi bi-search me-1"></i>{{ contrato.instrumento_label }}
+                  </a>
+                  <span class="text-muted" style="font-size: 0.7rem;" title="{{ contrato.instrumento_titulo }}">
+                    <i class="bi bi-info-circle"></i> busca manual
+                  </span>
                   {% elif contrato.admin_url %}
                   <a href="{{ contrato.admin_url }}" target="_blank" class="btn btn-sm btn-outline-primary" style="font-size: 0.75rem;" title="Visualizar Instrumento no Sistema">
                     <i class="bi bi-file-earmark-text me-1"></i>Ver Instrumento

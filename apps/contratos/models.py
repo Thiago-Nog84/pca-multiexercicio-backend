@@ -440,3 +440,43 @@ class OrdemFornecimento(models.Model):
             self.contrato.saldo_disponivel -= self.valor
             self.contrato.save(update_fields=["saldo_disponivel"])
         super().save(*args, **kwargs)
+
+
+class PaginaContratosMPPI(models.Model):
+    """
+    Mapeamento manual das páginas do site institucional do MPPI
+    (mppi.mp.br/internet/coordenadoria-de-licitacoes-e-contratos/...) que
+    listam contratos por fundo/unidade orçamentária e ano.
+
+    Usado como ÚLTIMO fallback de "Ver Instrumento" quando o contrato não é
+    encontrado nem no Comprasnet Contratos nem no PNCP — cenário comum para
+    contratos dos fundos (FEPDC/FMMP), que nem sempre são publicados nesses
+    dois sistemas. NÃO é um link direto ao PDF do contrato: o site do MPPI
+    não expõe isso por API/padrão de URL previsível, então este link abre a
+    página de listagem para busca manual pelo número do contrato — daí a
+    UI sempre mostrar isso marcado como observação, não como link direto.
+
+    Cadastro manual via admin conforme forem descobertas as páginas de cada
+    fundo/ano (não há como gerar isso automaticamente com confiança).
+    """
+
+    unidade_orcamentaria = models.CharField(
+        max_length=10,
+        choices=Contrato.UNIDADE_ORCAMENTARIA,
+        verbose_name="Unidade gestora / fonte",
+    )
+    ano = models.PositiveIntegerField(verbose_name="Ano")
+    url = models.URLField(
+        max_length=500,
+        verbose_name="URL da página de listagem no site do MPPI",
+    )
+    observacao = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        verbose_name = "Página de contratos MPPI (fallback manual)"
+        verbose_name_plural = "Páginas de contratos MPPI (fallback manual)"
+        unique_together = ("unidade_orcamentaria", "ano")
+        ordering = ["-ano", "unidade_orcamentaria"]
+
+    def __str__(self):
+        return f"{self.get_unidade_orcamentaria_display()} — {self.ano}"

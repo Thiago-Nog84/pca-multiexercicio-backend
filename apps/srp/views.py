@@ -10,6 +10,7 @@ Rotas:
 """
 
 import io
+import re
 from datetime import date, timedelta
 
 from django.contrib import messages
@@ -30,6 +31,65 @@ from .models import (
     ItemARP,
     VinculoARPUnidade,
 )
+
+
+_NE_PATTERN = re.compile(r"^\d{4}NE\d+$", re.IGNORECASE)
+
+
+def _resolver_instrumento_contrato(cp):
+    """
+    Decide como resolver o botão "Ver Instrumento" de um Contrato na tela da
+    ARP, em ordem de prioridade:
+      1. PDF (upload manual ou link Comprasnet) — servido pela proxy
+         contratos:instrumento_pdf (comportamento já existente).
+      2. Nota de Empenho — quando o "contrato" é, na prática, uma NE com
+         força de contrato (numero_contrato no formato AAAANEnnnnnn), não
+         existe instrumento formal separado; linka para a tela de empenhos
+         filtrada por esse número.
+      3. Site institucional do MPPI — fallback de ÚLTIMA instância quando o
+         contrato não foi localizado no Comprasnet/PNCP; abre a página de
+         listagem do fundo/ano (PaginaContratosMPPI) para busca MANUAL — não
+         é um link direto ao PDF, por isso sempre marcado com observação.
+      4. Nenhum — sobra só o link para o registro no admin (comportamento
+         anterior, quando nada mais se aplica).
+
+    Retorna dict: {"tipo", "url", "label", "titulo"}.
+    """
+    if cp.arquivo_instrumento or cp.link_contrato:
+        return {"tipo": "pdf", "url": None, "label": None, "titulo": None}
+
+    numero = (cp.numero_contrato or "").strip()
+    if _NE_PATTERN.match(numero):
+        from django.urls import reverse
+        return {
+            "tipo": "empenho",
+            "url": f"{reverse('contratos:empenhos')}?q={numero}",
+            "label": "Ver Nota de Empenho",
+            "titulo": (
+                'Este "contrato" é, na prática, uma Nota de Empenho com força '
+                "de contrato — não existe instrumento formal separado dela."
+            ),
+        }
+
+    ano = cp.data_assinatura.year if cp.data_assinatura else None
+    if cp.unidade_orcamentaria and ano:
+        from apps.contratos.models import PaginaContratosMPPI
+        pagina = PaginaContratosMPPI.objects.filter(
+            unidade_orcamentaria=cp.unidade_orcamentaria, ano=ano
+        ).first()
+        if pagina:
+            return {
+                "tipo": "mppi_site",
+                "url": pagina.url,
+                "label": "Buscar no site do MPPI",
+                "titulo": (
+                    "Contrato não localizado no Comprasnet nem no PNCP. Este link "
+                    "abre a página de contratos do MPPI para busca manual pelo "
+                    f'número "{numero}" — não é um link direto ao PDF.'
+                ),
+            }
+
+    return {"tipo": "nenhum", "url": None, "label": None, "titulo": None}
 
 
 @login_required
@@ -345,11 +405,7 @@ class ARPDetalheView(View):
                             "valor_total": p.valor_total,
                             "item_pk": det["item"].pk,
                         })
-            # Prioridade: upload manual (arquivo_instrumento) > link automático
-            # (Comprasnet). Ambos são servidos pela mesma view autenticada
-            # contratos:instrumento_pdf, então o template só precisa saber se
-            # existe "alguma" fonte de PDF.
-            url_pdf = bool(cp.arquivo_instrumento) or bool(cp.link_contrato) or None
+            instrumento = _resolver_instrumento_contrato(cp)
 
             # Tentar derivar a url_pncp caso o contrato tenha numero_pncp cadastrado
             url_pncp = None
@@ -380,7 +436,11 @@ class ARPDetalheView(View):
                 "itens_lista": itens_contrato,
                 "is_carona": False,
                 "admin_url": f"/admin/contratos/contrato/{cp.pk}/change/",
-                "url_instrumento_pdf": url_pdf,
+                "url_instrumento_pdf": (instrumento["tipo"] == "pdf") or None,
+                "instrumento_tipo": instrumento["tipo"],
+                "instrumento_url": instrumento["url"],
+                "instrumento_label": instrumento["label"],
+                "instrumento_titulo": instrumento["titulo"],
                 "url_pncp": url_pncp,
             })
 

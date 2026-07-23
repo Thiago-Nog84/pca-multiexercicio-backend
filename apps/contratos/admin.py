@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import Aditivo, Apostilamento, Contrato, OrdemFornecimento
+from .models import Aditivo, Apostilamento, Contrato, OrdemFornecimento, PaginaContratosMPPI
+
+
+@admin.register(PaginaContratosMPPI)
+class PaginaContratosMPPIAdmin(admin.ModelAdmin):
+    list_display = ("unidade_orcamentaria", "ano", "url")
+    list_filter = ("unidade_orcamentaria",)
+    ordering = ("-ano", "unidade_orcamentaria")
 
 
 class AditivoInline(admin.TabularInline):
