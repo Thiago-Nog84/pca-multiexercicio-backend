@@ -403,6 +403,10 @@
                   <a href="{% url 'contratos:instrumento_pdf' contrato.pk %}" target="_blank" class="btn btn-sm btn-primary" style="font-size: 0.75rem;" title="Visualizar PDF do Documento de Instrumento">
                     <i class="bi bi-file-earmark-pdf me-1"></i>Ver Instrumento (PDF)
                   </a>
+                  {% elif contrato.instrumento_tipo == "pdf_pncp" %}
+                  <a href="{{ contrato.instrumento_url }}" target="_blank" class="btn btn-sm btn-primary" style="font-size: 0.75rem;" title="{{ contrato.instrumento_titulo }}">
+                    <i class="bi bi-file-earmark-pdf me-1"></i>{{ contrato.instrumento_label }}
+                  </a>
                   {% elif contrato.instrumento_tipo == "empenho" %}
                   <a href="{{ contrato.instrumento_url }}" target="_blank" class="btn btn-sm btn-outline-info" style="font-size: 0.75rem;" title="{{ contrato.instrumento_titulo }}">
                     <i class="bi bi-receipt me-1"></i>{{ contrato.instrumento_label }}
@@ -411,9 +415,6 @@
                   <a href="{{ contrato.instrumento_url }}" target="_blank" class="btn btn-sm btn-outline-warning" style="font-size: 0.75rem;" title="{{ contrato.instrumento_titulo }}">
                     <i class="bi bi-search me-1"></i>{{ contrato.instrumento_label }}
                   </a>
-                  <span class="text-muted" style="font-size: 0.7rem;" title="{{ contrato.instrumento_titulo }}">
-                    <i class="bi bi-info-circle"></i> busca manual
-                  </span>
                   {% elif contrato.instrumento_tipo == "pncp_pagina" %}
                   <a href="{{ contrato.instrumento_url }}" target="_blank" class="btn btn-sm btn-outline-secondary" style="font-size: 0.75rem;" title="{{ contrato.instrumento_titulo }}">
                     <i class="bi bi-box-arrow-up-right me-1"></i>{{ contrato.instrumento_label }}
@@ -422,9 +423,6 @@
                   <a href="{{ contrato.instrumento_url }}" target="_blank" class="btn btn-sm btn-outline-secondary" style="font-size: 0.75rem;" title="{{ contrato.instrumento_titulo }}">
                     <i class="bi bi-box-arrow-up-right me-1"></i>{{ contrato.instrumento_label }}
                   </a>
-                  <span class="text-muted" style="font-size: 0.7rem;" title="{{ contrato.instrumento_titulo }}">
-                    <i class="bi bi-info-circle"></i> ata de origem
-                  </span>
                   {% elif contrato.admin_url %}
                   <a href="{{ contrato.admin_url }}" target="_blank" class="btn btn-sm btn-outline-primary" style="font-size: 0.75rem;" title="Visualizar Instrumento no Sistema">
                     <i class="bi bi-file-earmark-text me-1"></i>Ver Instrumento
@@ -505,7 +503,15 @@
                         </td>
                         <td>{{ item_c.descricao|default:"—"|truncatechars:60 }}</td>
                         <td class="text-center text-muted">{{ item_c.unidade|default:"—" }}</td>
-                        <td class="text-end fw-medium">{{ item_c.quantidade_contratada|floatformat:2 }}</td>
+                        <td class="text-end fw-medium">
+                          {% if item_c.percentual_do_item is not None %}
+                          <span title="Item sem unidade física — registrado como teto de valor. Quantidade contratada = fração do teto consumida.">
+                            {{ item_c.percentual_do_item|floatformat:1 }}% do valor do item
+                          </span>
+                          {% else %}
+                          {{ item_c.quantidade_contratada|floatformat:2 }}
+                          {% endif %}
+                        </td>
                         <td class="text-end">R$ {{ item_c.valor_unitario|floatformat:"2g" }}</td>
                         <td class="text-end fw-semibold">R$ {{ item_c.valor_total|floatformat:"2g" }}</td>
                       </tr>

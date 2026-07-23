@@ -66,7 +66,38 @@ def _derivar_url_pncp_contrato(numero_pncp):
     return None
 
 
-def _resolver_instrumento_contrato(cp, url_pncp_pagina=None, url_ata_pncp=None):
+def _derivar_url_pncp_documento_contrato(numero_pncp):
+    """
+    Deriva o link do PDF do contrato assinado, direto do PNCP (arquivo
+    binário, não a página HTML) a partir do `numero_pncp` (formato
+    "cnpj-modalidade-sequencial/ano", ex: 05805924000189-2-000042/2026).
+
+    Padrão confirmado ao vivo por mim em 2026-07-23 (mesma família do padrão
+    já usado pra atas): HTTP 200, application/octet-stream, PDF real de
+    ~110KB — testado com o contrato 00035/2026 da ARP 00004/2026.
+
+    Retorna None se o formato não bater ou o campo estiver vazio. Servido
+    via proxy autenticado (srp:contrato_pncp_pdf) pra abrir inline em nova
+    aba (o endpoint do PNCP não manda Content-Disposition, então acessar
+    direto tende a baixar em vez de exibir).
+    """
+    if not numero_pncp:
+        return None
+    try:
+        parts = numero_pncp.split("-")
+        if len(parts) >= 3:
+            cnpj = parts[0]
+            num_ano = parts[2].split("/")
+            if len(num_ano) == 2:
+                seq = int(num_ano[0])
+                ano = num_ano[1]
+                return f"https://pncp.gov.br/pncp-api/v1/orgaos/{cnpj}/contratos/{ano}/{seq}/arquivos/1"
+    except (ValueError, IndexError):
+        pass
+    return None
+
+
+def _resolver_instrumento_contrato(cp, url_pncp_pagina=None, url_ata_pncp=None, url_pdf_pncp=None):
     """
     Decide como resolver o botão "Ver Instrumento" de um contrato na tela da
     ARP, em ordem de prioridade. Aceita tanto `apps.contratos.models.Contrato`
@@ -76,24 +107,29 @@ def _resolver_instrumento_contrato(cp, url_pncp_pagina=None, url_ata_pncp=None):
 
       1. PDF (upload manual ou link Comprasnet) — servido pela proxy
          contratos:instrumento_pdf (só existe pra `Contrato`).
-      2. Nota de Empenho — quando o "contrato" é, na prática, uma NE com
+      2. PDF do contrato assinado direto do PNCP — quando o contrato tem
+         `numero_pncp` e o chamador já montou o link pra proxy que baixa o
+         binário real (`url_pdf_pncp`, via `_derivar_url_pncp_documento_contrato`
+         + `srp:contrato_pncp_pdf`). Confirmado funcionando em 2026-07-23.
+      3. Nota de Empenho — quando o "contrato" é, na prática, uma NE com
          força de contrato (numero_contrato no formato AAAANEnnnnnn), não
          existe instrumento formal separado; linka para a tela de empenhos
          filtrada por esse número.
-      3. Site institucional do MPPI — fallback quando o contrato não foi
+      4. Site institucional do MPPI — fallback quando o contrato não foi
          localizado no Comprasnet/PNCP; abre a página de listagem do
          fundo/ano (PaginaContratosMPPI) para busca MANUAL — não é um link
          direto ao PDF, por isso sempre marcado com observação. Só se aplica
          a `Contrato` (que tem `unidade_orcamentaria`).
-      4. Página do contrato no PNCP — quando o chamador já calculou um link
+      5. Página do contrato no PNCP — quando o chamador já calculou um link
          pro app do PNCP (`url_pncp_pagina`, a partir de `numero_pncp` do
-         PRÓPRIO contrato). Não é PDF direto, mas é melhor que cair no admin.
-      5. Ata de origem no PNCP — quando o contrato não tem `numero_pncp`
+         PRÓPRIO contrato) mas o PDF direto (item 2) não bateu. Não é PDF
+         direto, mas é melhor que cair no admin.
+      6. Ata de origem no PNCP — quando o contrato não tem `numero_pncp`
          próprio, mas a ARP de origem já tem `link_ata_pncp` cadastrado
          (`url_ata_pncp`). Não é o contrato específico, é a ata que o
          originou — por isso sempre marcado com observação, só usado se
          nada melhor foi encontrado.
-      6. Nenhum — sobra só o link para o registro no admin (comportamento
+      7. Nenhum — sobra só o link para o registro no admin (comportamento
          anterior, quando nada mais se aplica).
 
     Retorna dict: {"tipo", "url", "label", "titulo"}.
@@ -102,6 +138,14 @@ def _resolver_instrumento_contrato(cp, url_pncp_pagina=None, url_ata_pncp=None):
     link_contrato = getattr(cp, "link_contrato", None)
     if arquivo_instrumento or link_contrato:
         return {"tipo": "pdf", "url": None, "label": None, "titulo": None}
+
+    if url_pdf_pncp:
+        return {
+            "tipo": "pdf_pncp",
+            "url": url_pdf_pncp,
+            "label": "Ver Contrato Assinado (PDF)",
+            "titulo": "PDF do contrato assinado, obtido diretamente do PNCP.",
+        }
 
     numero = (getattr(cp, "numero_contrato", "") or "").strip()
     if _NE_PATTERN.match(numero):
@@ -190,6 +234,42 @@ def proxy_ata_pdf(request, pk):
         return response
     except Exception as exc:
         return HttpResponse(f"Não foi possível recuperar o documento da ata: {exc}", status=502)
+
+
+@login_required
+def proxy_contrato_pncp_pdf(request, tipo, pk):
+    """
+    Busca o PDF do contrato assinado diretamente do PNCP (arquivo binário) e
+    serve com Content-Disposition: inline. Cobre os 2 modelos que guardam
+    contrato (`tipo="contrato"` -> apps.contratos.models.Contrato,
+    `tipo="contrato_arp"` -> apps.srp.models.ContratoARP), já que ambos podem
+    ter `numero_pncp` preenchido. Ver `_derivar_url_pncp_documento_contrato`.
+    """
+    import urllib.request
+
+    from django.http import HttpResponse
+
+    if tipo == "contrato":
+        from apps.contratos.models import Contrato as ContratoPrincipal
+        obj = get_object_or_404(ContratoPrincipal, pk=pk)
+    elif tipo == "contrato_arp":
+        obj = get_object_or_404(ContratoARP, pk=pk)
+    else:
+        return HttpResponse("Tipo de contrato inválido.", status=400)
+
+    url = _derivar_url_pncp_documento_contrato(obj.numero_pncp)
+    if not url:
+        return HttpResponse("Não foi possível montar o link direto do documento para este contrato.", status=404)
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            content = resp.read()
+        response = HttpResponse(content, content_type="application/pdf")
+        response["Content-Disposition"] = "inline; filename=\"contrato.pdf\""
+        return response
+    except Exception as exc:
+        return HttpResponse(f"Não foi possível recuperar o documento do contrato: {exc}", status=502)
 
 
 @method_decorator(login_required, name="dispatch")
@@ -489,20 +569,38 @@ class ARPDetalheView(View):
             for det in itens_detalhados:
                 for p in det["pedidos"]:
                     if p.numero_pedido == cp.numero_contrato:
+                        # Itens sem unidade física cadastrada (Un. em branco) são
+                        # "lotes"/tetos de valor (ex: postos de serviço) — a
+                        # quantidade_contratada é uma FRAÇÃO do valor registrado,
+                        # não uma contagem. Exibir como % é mais claro que "0,68".
+                        percentual_do_item = None
+                        if not (det["item"].unidade_fornecimento or "").strip() and det["item"].quantidade_registrada:
+                            percentual_do_item = round(
+                                float(p.quantidade) / float(det["item"].quantidade_registrada) * 100, 1
+                            )
                         itens_contrato.append({
                             "numero_item": det["item"].numero_item,
                             "descricao": det["item"].descricao,
                             "unidade": det["item"].unidade_fornecimento,
                             "quantidade_contratada": p.quantidade,
+                            "percentual_do_item": percentual_do_item,
                             "valor_unitario": p.valor_unitario,
                             "valor_total": p.valor_total,
                             "item_pk": det["item"].pk,
                         })
-            # Deriva a página do PNCP primeiro — se não houver PDF/NE/site MPPI,
-            # o resolver usa esse link como penúltimo fallback (antes do admin).
+            # Deriva a página do PNCP e o PDF real do contrato assinado (se
+            # numero_pncp estiver preenchido) — o resolver usa em ordem de
+            # prioridade, com fallback pra ata de origem/admin quando faltar.
             url_pncp = _derivar_url_pncp_contrato(cp.numero_pncp)
+            url_pdf_pncp = None
+            if _derivar_url_pncp_documento_contrato(cp.numero_pncp):
+                from django.urls import reverse
+                url_pdf_pncp = reverse("srp:contrato_pncp_pdf", args=["contrato", cp.pk])
             instrumento = _resolver_instrumento_contrato(
-                cp, url_pncp_pagina=url_pncp, url_ata_pncp=arp.link_ata_pncp or None
+                cp,
+                url_pncp_pagina=url_pncp,
+                url_ata_pncp=arp.link_ata_pncp or None,
+                url_pdf_pncp=url_pdf_pncp,
             )
 
             lista_contratos.append({
@@ -549,21 +647,35 @@ class ARPDetalheView(View):
 
             itens_contrato = []
             for ic in ca.itens.all():
+                unidade_ic = ic.unidade or (ic.item_arp.unidade_fornecimento if ic.item_arp else "")
+                percentual_do_item = None
+                if not (unidade_ic or "").strip() and ic.item_arp and ic.item_arp.quantidade_registrada:
+                    percentual_do_item = round(
+                        float(ic.quantidade_contratada) / float(ic.item_arp.quantidade_registrada) * 100, 1
+                    )
                 itens_contrato.append({
                     "numero_item": ic.numero_item,
                     "descricao": ic.descricao or (ic.item_arp.descricao if ic.item_arp else ""),
-                    "unidade": ic.unidade or (ic.item_arp.unidade_fornecimento if ic.item_arp else ""),
+                    "unidade": unidade_ic,
                     "quantidade_contratada": ic.quantidade_contratada,
+                    "percentual_do_item": percentual_do_item,
                     "valor_unitario": ic.valor_unitario,
                     "valor_total": ic.valor_total,
                     "item_pk": ic.item_arp.pk if ic.item_arp else None,
                 })
             # ContratoARP não tem arquivo_instrumento/link_contrato/unidade_orcamentaria
             # (é um registro importado do dadosabertos.compras.gov.br) — o resolver
-            # tolera os campos ausentes via getattr e ainda cobre NE + página do PNCP.
+            # tolera os campos ausentes via getattr e ainda cobre NE + PDF/página do PNCP.
             url_pncp_ca = _derivar_url_pncp_contrato(ca.numero_pncp)
+            url_pdf_pncp_ca = None
+            if _derivar_url_pncp_documento_contrato(ca.numero_pncp):
+                from django.urls import reverse
+                url_pdf_pncp_ca = reverse("srp:contrato_pncp_pdf", args=["contrato_arp", ca.pk])
             instrumento_ca = _resolver_instrumento_contrato(
-                ca, url_pncp_pagina=url_pncp_ca, url_ata_pncp=arp.link_ata_pncp or None
+                ca,
+                url_pncp_pagina=url_pncp_ca,
+                url_ata_pncp=arp.link_ata_pncp or None,
+                url_pdf_pncp=url_pdf_pncp_ca,
             )
 
             lista_contratos.append({
