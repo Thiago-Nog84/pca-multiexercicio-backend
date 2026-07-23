@@ -799,6 +799,7 @@
           <div class="card-header bg-white border-bottom py-3">
             <i class="bi bi-pie-chart me-2 text-primary"></i>
             <strong>Distribuição por Status</strong>
+            {% if subtitulo_status_contratos %}<div style="font-size:.78rem;color:#334155;font-weight:600;margin-top:.25rem;">{{ subtitulo_status_contratos }}</div>{% endif %}
           </div>
           <div class="card-body d-flex align-items-center justify-content-center" style="min-height:280px;">
             <canvas id="graficoStatus" style="max-height:260px;"></canvas>
@@ -812,6 +813,7 @@
           <div class="card-header bg-white border-bottom py-3">
             <i class="bi bi-bar-chart-steps me-2 text-warning"></i>
             <strong>Execução vs Saldo — Top Contratos (R$)</strong>
+            {% if subtitulo_execucao %}<div style="font-size:.78rem;color:#334155;font-weight:600;margin-top:.25rem;">{{ subtitulo_execucao }}</div>{% endif %}
           </div>
           <div class="card-body" style="min-height:280px;">
             <canvas id="graficoExecucao" style="max-height:260px;"></canvas>

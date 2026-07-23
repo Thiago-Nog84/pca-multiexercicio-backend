@@ -22,6 +22,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
 from django.views import View
 
+from apps.core.utils import subtitulo_dominante, subtitulo_maior
+
 from .models import (
     AdesaoARP,
     ARPExterna,
@@ -253,6 +255,18 @@ class DashboardSRPView(View):
             "pks": [t[3] for t in top_valor],
         })
 
+        # Subtítulos dinâmicos (Storytelling com Dados, cap. 7 — título conta
+        # a história, não só rotula). Ver docs/melhorias_visuais_storytelling.md P4.
+        subtitulo_status = subtitulo_dominante(por_status.items(), sufixo=" das ARPs")
+        subtitulo_unidades = subtitulo_dominante(
+            [(sigla, len(pks)) for sigla, pks in unidade_arps.items()],
+            sufixo=" das ARPs vinculadas a unidade",
+        )
+        subtitulo_ano = subtitulo_maior(por_ano.items(), prefixo="Maior volume registrado em")
+        subtitulo_top = subtitulo_maior(
+            [(t[0], t[2]) for t in top_valor], prefixo="Maior ARP"
+        )
+
         # ═══════════ As 4 dimensões do SRP ═══════════
         # 1. ARPs originadas (gerenciadas pelo MPPI) — já coberto acima
         #    (total_arps, arps_vigentes, valor_total).
@@ -310,6 +324,10 @@ class DashboardSRPView(View):
             "chart_status": chart_status,
             "chart_ano": chart_ano,
             "chart_top": chart_top,
+            "subtitulo_status": subtitulo_status,
+            "subtitulo_unidades": subtitulo_unidades,
+            "subtitulo_ano": subtitulo_ano,
+            "subtitulo_top": subtitulo_top,
         }
         return render(request, self.template_name, context)
 
@@ -877,6 +895,34 @@ class ContratacoesDecorrentesView(View):
             "contagens": [x["n"] for x in agg_fonte],
         })
 
+        # Subtítulos dinâmicos (P4 — ver docs/melhorias_visuais_storytelling.md)
+        subtitulo_status = subtitulo_dominante(
+            [(status_labels.get(x["status"], x["status"]), x["valor"] or 0) for x in agg_status],
+            sufixo=" do valor",
+        )
+        subtitulo_fonte = subtitulo_dominante(
+            [
+                (fonte_labels.get(x["unidade_orcamentaria"], "Não informado").split(" — ")[0], x["valor"] or 0)
+                for x in agg_fonte
+            ],
+            sufixo=" do valor",
+        )
+        subtitulo_unidade = subtitulo_dominante(
+            [(x["unidade_requisitante__sigla"] or "—", x["valor"] or 0) for x in agg_unidade],
+            sufixo=" do valor",
+        )
+        subtitulo_exercicio = subtitulo_maior(
+            [(str(x["exercicio"]), x["valor"] or 0) for x in agg_exercicio],
+            prefixo="Maior volume registrado em",
+        )
+        subtitulo_arp = subtitulo_maior(
+            [(x["arp__numero_arp"], x["valor"] or 0) for x in agg_arp], prefixo="Maior ARP"
+        )
+        subtitulo_item = subtitulo_maior(
+            [((x["item_arp__descricao"] or "—")[:35], x["valor"] or 0) for x in agg_item],
+            prefixo="Maior item",
+        )
+
         # Opções de filtro
         arps_com_contratacoes = (
             AtaRegistroPrecos.objects
@@ -946,5 +992,11 @@ class ContratacoesDecorrentesView(View):
             "chart_arp": chart_arp,
             "chart_item": chart_item,
             "chart_fonte": chart_fonte,
+            "subtitulo_status": subtitulo_status,
+            "subtitulo_fonte": subtitulo_fonte,
+            "subtitulo_unidade": subtitulo_unidade,
+            "subtitulo_exercicio": subtitulo_exercicio,
+            "subtitulo_arp": subtitulo_arp,
+            "subtitulo_item": subtitulo_item,
         }
         return render(request, self.template_name, context)

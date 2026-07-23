@@ -7,6 +7,7 @@
 .stat-card { border-radius: 10px; border: 1px solid #e8ecf0; }
 .filtro-card { border-radius: 10px; border: 1px solid #e8ecf0; }
 .tabela-contratacoes td { vertical-align: middle; font-size: .82rem; }
+.chart-subtitle { font-size:.78rem; color:#334155; font-weight:600; margin-top:-.35rem; margin-bottom:.5rem; }
 {% endblock %}
 
 {% block content %}
@@ -89,12 +90,14 @@
         <span class="fw-semibold small"><i class="bi bi-bar-chart me-1"></i>Valor por exercício</span>
         <span class="text-muted" style="font-size:.72rem;">clique para filtrar o ano</span>
       </div>
+      {% if subtitulo_exercicio %}<div class="chart-subtitle">{{ subtitulo_exercicio }}</div>{% endif %}
       <div style="height:220px;"><canvas id="chartExercicio"></canvas></div>
     </div>
   </div>
   <div class="col-12 col-lg-4">
     <div class="card stat-card p-3 h-100">
       <div class="fw-semibold small mb-2"><i class="bi bi-pie-chart me-1"></i>Por status</div>
+      {% if subtitulo_status %}<div class="chart-subtitle">{{ subtitulo_status }}</div>{% endif %}
       <div style="height:220px;"><canvas id="chartStatus"></canvas></div>
     </div>
   </div>
@@ -104,12 +107,14 @@
         <span class="fw-semibold small"><i class="bi bi-bank me-1"></i>Por unidade gestora / fonte</span>
         <span class="text-muted" style="font-size:.72rem;">PGJ · FMMP · FEPDC · clique para filtrar</span>
       </div>
+      {% if subtitulo_fonte %}<div class="chart-subtitle">{{ subtitulo_fonte }}</div>{% endif %}
       <div style="height:240px;"><canvas id="chartFonte"></canvas></div>
     </div>
   </div>
   <div class="col-12 col-lg-6">
     <div class="card stat-card p-3 h-100">
       <div class="fw-semibold small mb-2"><i class="bi bi-building me-1"></i>Por unidade requisitante</div>
+      {% if subtitulo_unidade %}<div class="chart-subtitle">{{ subtitulo_unidade }}</div>{% endif %}
       <div style="height:240px;"><canvas id="chartUnidade"></canvas></div>
     </div>
   </div>
@@ -119,12 +124,14 @@
         <span class="fw-semibold small"><i class="bi bi-file-earmark-text me-1"></i>Top ARPs por valor</span>
         <span class="text-muted" style="font-size:.72rem;">clique para abrir a ARP</span>
       </div>
+      {% if subtitulo_arp %}<div class="chart-subtitle">{{ subtitulo_arp }}</div>{% endif %}
       <div style="height:260px;"><canvas id="chartArp"></canvas></div>
     </div>
   </div>
   <div class="col-12">
     <div class="card stat-card p-3 h-100">
       <div class="fw-semibold small mb-2"><i class="bi bi-box-seam me-1"></i>Top itens contratados (por valor)</div>
+      {% if subtitulo_item %}<div class="chart-subtitle">{{ subtitulo_item }}</div>{% endif %}
       <div style="height:260px;"><canvas id="chartItem"></canvas></div>
     </div>
   </div>

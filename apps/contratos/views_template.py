@@ -15,6 +15,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
 from django.views import View
 
+from apps.core.utils import subtitulo_dominante, subtitulo_maior
+
 from .models import Aditivo, Contrato
 from .models_empenho import Empenho
 
@@ -159,6 +161,21 @@ class DashboardContratosView(View):
             "saldo": [float(c.saldo_disponivel or 0) for c in top_empenhados],
         })
 
+        # Subtítulos dinâmicos (P4 — ver docs/melhorias_visuais_storytelling.md)
+        subtitulo_status_contratos = subtitulo_dominante(
+            [
+                ("Vigente", vigentes_local),
+                ("Encerrado", encerrados),
+                ("Rescindido", rescindidos),
+                ("Suspenso", suspensos),
+            ],
+            sufixo=" dos contratos",
+        )
+        subtitulo_execucao = subtitulo_maior(
+            [(c.numero_contrato, float(c.valor_empenhado or 0)) for c in top_empenhados],
+            prefixo="Maior execução",
+        )
+
         # ── Contratos Comprasnet (importados) ─────────────────────────────
         if _tem_dados_externos:
             cc_qs = ContratoComprasnet.objects.all()
@@ -280,6 +297,8 @@ class DashboardContratosView(View):
             "contratos_sem_empenho": contratos_sem_empenho,
             "grafico_status": grafico_status,
             "grafico_execucao": grafico_execucao,
+            "subtitulo_status_contratos": subtitulo_status_contratos,
+            "subtitulo_execucao": subtitulo_execucao,
         }
         return render(request, self.template_name, context)
 
@@ -420,6 +439,23 @@ class EmpenhosSIAFEView(View):
             "valores": [float(x["valor"] or 0) for x in agg_favorecido],
         })
 
+        # Subtítulos dinâmicos (P4 — ver docs/melhorias_visuais_storytelling.md)
+        subtitulo_org = subtitulo_dominante(
+            [(x["contrato__orgao__sigla"] or "Sem órgão informado", x["valor"] or 0) for x in agg_org],
+            sufixo=" do valor empenhado",
+        )
+        subtitulo_fonte = subtitulo_dominante(
+            [(x["fonte_recurso"] or "Fonte não informada", x["valor"] or 0) for x in agg_fonte],
+            sufixo=" do valor empenhado",
+        )
+        subtitulo_elemento = subtitulo_maior(
+            [(x["elemento_despesa"], x["valor"] or 0) for x in agg_elemento], prefixo="Maior elemento"
+        )
+        subtitulo_favorecido = subtitulo_maior(
+            [((x["nome_favorecido"] or "—")[:32], x["valor"] or 0) for x in agg_favorecido],
+            prefixo="Maior favorecido",
+        )
+
         # Totais do recorte filtrado (para os cards da aba de empenhos)
         agg_filtrado = qs_empenhos.aggregate(v=Sum("valor_empenhado"), n=Count("id"))
 
@@ -457,6 +493,10 @@ class EmpenhosSIAFEView(View):
             "chart_fonte": chart_fonte,
             "chart_elemento": chart_elemento,
             "chart_favorecido": chart_favorecido,
+            "subtitulo_org": subtitulo_org,
+            "subtitulo_fonte": subtitulo_fonte,
+            "subtitulo_elemento": subtitulo_elemento,
+            "subtitulo_favorecido": subtitulo_favorecido,
         }
         return render(request, self.template_name, context)
 

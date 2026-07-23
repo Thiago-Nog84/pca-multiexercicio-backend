@@ -14,6 +14,8 @@
 .val-disponivel { color:#198754; font-weight:700; }
 .val-contratado { color:#0d6efd; }
 .section-title { font-size:.85rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#6c757d; margin-bottom:.75rem; }
+.section-title.tem-subtitulo { margin-bottom:.15rem; }
+.chart-subtitle { font-size:.8rem; color:#334155; font-weight:600; margin-bottom:.6rem; }
 .dim-card { border-radius:12px; border:1px solid #e8ecf0; position:relative; transition:.15s; }
 .dim-card:hover { transform:translateY(-2px); box-shadow:0 4px 14px rgba(0,0,0,.10); }
 {% endblock %}
@@ -192,7 +194,8 @@
   <!-- Gráfico de rosca: status -->
   <div class="col-12 col-md-3">
     <div class="card chart-card p-3 h-100">
-      <div class="section-title">ARPs por Status</div>
+      <div class="section-title{% if subtitulo_status %} tem-subtitulo{% endif %}">ARPs por Status</div>
+      {% if subtitulo_status %}<div class="chart-subtitle">{{ subtitulo_status }}</div>{% endif %}
       <canvas id="chartStatus" height="200"></canvas>
     </div>
   </div>
@@ -200,7 +203,8 @@
   <!-- Gráfico de barras: valor por ano -->
   <div class="col-12 col-md-5">
     <div class="card chart-card p-3 h-100">
-      <div class="section-title">Valor Registrado por Ano</div>
+      <div class="section-title{% if subtitulo_ano %} tem-subtitulo{% endif %}">Valor Registrado por Ano</div>
+      {% if subtitulo_ano %}<div class="chart-subtitle">{{ subtitulo_ano }}</div>{% endif %}
       <canvas id="chartAno" height="200"></canvas>
     </div>
   </div>
@@ -208,7 +212,8 @@
   <!-- Top 10 ARPs por valor -->
   <div class="col-12 col-md-4">
     <div class="card chart-card p-3 h-100">
-      <div class="section-title">Top 10 ARPs por Valor</div>
+      <div class="section-title{% if subtitulo_top %} tem-subtitulo{% endif %}">Top 10 ARPs por Valor</div>
+      {% if subtitulo_top %}<div class="chart-subtitle">{{ subtitulo_top }}</div>{% endif %}
       <canvas id="chartTop" height="200"></canvas>
     </div>
   </div>
@@ -221,7 +226,8 @@
   <!-- Unidades -->
   <div class="col-12 col-md-6">
     <div class="card chart-card p-3 h-100">
-      <div class="section-title">ARPs por Unidade Requisitante</div>
+      <div class="section-title{% if subtitulo_unidades %} tem-subtitulo{% endif %}">ARPs por Unidade Requisitante</div>
+      {% if subtitulo_unidades %}<div class="chart-subtitle">{{ subtitulo_unidades }}</div>{% endif %}
       {% if unidades_com_arps %}
       <div class="d-flex flex-wrap gap-2">
         {% for u in unidades_com_arps %}
