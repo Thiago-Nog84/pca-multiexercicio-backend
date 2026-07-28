@@ -20,6 +20,10 @@ from django.db.models import F
 
 from apps.contratos.models import Contrato
 from apps.srp.models import AtaRegistroPrecos, ContratacaoDecorrente, ItemARP
+from apps.srp.services.dadosabertos_contratos import (
+    resolver_itens_para_contrato,
+    resolver_quantidade_por_valor_homologado,
+)
 
 
 def _sim(a: str, b: str) -> float:
@@ -37,6 +41,16 @@ OFFICIAL_CONTRACT_ITEMS = {
     ("00003/2026", "28/2026 PGJ"): {
         10: Decimal("994"),   # Açúcar Cristal 1kg (Empenho 2026NE00428)
         11: Decimal("11450"), # Café 250g (Empenho 2026NE00428)
+    },
+    ("00027/2025", "71/2025/FPDC"): {
+        # Fonte: CONTRATO-No-71-2025-FPDC.pdf (Apêndice/Memória de Cálculo), conferido
+        # também no Extrato do Contrato (Diário Eletrônico MPPI nº 1848) e na Nota de
+        # Empenho 2025NE00114 — os 3 documentos batem exatamente.
+        # Bug anterior: o algoritmo de similaridade/sobra (fallback abaixo) atribuía
+        # 400 desktops (2x o real) ao item 1 e jogava a sobra de R$2.986,00 como
+        # 0,4811 notebooks no item 2 — quantidade fisicamente impossível.
+        1: Decimal("200"),  # Computador Desktop All-In-One
+        2: Decimal("198"),  # Notebook com mochila e mouse
     },
 }
 
@@ -85,8 +99,42 @@ class Command(BaseCommand):
                 # 3. Distribui cada contrato nos itens da ARP
                 for c in contratos:
                     chave_oficial = (arp.numero_arp, c.numero_contrato)
+                    mapa = None
+                    fonte_mapa = None
                     if chave_oficial in OFFICIAL_CONTRACT_ITEMS:
                         mapa = OFFICIAL_CONTRACT_ITEMS[chave_oficial]
+                        fonte_mapa = "manual (OFFICIAL_CONTRACT_ITEMS)"
+                    else:
+                        try:
+                            mapa_auto = resolver_itens_para_contrato(c)
+                        except Exception as exc:
+                            mapa_auto = None
+                            self.stdout.write(self.style.WARNING(
+                                f"  [API dadosabertos] erro ao consultar {c.numero_contrato}: {exc}"
+                            ))
+                        if mapa_auto:
+                            mapa = mapa_auto
+                            fonte_mapa = "automático (dadosabertos Módulo Contratos)"
+                        else:
+                            # Fallback 2: casa CNPJ do fornecedor + preço unitário
+                            # homologado na ARP (API pública do PNCP) contra o
+                            # valor_inicial do contrato. Cobre contratos de
+                            # qualquer ano (dadosabertos Módulo Contratos só
+                            # cobre 2026+) — só aceita se a combinação de
+                            # quantidades for matematicamente única.
+                            try:
+                                mapa_auto2 = resolver_quantidade_por_valor_homologado(c)
+                            except Exception as exc:
+                                mapa_auto2 = None
+                                self.stdout.write(self.style.WARNING(
+                                    f"  [API PNCP] erro ao consultar {c.numero_contrato}: {exc}"
+                                ))
+                            if mapa_auto2:
+                                mapa = mapa_auto2
+                                fonte_mapa = "automático (PNCP — valor homologado)"
+
+                    if mapa is not None:
+                        self.stdout.write(f"  [{fonte_mapa}] {c.numero_contrato}: {dict(mapa)}")
                         for item in itens:
                             if item.numero_item in mapa:
                                 qtd = mapa[item.numero_item]
@@ -103,7 +151,7 @@ class Command(BaseCommand):
                                         valor_total=vl_total,
                                         data_emissao=c.data_assinatura or arp.data_inicio_vigencia,
                                         status="concluido",
-                                        unidade_requisitante=c.unidade_requisitante or "",
+                                        unidade_requisitante=c.unidade_requisitante,
                                     )
                                 )
                                 item.quantidade_contratada += qtd
@@ -167,7 +215,7 @@ class Command(BaseCommand):
                                     valor_total=val_total_cd,
                                     data_emissao=c.data_assinatura or arp.data_inicio_vigencia,
                                     status="concluido",
-                                    unidade_requisitante=c.unidade_requisitante or "",
+                                    unidade_requisitante=c.unidade_requisitante,
                                 )
                             )
                             item.quantidade_contratada += qtd
