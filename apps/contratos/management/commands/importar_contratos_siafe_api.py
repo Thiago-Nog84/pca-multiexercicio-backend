@@ -72,6 +72,54 @@ def _exercicio_from_codigo(codigo: str) -> int:
     return date.today().year
 
 
+def _digitos(valor) -> str:
+    return re.sub(r"\D", "", str(valor or ""))
+
+
+def _achar_contrato_existente(mapeado: dict):
+    """
+    Casa o contrato vindo do SIAFE contra registros JÁ existentes no banco
+    que ainda não têm codigo_siafe preenchido — para BACKFILL em vez de
+    criar duplicata.
+
+    Achado na auditoria de 2026-07-29 (auditar_consistencia_srp,
+    checagem [duplicados]): a checagem antiga em `faltantes` (linha ~260)
+    só via se já existia `Contrato.objects.filter(codigo_siafe=cod)`. Um
+    contrato cadastrado manualmente (via PNCP/planilha, numero_contrato
+    correto) mas com `codigo_siafe` vazio nunca batia nesse filtro, então
+    o import criava um SEGUNDO registro pro mesmo contrato — geralmente
+    com numero_contrato = codigo_siafe (fallback da linha 156), por isso
+    os pares apareciam com "número trocado".
+
+    Estratégia (mais específica -> mais genérica):
+      1. numero_contrato idêntico ao já cadastrado;
+      2. mesmo CNPJ do contratado + mesmo valor (± R$0,05) entre
+         contratos sem codigo_siafe — só se a combinação for ÚNICA
+         (mesma regra de segurança do resolver de itens: ambíguo = não
+         decide sozinho).
+    Retorna o Contrato encontrado ou None.
+    """
+    numero = mapeado["numero_contrato"]
+    exato = Contrato.objects.filter(numero_contrato=numero, codigo_siafe="").first()
+    if exato:
+        return exato
+
+    cnpj = _digitos(mapeado["cod_contratado"])
+    if not cnpj or not mapeado["valor"]:
+        return None
+    candidatos = list(
+        Contrato.objects.filter(codigo_siafe="", contratado_cnpj_cpf__icontains=cnpj[-8:])
+    )
+    candidatos = [
+        c for c in candidatos
+        if _digitos(c.contratado_cnpj_cpf) == cnpj
+        and abs((c.valor_inicial or Decimal("0")) - mapeado["valor"]) <= Decimal("0.05")
+    ]
+    if len(candidatos) == 1:
+        return candidatos[0]
+    return None
+
+
 def _get_or_create_orgao(cod_ug: str, nome_ug: str) -> Orgao:
     info = UGS_INFO.get(cod_ug, {})
     sigla = info.get("sigla", cod_ug)
@@ -302,13 +350,37 @@ class Command(BaseCommand):
 
             mapeado = _map_contrato_siafe(data, codigo)
 
+            # Antes de criar, tenta casar com um registro JÁ existente sem
+            # codigo_siafe (cadastrado manualmente via PNCP/planilha) — evita
+            # duplicata. Ver docstring de _achar_contrato_existente.
+            existente = _achar_contrato_existente(mapeado)
+
             if dry_run:
-                self.stdout.write(
-                    self.style.WARNING(
-                        f"[DRY] {mapeado['numero_contrato']:30s} | "
-                        f"{mapeado['tipo']:22s} | R$ {mapeado['valor']:,.2f}"
+                if existente:
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"[DRY] BACKFILL em {existente.numero_contrato} "
+                            f"(codigo_siafe={codigo}) — não criaria duplicata"
+                        )
                     )
-                )
+                else:
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"[DRY] {mapeado['numero_contrato']:30s} | "
+                            f"{mapeado['tipo']:22s} | R$ {mapeado['valor']:,.2f}"
+                        )
+                    )
+                criados += 1
+                continue
+
+            if existente:
+                existente.codigo_siafe = codigo
+                existente.valor_empenhado = valor_empenhado
+                existente.ultima_atualizacao_siafe = agora
+                existente.save(update_fields=["codigo_siafe", "valor_empenhado", "ultima_atualizacao_siafe"])
+                self.stdout.write(self.style.SUCCESS(
+                    f"BACKFILL — {existente.numero_contrato} recebeu codigo_siafe={codigo} (sem duplicar)"
+                ))
                 criados += 1
                 continue
 

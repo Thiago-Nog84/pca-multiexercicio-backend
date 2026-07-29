@@ -573,8 +573,16 @@ class ARPDetalheView(View):
                         # "lotes"/tetos de valor (ex: postos de serviço) — a
                         # quantidade_contratada é uma FRAÇÃO do valor registrado,
                         # não uma contagem. Exibir como % é mais claro que "0,68".
+                        # ⚠️ `unidade_fornecimento` sozinho NÃO é sinal confiável — está em
+                        # branco em muitos itens que SÃO unidade física de verdade (ex:
+                        # ARP 00027/2025, desktops/notebooks com unidade vazia mas
+                        # quantidade_registrada=600/200 reais). O sinal certo de "lote/teto
+                        # de valor" é quantidade_registrada == 1 (1 lote = o valor todo).
                         percentual_do_item = None
-                        if not (det["item"].unidade_fornecimento or "").strip() and det["item"].quantidade_registrada:
+                        if (
+                            not (det["item"].unidade_fornecimento or "").strip()
+                            and abs(float(det["item"].quantidade_registrada) - 1.0) < 0.0001
+                        ):
                             percentual_do_item = round(
                                 float(p.quantidade) / float(det["item"].quantidade_registrada) * 100, 1
                             )
@@ -649,7 +657,11 @@ class ARPDetalheView(View):
             for ic in ca.itens.all():
                 unidade_ic = ic.unidade or (ic.item_arp.unidade_fornecimento if ic.item_arp else "")
                 percentual_do_item = None
-                if not (unidade_ic or "").strip() and ic.item_arp and ic.item_arp.quantidade_registrada:
+                if (
+                    not (unidade_ic or "").strip()
+                    and ic.item_arp
+                    and abs(float(ic.item_arp.quantidade_registrada) - 1.0) < 0.0001
+                ):
                     percentual_do_item = round(
                         float(ic.quantidade_contratada) / float(ic.item_arp.quantidade_registrada) * 100, 1
                     )

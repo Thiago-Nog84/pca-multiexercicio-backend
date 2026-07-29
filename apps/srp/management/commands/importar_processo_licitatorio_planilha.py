@@ -115,6 +115,7 @@ class Command(BaseCommand):
         ambiguos = 0
         sem_itens = 0
         divergencias_valor = []
+        substituicoes_ignoradas = []
 
         with open(path, encoding="cp1252", newline="") as f:
             reader = csv.DictReader(f, delimiter=";")
@@ -187,9 +188,19 @@ class Command(BaseCommand):
                     (item.quantidade_registrada * item.valor_unitario) for item in itens
                 )
                 if abs(valor_banco - valor_planilha) > Decimal("0.05"):
-                    divergencias_valor.append(
-                        (arp.numero_arp, empresa, valor_planilha, valor_banco)
-                    )
+                    # Divergência ESPERADA quando houve troca de detentor por
+                    # cadastro de reserva: o novo detentor entra com o preço
+                    # dele, enquanto planilha e PNCP seguem com o vencedor
+                    # original. Não é erro — não reportar como divergência.
+                    if arp.valor_diverge_do_pncp_legitimamente:
+                        substituicoes_ignoradas.append(
+                            (arp.numero_arp, arp.fornecedor_razao_social,
+                             valor_planilha, valor_banco)
+                        )
+                    else:
+                        divergencias_valor.append(
+                            (arp.numero_arp, empresa, valor_planilha, valor_banco)
+                        )
 
         self.stdout.write("\n" + "=" * 70)
         self.stdout.write(self.style.SUCCESS(
@@ -201,6 +212,18 @@ class Command(BaseCommand):
             self.stdout.write(
                 f"{sem_itens} ARP(s) casadas mas sem ItemARP cadastrado — validação de valor pulada nelas."
             )
+
+        if substituicoes_ignoradas:
+            self.stdout.write(
+                f"\nℹ {len(substituicoes_ignoradas)} ARP(s) com divergência ESPERADA "
+                "(detentor substituído por cadastro de reserva — o novo detentor "
+                "registra o preço dele; planilha e PNCP mantêm o vencedor original):"
+            )
+            for numero_arp, detentor, valor_planilha, valor_banco in substituicoes_ignoradas:
+                self.stdout.write(
+                    f"  ARP {numero_arp} (detentor atual: {detentor[:40]}): "
+                    f"planilha=R$ {valor_planilha:,.2f} | banco=R$ {valor_banco:,.2f} — OK, não é erro"
+                )
 
         if divergencias_valor:
             self.stdout.write(self.style.WARNING(

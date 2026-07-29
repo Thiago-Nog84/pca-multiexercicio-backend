@@ -52,6 +52,21 @@ OFFICIAL_CONTRACT_ITEMS = {
         1: Decimal("200"),  # Computador Desktop All-In-One
         2: Decimal("198"),  # Notebook com mochila e mouse
     },
+    ("00035/2025", "2025NE01038"): {
+        # Fonte: Nota de Empenho 2025NE01038 (SEI 19.21.0428.0031214/2025-20, pg. 57/61/89/97),
+        # conferida em 4 pontos independentes do mesmo processo (Autorização de Empenho,
+        # Nota de Empenho do Siafe, Ordem de Fornecimento e Controle de Saldo) — todos batem
+        # em R$ 51.625,00.
+        # O Contrato local (pk=161) tem valor_inicial=R$108.135,00, que é o TOTAL do
+        # contrato 92/2025/PGJ para 24 meses — mas numero_contrato aqui é o número da nota
+        # de empenho, que cobre só a 1ª aquisição (12 meses, R$51.625,00) do Lote 1.
+        # O fallback estava dividindo o valor do CONTRATO INTEIRO (108.135,00) contra esse
+        # pedido parcial, sobrando R$201,00 alocados como 0,7614 toners fantasma no item 4
+        # (que é do Lote 2, reservado ME/EPP — não comprado nesta nota).
+        1: Decimal("150"),  # Toner MLT-D203U (SL-M4070FR), Lote 1 — Empenho 2025NE01038
+        3: Decimal("65"),   # Toner MLT-D205L (SCX-4833), Lote 1 — Empenho 2025NE01038
+        # Item 2 (MLT-D205E) e itens 4/5/6 (Lote 2) não foram comprados nesta nota — 0.
+    },
 }
 
 
@@ -60,24 +75,60 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true", help="Simula sem salvar no banco")
-        parser.add_argument("--arp", type=str, help="Filtrar por número de ARP (ex: 00001/2026)")
+        parser.add_argument(
+            "--arp", type=str, nargs="+",
+            help="Filtrar por um ou mais números de ARP (ex: --arp 00001/2026 00002/2026)",
+        )
+        parser.add_argument(
+            "--saida", type=str, default=None,
+            help="Grava a saída também num arquivo UTF-8 nesse caminho (evita o mojibake do '>' do PowerShell)",
+        )
 
     def handle(self, *args, **options):
         dry_run = options["dry_run"]
         filtro_arp = options["arp"]
+
+        arquivo_saida = None
+        if options.get("saida"):
+            arquivo_saida = open(options["saida"], "w", encoding="utf-8")
+            escrever_original = self.stdout.write
+
+            def escrever_e_gravar(msg="", *a, **kw):
+                escrever_original(msg, *a, **kw)
+                arquivo_saida.write(str(msg) + "\n")
+
+            self.stdout.write = escrever_e_gravar
 
         if dry_run:
             self.stdout.write(self.style.WARNING("*** DRY-RUN — nenhuma alteração será salva ***\n"))
 
         arps = AtaRegistroPrecos.objects.all()
         if filtro_arp:
-            arps = arps.filter(numero_arp__icontains=filtro_arp)
+            from django.db.models import Q
+            q = Q()
+            for numero in filtro_arp:
+                q |= Q(numero_arp__icontains=numero)
+            arps = arps.filter(q)
 
         arps_conciliadas = 0
         total_cds_criadas = 0
 
         for arp in arps:
-            contratos = Contrato.objects.filter(arp_origem=arp).order_by("data_assinatura", "numero_contrato")
+            # Contratos RESCINDIDOS não consomem saldo da ata: o quantitativo
+            # volta a ficar disponível para nova contratação. Caso real que
+            # motivou o filtro (2026-07-29): ARP 00004/2026 — a MASTER
+            # FACILITIES assinou o contrato 29/2026/PGJ e depois desistiu; a
+            # ALFA (cadastro de reserva) assumiu a ata e contratou o MESMO
+            # objeto (contrato 35/2026). Sem este filtro os dois contratos
+            # consumiriam o saldo, dobrando o consumo do mesmo objeto.
+            # ⚠️ Só 'rescindido' é excluído — 'encerrado' significa contrato
+            # cumprido até o fim, que consumiu o quantitativo de verdade.
+            contratos = (
+                Contrato.objects
+                .filter(arp_origem=arp)
+                .exclude(status="rescindido")
+                .order_by("data_assinatura", "numero_contrato")
+            )
             if not contratos.exists():
                 continue
 
@@ -161,6 +212,12 @@ class Command(BaseCommand):
                     val_restante = c.valor_inicial or Decimal("0")
                     if val_restante <= 0:
                         continue
+
+                    self.stdout.write(self.style.WARNING(
+                        f"  [fallback - similaridade/valor] {c.numero_contrato}: SEM resolver automático "
+                        f"(nem manual, nem dadosabertos, nem PNCP) — dividindo por similaridade de texto + "
+                        f"valor/preço. Risco de quantidade fracionária errada (ver checagem [fracao] da auditoria)."
+                    ))
 
                     # Ordena os itens por similaridade com o objeto do contrato
                     obj_c = c.objeto or ""
@@ -256,3 +313,6 @@ class Command(BaseCommand):
                 f"{total_cds_criadas} contratações decorrentes conciliadas."
             )
         )
+
+        if arquivo_saida:
+            arquivo_saida.close()

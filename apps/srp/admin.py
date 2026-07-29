@@ -46,8 +46,14 @@ class AtaRegistroPrecosAdmin(admin.ModelAdmin):
         "data_inicio_vigencia", "data_fim_vigencia",
         "unidades_vinculadas_display",
     )
-    list_filter = ("status", "modalidade_origem", "vinculos_unidades__unidade")
-    search_fields = ("numero_arp", "objeto", "fornecedor_razao_social", "fornecedor_cnpj_cpf")
+    list_filter = (
+        "status", "modalidade_origem", "substituido_por_cadastro_reserva",
+        "vinculos_unidades__unidade",
+    )
+    search_fields = (
+        "numero_arp", "objeto", "fornecedor_razao_social", "fornecedor_cnpj_cpf",
+        "fornecedor_original_razao_social", "fornecedor_original_cnpj_cpf",
+    )
     date_hierarchy = "data_inicio_vigencia"
     inlines = [VinculoARPUnidadeInline, ItemARPInline]
     readonly_fields = ("criado_em", "atualizado_em", "importada_da_api")
@@ -59,8 +65,23 @@ class AtaRegistroPrecosAdmin(admin.ModelAdmin):
                 "numero_sei", "numero_pncp", "numero_controle_pncp_ata",
             ),
         }),
-        ("Fornecedor", {
+        ("Fornecedor (detentor atual)", {
             "fields": ("fornecedor_razao_social", "fornecedor_cnpj_cpf"),
+        }),
+        ("Substituição por cadastro de reserva", {
+            "classes": ("collapse",),
+            "description": (
+                "Preencher quando o vencedor original desistiu e a ata passou a outro "
+                "fornecedor do cadastro de reserva (art. 82, §4º da Lei 14.133/2021). "
+                "O novo detentor é registrado com o PREÇO DELE — por isso o valor dos "
+                "itens passa a divergir legitimamente do resultado homologado no PNCP, "
+                "que continua exibindo o vencedor original."
+            ),
+            "fields": (
+                "substituido_por_cadastro_reserva",
+                "fornecedor_original_razao_social", "fornecedor_original_cnpj_cpf",
+                "data_substituicao", "motivo_substituicao",
+            ),
         }),
         ("Vigência", {
             "fields": (

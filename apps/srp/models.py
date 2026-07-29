@@ -79,8 +79,49 @@ class AtaRegistroPrecos(models.Model):
         blank=True,
         help_text="Número do processo licitatório que originou a ARP",
     )
-    fornecedor_razao_social = models.CharField(max_length=255)
+    fornecedor_razao_social = models.CharField(
+        max_length=255,
+        help_text="Detentor ATUAL da ata. Em caso de substituição por cadastro de "
+                  "reserva, este é o novo detentor (o vencedor original fica em "
+                  "fornecedor_original_razao_social).",
+    )
     fornecedor_cnpj_cpf = models.CharField(max_length=18)
+    # --- Substituição de detentor via CADASTRO DE RESERVA -------------------
+    # Art. 82, §4º da Lei 14.133/2021 c/c Decreto 11.462/2023: se o vencedor
+    # desiste da contratação, convoca-se o próximo classificado do cadastro de
+    # reserva, que é registrado COM O PREÇO DELE (não com o preço do vencedor).
+    # Por isso o valor dos itens da ata passa a divergir legitimamente do
+    # resultado homologado publicado no PNCP, que continua exibindo o vencedor
+    # original. Estes campos preservam esse histórico (exigência de auditoria)
+    # e servem de flag para os validadores não acusarem falso positivo.
+    substituido_por_cadastro_reserva = models.BooleanField(
+        default=False,
+        verbose_name="Detentor substituído (cadastro de reserva)",
+        help_text="Marque quando o vencedor original desistiu e a ata passou a "
+                  "outro fornecedor do cadastro de reserva, com o preço deste.",
+    )
+    fornecedor_original_razao_social = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Fornecedor original (vencedor)",
+        help_text="Razão social de quem venceu a licitação, antes da substituição.",
+    )
+    fornecedor_original_cnpj_cpf = models.CharField(
+        max_length=18,
+        blank=True,
+        verbose_name="CNPJ/CPF do fornecedor original",
+    )
+    data_substituicao = models.DateField(
+        null=True, blank=True,
+        verbose_name="Data da substituição",
+        help_text="Data em que o novo detentor assumiu a ata.",
+    )
+    motivo_substituicao = models.TextField(
+        blank=True,
+        verbose_name="Motivo da substituição",
+        help_text="Ex.: desistência do vencedor, perda das condições de "
+                  "habilitação, cancelamento do registro do preço.",
+    )
     data_assinatura = models.DateField()
     data_inicio_vigencia = models.DateField()
     data_fim_vigencia = models.DateField(
@@ -154,6 +195,19 @@ class AtaRegistroPrecos(models.Model):
     def esta_vigente(self):
         from datetime import date
         return self.status == "vigente" and self.data_fim_vigencia >= date.today()
+
+    @property
+    def valor_diverge_do_pncp_legitimamente(self):
+        """
+        True quando é ESPERADO que o valor registrado nos itens desta ata não
+        bata com o resultado homologado publicado no PNCP — hoje, quando houve
+        substituição do detentor por cadastro de reserva (o novo detentor entra
+        com o preço dele, o PNCP segue mostrando o vencedor original).
+
+        Usada pelos validadores (ex.: importar_processo_licitatorio_planilha)
+        para não reportar falso positivo de divergência de valor.
+        """
+        return self.substituido_por_cadastro_reserva
 
     @property
     def licitacao_origem(self):

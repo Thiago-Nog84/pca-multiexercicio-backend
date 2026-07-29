@@ -68,9 +68,39 @@ Também recusa itens do tipo "lote de valor" (sem unidade física,
 `quantidade_registrada == 1`) — nesses a equação de combinação não se
 aplica. Ver `project_pca_erros_apis_contratos.md` (memória do projeto)
 para o levantamento completo.
+
+⚠️ LIMITAÇÃO DE DOMÍNIO — CADASTRO DE RESERVA (achado 2026-07-29):
+`.../itens/{n}/resultados` devolve o resultado ORIGINAL da licitação, e
+NÃO reflete substituição posterior do detentor da ata. Quando o vencedor
+desiste da contratação e é convocado o próximo do CADASTRO DE RESERVA
+(art. 82, §4º da Lei 14.133/2021 c/c Decreto 11.462/2023), o novo
+detentor é registrado COM O PREÇO DELE, não com o preço do vencedor
+original — mas o PNCP continua mostrando o vencedor original e o preço
+original nesse endpoint.
+
+Caso real: ARP 00004/2026 (lote 1 do pregão 90003/2026) — o PNCP mostra
+MASTER FACILITIES / R$15.280.443,36; a detentora real hoje é a ALFA
+GESTÃO, registrada a R$15.739.933,44 (valor correto no banco local).
+
+Consequências práticas:
+  - O filtro por CNPJ abaixo (`niFornecedor` == CNPJ do contrato) FALHA
+    SEGURO nesses casos: o CNPJ do contrato (novo detentor) não bate com
+    o do resultado (vencedor original), então a função devolve None e o
+    chamador cai no fallback. É o comportamento desejado.
+  - ⚠️ RISCO RESIDUAL: se o novo detentor TAMBÉM tiver vencido outro item
+    da MESMA compra (acontece — a ALFA venceu o lote 3 da mesma compra),
+    o filtro por CNPJ casa com o item ERRADO. Hoje isso é neutralizado
+    porque itens de lote de valor são recusados, mas em uma compra com
+    itens de unidade física a atribuição poderia sair errada. Antes de
+    confiar no resultado, conferir se a ARP teve troca de detentor.
+  - Corolário: divergência entre valor homologado no PNCP/planilha e o
+    valor no banco NÃO significa necessariamente erro de cadastro —
+    pode ser substituição legítima por cadastro de reserva.
 """
 
+import os
 import re
+import time
 from decimal import Decimal, InvalidOperation, ROUND_FLOOR
 
 import requests
@@ -78,6 +108,29 @@ import requests
 BASE_URL = "https://dadosabertos.compras.gov.br"
 PNCP_BASE_URL = "https://pncp.gov.br/api/pncp/v1"
 TIMEOUT = 20
+
+# Log de diagnóstico por requisição (timestamp + tempo de resposta) — ligar
+# com a variável de ambiente DEBUG_HTTP_PNCP=1. Serve pra achar, ao vivo,
+# qual chamada específica está lenta/travando quando um comando que
+# percorre muitos contratos/itens (ex: conciliar_dashboard_srp) parece
+# travado. Desligado por padrão pra não poluir a saída normal dos comandos.
+_DEBUG_HTTP = bool(os.environ.get("DEBUG_HTTP_PNCP"))
+
+
+def _get_com_log(url, params=None, timeout=TIMEOUT):
+    if not _DEBUG_HTTP:
+        return requests.get(url, params=params, timeout=timeout)
+    inicio = time.monotonic()
+    print(f"  [http] GET {url} params={params} ...", flush=True)
+    try:
+        resp = requests.get(url, params=params, timeout=timeout)
+        dt = time.monotonic() - inicio
+        print(f"  [http] -> {resp.status_code} em {dt:.1f}s", flush=True)
+        return resp
+    except requests.RequestException as exc:
+        dt = time.monotonic() - inicio
+        print(f"  [http] -> ERRO ({exc.__class__.__name__}) após {dt:.1f}s: {exc}", flush=True)
+        raise
 
 # MPPI — confirmado ao vivo via /modulo-uasg/1_consultarUasg?codigoUasg=926092
 MPPI_CODIGO_ORGAO = 94252
@@ -120,9 +173,7 @@ def _buscar_contratos_ano(ano: int):
     }
     resultado = []
     try:
-        resp = requests.get(
-            f"{BASE_URL}/modulo-contratos/1_consultarContratos", params=params, timeout=TIMEOUT
-        )
+        resp = _get_com_log(f"{BASE_URL}/modulo-contratos/1_consultarContratos", params=params)
         resp.raise_for_status()
         resultado = resp.json().get("resultado", [])
     except (requests.RequestException, ValueError):
@@ -148,9 +199,7 @@ def _buscar_itens_contrato_api(ano: int, numero_contrato_api: str):
     }
     itens = []
     try:
-        resp = requests.get(
-            f"{BASE_URL}/modulo-contratos/2_consultarContratosItem", params=params, timeout=TIMEOUT
-        )
+        resp = _get_com_log(f"{BASE_URL}/modulo-contratos/2_consultarContratosItem", params=params)
         resp.raise_for_status()
         itens = resp.json().get("resultado", [])
     except (requests.RequestException, ValueError):
@@ -321,10 +370,9 @@ def buscar_itens_compra_pncp(cnpj: str, ano: int, compra_seq: int):
     MAX_PAGINAS = 100  # trava de segurança contra loop infinito (5.000 itens)
     try:
         while pagina <= MAX_PAGINAS:
-            resp = requests.get(
+            resp = _get_com_log(
                 f"{PNCP_BASE_URL}/orgaos/{cnpj}/compras/{ano}/{compra_seq}/itens",
                 params={"pagina": pagina, "tamanhoPagina": tamanho_pagina},
-                timeout=TIMEOUT,
             )
             resp.raise_for_status()
             pagina_itens = resp.json() or []
@@ -364,10 +412,9 @@ def buscar_resultados_item_pncp(cnpj: str, ano: int, compra_seq: int, numero_ite
     MAX_PAGINAS = 20
     try:
         while pagina <= MAX_PAGINAS:
-            resp = requests.get(
+            resp = _get_com_log(
                 f"{PNCP_BASE_URL}/orgaos/{cnpj}/compras/{ano}/{compra_seq}/itens/{numero_item}/resultados",
                 params={"pagina": pagina, "tamanhoPagina": tamanho_pagina},
-                timeout=TIMEOUT,
             )
             resp.raise_for_status()
             pagina_res = resp.json() or []
@@ -384,7 +431,12 @@ def buscar_resultados_item_pncp(cnpj: str, ano: int, compra_seq: int, numero_ite
     return resultados
 
 
-def _resolver_combinacao_unica(candidatos, alvo, tolerancia=Decimal("0.01")):
+class _BuscaAbortada(Exception):
+    """Sinaliza que o backtracking estourou o orçamento de nós (ver
+    `_resolver_combinacao_unica`) e foi interrompido de propósito."""
+
+
+def _resolver_combinacao_unica(candidatos, alvo, tolerancia=Decimal("0.01"), max_nos=200_000):
     """
     candidatos: lista de (numero_item, valor_unitario: Decimal, teto: int).
     alvo: Decimal — valor a fechar (valor_inicial do contrato).
@@ -393,11 +445,35 @@ def _resolver_combinacao_unica(candidatos, alvo, tolerancia=Decimal("0.01")):
     não precisa enumerar tudo) todas as combinações de quantidades inteiras
     0..teto por item cuja soma ponderada bate com `alvo` dentro da
     tolerância. Só retorna mapeamento se a solução for ÚNICA.
+
+    Orçamento de nós (adicionado após travamentos reais em contratos com
+    vários itens de valor baixo/teto alto — ex: ARPs 00023/2025,
+    00046/2025, 00011/2024 — onde a árvore de busca ficava grande demais e
+    o comando parecia "travado", exigindo Ctrl+C):
+
+      Se o backtracking visitar mais de `max_nos` nós sem terminar, aborta
+      e retorna None (equivalente a "não deu pra determinar
+      automaticamente" — mesma semântica de ambíguo/sem solução única, cai
+      pro fallback de similaridade/valor já existente). Nunca mais trava
+      indefinidamente — o pior caso agora é limitado no tempo.
+
+      (Uma tentativa de reordenar `candidatos` por valor unitário
+      decrescente antes de recursar, pra podar mais cedo, foi testada e
+      descartada: em benchmark com dados sintéticos essa ordenação piorou
+      o tempo em vários casos em vez de melhorar — não há uma ordem
+      universalmente melhor para esse tipo de busca combinatória, então
+      manter a ordem original dos candidatos é tão bom quanto qualquer
+      heurística simples, e o orçamento de nós é quem garante o teto.)
     """
     solucoes = []
+    nos_visitados = 0
     n = len(candidatos)
 
     def backtrack(idx, restante, escolha):
+        nonlocal nos_visitados
+        nos_visitados += 1
+        if nos_visitados > max_nos:
+            raise _BuscaAbortada()
         if len(solucoes) > 1:
             return
         if idx == n:
@@ -428,7 +504,10 @@ def _resolver_combinacao_unica(candidatos, alvo, tolerancia=Decimal("0.01")):
             if len(solucoes) > 1:
                 return
 
-    backtrack(0, alvo, {})
+    try:
+        backtrack(0, alvo, {})
+    except _BuscaAbortada:
+        return None
 
     if len(solucoes) == 1:
         return {k: v for k, v in solucoes[0].items() if v > 0}
