@@ -40,3 +40,13 @@ Thumbs.db
 *-CLC2432*
 *-CLC2432/
 .env-CLC2432*
+
+# Saídas dos comandos de auditoria/conciliação (--saida arquivo.txt).
+# São diagnósticos descartáveis, refeitos a cada execução — nunca entregáveis.
+# Se algum resultado precisar virar registro permanente, ele vai para docs/.
+saida_*.txt
+auditoria.csv
+conciliacao_*.txt
+# Lotes de execução do conciliar_dashboard_srp (a01.txt..a31.txt, lote_a.txt etc.)
+a[0-9][0-9].txt
+lote*.txt
