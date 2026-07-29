@@ -66,7 +66,7 @@ class SiafeClient:
         resp = self.session.post(
             f"{self.base_url}/auth",
             json={"usuario": usuario, "senha": senha},
-            timeout=15,
+            timeout=30,  # alinhado com o timeout de _get/_post — 15s causou ReadTimeout real em 2026-07-29
         )
         self._check_response(resp)
 

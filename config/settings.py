@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "apps.pncp",
     "apps.notificacoes",
     "apps.siafe",
+    "apps.tcepi",
 ]
 
 MIDDLEWARE = [
@@ -160,3 +161,9 @@ SIAFE_USUARIO = config("SIAFE_USUARIO", default="")
 SIAFE_SENHA = config("SIAFE_SENHA", default="")
 # TTL do token em cache (segundos). Token SIAFE expira em ~60 min; usamos 50 min por segurança.
 SIAFE_TOKEN_TTL_SECONDS = config("SIAFE_TOKEN_TTL_SECONDS", default=3000, cast=int)
+
+# ------------------------------------------------------------------
+# TCE-PI — Portal da Cidadania (Tribunal de Contas do Estado do Piauí)
+# API pública, sem autenticação. Docs: https://sistemas.tce.pi.gov.br/api/portaldacidadania/docs/
+# ------------------------------------------------------------------
+TCEPI_BASE_URL = config("TCEPI_BASE_URL", default="https://sistemas.tce.pi.gov.br/api/portaldacidadania")
