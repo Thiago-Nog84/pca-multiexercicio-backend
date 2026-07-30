@@ -9,9 +9,10 @@ import urllib.request
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.management import call_command
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, F, Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
 
@@ -146,48 +147,7 @@ class DashboardContratosView(View):
             status="vigente", valor_empenhado=0
         ).count()
 
-        # ── Dados para gráfico de rosca — distribuição por status ─────────
-        # P5 (Storytelling com Dados, cap. 2): sem ordem natural entre status,
-        # então ordena por valor desc. Cor continua codificando o status (não
-        # é lookup por label no JS — é array paralelo), por isso reordenamos
-        # labels/dados/cores juntos, na mesma posição.
         suspensos = contratos.filter(status="suspenso").count()
-        _status_pares = sorted(
-            [
-                ("Vigente", vigentes_local, "#198754"),
-                ("Encerrado", encerrados, "#6c757d"),
-                ("Rescindido", rescindidos, "#dc3545"),
-                ("Suspenso", suspensos, "#f59e0b"),
-            ],
-            key=lambda p: -p[1],
-        )
-        grafico_status = json.dumps({
-            "labels": [p[0] for p in _status_pares],
-            "data": [p[1] for p in _status_pares],
-            "cores": [p[2] for p in _status_pares],
-        })
-
-        # ── Dados para gráfico de barras — Empenhado vs Saldo (top 10) ───
-        grafico_execucao = json.dumps({
-            "labels": [c.numero_contrato for c in top_empenhados],
-            "empenhado": [float(c.valor_empenhado or 0) for c in top_empenhados],
-            "saldo": [float(c.saldo_disponivel or 0) for c in top_empenhados],
-        })
-
-        # Subtítulos dinâmicos (P4 — ver docs/melhorias_visuais_storytelling.md)
-        subtitulo_status_contratos = subtitulo_dominante(
-            [
-                ("Vigente", vigentes_local),
-                ("Encerrado", encerrados),
-                ("Rescindido", rescindidos),
-                ("Suspenso", suspensos),
-            ],
-            sufixo=" dos contratos",
-        )
-        subtitulo_execucao = subtitulo_maior(
-            [(c.numero_contrato, float(c.valor_empenhado or 0)) for c in top_empenhados],
-            prefixo="Maior execução",
-        )
 
         # ── Contratos Comprasnet (importados) ─────────────────────────────
         if _tem_dados_externos:
@@ -258,8 +218,35 @@ class DashboardContratosView(View):
                 if _norm_num(cc.numero) not in locais_norm
             )
 
+        # ── Dados por contrato para o explorador interativo (client-side) ──
+        # Serializa cada contrato em tipos JSON simples; o template filtra,
+        # agrega e desenha os gráficos no navegador, sem recarregar a página.
+        contratos_data = [
+            {
+                "numero": c["numero_contrato"] or f"#{c['pk']}",
+                "url": reverse("admin:contratos_contrato_change", args=[c["pk"]]),
+                "objeto": (c["objeto"] or "")[:160],
+                "contratado": c["contratado_razao_social"] or "—",
+                "tipo": c["tipo"] or "",
+                "status": c["status"] or "",
+                "orgao": c["orgao_sigla"] or "—",
+                "uo": c["unidade_orcamentaria"] or "",
+                "valor": float(c["valor_atual"] or 0),
+                "empenhado": float(c["valor_empenhado"] or 0),
+                "saldo": float(c["saldo_disponivel"] or 0),
+                "fim": c["data_fim_vigencia"].isoformat() if c["data_fim_vigencia"] else None,
+            }
+            for c in contratos.annotate(orgao_sigla=F("orgao__sigla")).values(
+                "pk", "numero_contrato", "objeto", "contratado_razao_social",
+                "tipo", "status", "orgao_sigla", "unidade_orcamentaria",
+                "valor_atual", "valor_empenhado", "saldo_disponivel",
+                "data_fim_vigencia",
+            )
+        ]
+
         context = {
             "hoje": hoje,
+            "contratos_data": contratos_data,
             # locais
             "total_local": total_local,
             "vigentes_local": vigentes_local,
@@ -304,14 +291,10 @@ class DashboardContratosView(View):
             # conciliação
             "nao_cadastrados": nao_cadastrados,
             "tem_dados_externos": _tem_dados_externos,
-            # novos: transparência, empenho pendente, gráficos
+            # transparência e empenho pendente
             "dias_ate_transparencia": dias_ate_transparencia,
             "dia_10_prox": dia_10_prox,
             "contratos_sem_empenho": contratos_sem_empenho,
-            "grafico_status": grafico_status,
-            "grafico_execucao": grafico_execucao,
-            "subtitulo_status_contratos": subtitulo_status_contratos,
-            "subtitulo_execucao": subtitulo_execucao,
         }
         return render(request, self.template_name, context)
 

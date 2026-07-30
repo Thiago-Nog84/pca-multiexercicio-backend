@@ -271,6 +271,87 @@
 </div>
 {% endif %}
 
+<!-- ═══════════ EXPLORADOR INTERATIVO DE CONTRATOS ═══════════ -->
+{{ contratos_data|json_script:"contratos-data" }}
+<div class="card border-0 shadow-sm mb-3" id="explorador">
+  <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <span>
+      <i class="bi bi-sliders me-2 text-primary"></i><strong>Explorar Contratos</strong>
+      <span class="text-muted small ms-2 d-none d-md-inline">— filtre e clique nos gráficos para cruzar as informações (sem recarregar a página)</span>
+    </span>
+    <button type="button" id="expl-limpar" class="btn btn-sm btn-outline-secondary d-none">
+      <i class="bi bi-x-circle me-1"></i>Limpar filtros
+    </button>
+  </div>
+  <div class="card-body">
+    <div class="row g-2 mb-3">
+      <div class="col-12 col-md-4">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+          <input type="text" id="f-q" class="form-control" placeholder="Buscar por nº, objeto ou contratado…" autocomplete="off">
+        </div>
+      </div>
+      <div class="col-6 col-md"><select id="f-status" class="form-select form-select-sm"></select></div>
+      <div class="col-6 col-md"><select id="f-tipo" class="form-select form-select-sm"></select></div>
+      <div class="col-6 col-md"><select id="f-orgao" class="form-select form-select-sm"></select></div>
+      <div class="col-6 col-md"><select id="f-uo" class="form-select form-select-sm"></select></div>
+      <div class="col-6 col-md-auto d-flex align-items-center">
+        <div class="form-check form-switch small mb-0">
+          <input class="form-check-input" type="checkbox" id="f-venc">
+          <label class="form-check-label" for="f-venc">Vence ≤90d</label>
+        </div>
+      </div>
+    </div>
+    <div id="expl-chips" class="d-flex flex-wrap gap-1 mb-3"></div>
+    <div class="row g-2 mb-3">
+      <div class="col-4"><div class="p-2 rounded text-center" style="background:#f8fafc;border:1px solid #e2e8f0;">
+        <div class="fs-5 fw-bold text-primary" id="k-qtd">0</div><div class="small text-muted">contratos no recorte</div></div></div>
+      <div class="col-4"><div class="p-2 rounded text-center" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+        <div class="fw-bold text-success" style="font-size:1rem;" id="k-valor">R$ 0</div><div class="small text-muted">valor atual</div></div></div>
+      <div class="col-4"><div class="p-2 rounded text-center" style="background:#fef9c3;border:1px solid #fde68a;">
+        <div class="fw-bold text-warning" style="font-size:1rem;" id="k-emp">R$ 0</div><div class="small text-muted">empenhado</div></div></div>
+    </div>
+    <div class="row g-3">
+      <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
+        <div class="small fw-semibold text-muted mb-1">Por status <span class="fw-normal">· nº de contratos</span></div>
+        <div style="position:relative;height:190px;"><canvas id="ch-status"></canvas></div></div></div>
+      <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
+        <div class="small fw-semibold text-muted mb-1">Por tipo <span class="fw-normal">· valor (R$)</span></div>
+        <div style="position:relative;height:190px;"><canvas id="ch-tipo"></canvas></div></div></div>
+      <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
+        <div class="small fw-semibold text-muted mb-1">Por órgão <span class="fw-normal">· valor (R$)</span></div>
+        <div style="position:relative;height:190px;"><canvas id="ch-orgao"></canvas></div></div></div>
+      <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
+        <div class="small fw-semibold text-muted mb-1">Por fonte / UO <span class="fw-normal">· valor (R$)</span></div>
+        <div style="position:relative;height:190px;"><canvas id="ch-uo"></canvas></div></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-bottom py-3">
+    <i class="bi bi-table me-2 text-primary"></i><strong>Contratos</strong>
+    <span class="text-muted small ms-2" id="tbl-resumo"></span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0" style="font-size:.83rem;">
+      <thead class="table-light">
+        <tr>
+          <th class="expl-sort" data-k="numero" role="button" style="cursor:pointer;">Nº <i class="bi bi-arrow-down-up text-muted" style="font-size:.65rem;"></i></th>
+          <th class="expl-sort" data-k="orgao" role="button" style="cursor:pointer;">Órgão</th>
+          <th>Objeto / Contratado</th>
+          <th class="expl-sort" data-k="tipo" role="button" style="cursor:pointer;">Tipo</th>
+          <th class="expl-sort text-end" data-k="valor" role="button" style="cursor:pointer;">Valor (R$)</th>
+          <th class="expl-sort" data-k="fim" role="button" style="cursor:pointer;">Vigência</th>
+          <th class="expl-sort" data-k="status" role="button" style="cursor:pointer;">Status</th>
+        </tr>
+      </thead>
+      <tbody id="tbl-body"></tbody>
+    </table>
+  </div>
+  <div class="px-3 py-2 border-top small text-muted" id="tbl-footer"></div>
+</div>
+
 <!-- LINHA 2: CONTRATOS LOCAIS DETALHADOS -->
 <div class="row g-4 mb-4">
 
@@ -789,41 +870,6 @@
     </div>
   </div>
 
-  <!-- GRÁFICOS -->
-  <div class="col-12">
-    <div class="row g-4">
-
-      <!-- Rosca: status dos contratos -->
-      <div class="col-12 col-md-5">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-header bg-white border-bottom py-3">
-            <i class="bi bi-pie-chart me-2 text-primary"></i>
-            <strong>Distribuição por Status</strong>
-            {% if subtitulo_status_contratos %}<div style="font-size:.78rem;color:#334155;font-weight:600;margin-top:.25rem;">{{ subtitulo_status_contratos }}</div>{% endif %}
-          </div>
-          <div class="card-body d-flex align-items-center justify-content-center" style="min-height:280px;">
-            <canvas id="graficoStatus" style="max-height:260px;"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- Barras empilhadas: empenhado vs saldo (top 10) -->
-      <div class="col-12 col-md-7">
-        <div class="card border-0 shadow-sm h-100">
-          <div class="card-header bg-white border-bottom py-3">
-            <i class="bi bi-bar-chart-steps me-2 text-warning"></i>
-            <strong>Execução vs Saldo — Top Contratos (R$)</strong>
-            {% if subtitulo_execucao %}<div style="font-size:.78rem;color:#334155;font-weight:600;margin-top:.25rem;">{{ subtitulo_execucao }}</div>{% endif %}
-          </div>
-          <div class="card-body" style="min-height:280px;">
-            <canvas id="graficoExecucao" style="max-height:260px;"></canvas>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
   <!-- Referências normativas de gestão contratual -->
   <div class="col-md-6">
     <div class="card border-0 shadow-sm h-100">
@@ -893,106 +939,157 @@
 
 </div>
 
-<!-- Chart.js — gráficos do dashboard -->
+<!-- Explorador interativo de contratos (Chart.js) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
-        integrity="sha512-ZwR1/gSZM3ai6vCdI+LVF1zSq/5HznD3oD+sCoJrzXJ+yKogTopovMvbaPlEucAzt3RIEqAlXA1n3NC1QDTCQ=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script>
 (function () {
-  if (window.ChartDataLabels) Chart.register(window.ChartDataLabels);
-  // ── Dados do Django ────────────────────────────────────────────
-  const statusData    = {{ grafico_status|safe }};
-  const execucaoData  = {{ grafico_execucao|safe }};
+  const el = document.getElementById('contratos-data');
+  if (!el || typeof Chart === 'undefined') return;
+  const DADOS = JSON.parse(el.textContent);
 
-  // Formata valor em R$ abreviado (M / k)
-  function fmtR(v) {
-    if (v >= 1e6) return 'R$ ' + (v / 1e6).toFixed(1) + 'M';
-    if (v >= 1e3) return 'R$ ' + (v / 1e3).toFixed(0) + 'k';
-    return 'R$ ' + v.toFixed(0);
-  }
+  const L = {
+    status: {vigente:'Vigente', suspenso:'Suspenso', rescindido:'Rescindido', encerrado:'Encerrado'},
+    tipo: {fornecimento:'Fornecimento', servico_continuo:'Serv. Contínuo', servico_nao_continuo:'Serv. Não Contínuo', obra:'Obras/Engenharia', locacao:'Locação', solucao_ti:'Solução de TIC'},
+    uo: {pgj:'PGJ', fmmp:'FMMP', fepdc:'FEPDC'}
+  };
+  const lab = (dim, v) => (L[dim] && L[dim][v]) || v || '—';
+  const brl = v => v.toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0});
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const RED = '#9B2335', RED_SOFT = 'rgba(155,35,53,.28)';
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const dias = iso => iso ? Math.round((new Date(iso) - hoje) / 86400000) : null;
 
-  // ── Gráfico Barras — Status (barra > rosca, cap. 2; cor codifica o status) ──
-  const ctxStatus = document.getElementById('graficoStatus');
-  if (ctxStatus) {
-    new Chart(ctxStatus, {
-      type: 'bar',
-      data: {
-        labels: statusData.labels,
-        datasets: [{
-          data: statusData.data,
-          backgroundColor: statusData.cores,
-          borderRadius: 4,
-        }],
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        layout: { padding: { right: 28 } },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: ctx => ` ${ctx.parsed.x} contrato${ctx.parsed.x !== 1 ? 's' : ''}`,
-            },
-          },
-          datalabels: { anchor: 'end', align: 'end', color: '#334155', font: { size: 10, weight: '600' }, clamp: true, clip: false, formatter: v => v },
-        },
-        scales: { x: { display: false }, y: { grid: { display: false }, border: { display: false } } },
-      },
+  const F = {q:'', status:'', tipo:'', orgao:'', uo:'', venc:false};
+  let sortK = 'valor', sortDir = -1;
+
+  function filtered() {
+    const q = F.q.trim().toLowerCase();
+    return DADOS.filter(d => {
+      if (F.status && d.status !== F.status) return false;
+      if (F.tipo && d.tipo !== F.tipo) return false;
+      if (F.orgao && d.orgao !== F.orgao) return false;
+      if (F.uo && d.uo !== F.uo) return false;
+      if (F.venc) { const dd = dias(d.fim); if (dd === null || dd < 0 || dd > 90) return false; }
+      if (q && !(d.objeto.toLowerCase().includes(q) || d.numero.toLowerCase().includes(q) || d.contratado.toLowerCase().includes(q))) return false;
+      return true;
     });
   }
+  function agg(arr, dim, metric) {
+    const m = new Map();
+    arr.forEach(d => { const k = d[dim] || ''; m.set(k, (m.get(k) || 0) + (metric === 'valor' ? d.valor : 1)); });
+    return [...m.entries()].map(([k, v]) => ({k, label: lab(dim, k), v})).sort((a, b) => b.v - a.v);
+  }
+  function fillSelect(id, dim, placeholder) {
+    const sel = document.getElementById(id);
+    const vals = [...new Set(DADOS.map(d => d[dim]).filter(Boolean))].map(v => ({v, label: lab(dim, v)})).sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+    sel.innerHTML = '<option value="">' + placeholder + '</option>' + vals.map(o => `<option value="${esc(o.v)}">${esc(o.label)}</option>`).join('');
+    sel.addEventListener('change', () => { F[dim] = sel.value; render(); });
+  }
+  fillSelect('f-status', 'status', 'Status (todos)');
+  fillSelect('f-tipo', 'tipo', 'Tipo (todos)');
+  fillSelect('f-orgao', 'orgao', 'Órgão (todos)');
+  fillSelect('f-uo', 'uo', 'Fonte/UO (todas)');
+  document.getElementById('f-q').addEventListener('input', e => { F.q = e.target.value; render(); });
+  document.getElementById('f-venc').addEventListener('change', e => { F.venc = e.target.checked; render(); });
+  document.getElementById('expl-limpar').addEventListener('click', () => {
+    Object.assign(F, {q:'', status:'', tipo:'', orgao:'', uo:'', venc:false});
+    ['f-status','f-tipo','f-orgao','f-uo'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('f-q').value = ''; document.getElementById('f-venc').checked = false;
+    render();
+  });
 
-  // ── Gráfico Barras — Execução vs Saldo ────────────────────────
-  const ctxExec = document.getElementById('graficoExecucao');
-  if (ctxExec && execucaoData.labels.length) {
-    new Chart(ctxExec, {
+  const charts = {};
+  function mkChart(id, dim, metric) {
+    charts[id] = new Chart(document.getElementById(id), {
       type: 'bar',
-      data: {
-        labels: execucaoData.labels,
-        datasets: [
-          {
-            label: 'Empenhado',
-            data: execucaoData.empenhado,
-            backgroundColor: 'rgba(245,158,11,0.85)',
-            borderRadius: 3,
-            stack: 'total',
-          },
-          {
-            label: 'Saldo disponível',
-            data: execucaoData.saldo,
-            backgroundColor: 'rgba(16,185,129,0.65)',
-            borderRadius: 3,
-            stack: 'total',
-          },
-        ],
-      },
+      data: {labels: [], datasets: [{data: [], backgroundColor: RED, borderRadius: 3, maxBarThickness: 22}]},
       options: {
-        responsive: true,
-        indexAxis: 'y',
-        plugins: {
-          legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
-          tooltip: {
-            callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtR(ctx.parsed.x)}` },
-          },
-          // Barra empilhada (2 segmentos por linha): rótulo direto poluiria — fica no tooltip.
-          datalabels: { display: false },
-        },
-        scales: {
-          x: {
-            stacked: true,
-            ticks: { callback: fmtR, font: { size: 10 }, maxTicksLimit: 6 },
-            grid: { display: false },
-          },
-          y: {
-            stacked: true,
-            grid: { display: false },
-            ticks: { font: { size: 10 } },
-          },
-        },
-      },
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => metric === 'valor' ? brl(c.parsed.x) : c.parsed.x + ' contrato(s)'}}},
+        scales: {x: {beginAtZero: true, ticks: {callback: v => metric === 'valor' ? (v >= 1e6 ? (v/1e6)+'M' : v >= 1e3 ? (v/1e3)+'k' : v) : v}}, y: {ticks: {autoSkip: false, font: {size: 11}}}},
+        onClick: (e, els) => { if (!els.length) return; const key = charts[id]._keys[els[0].index]; F[dim] = (F[dim] === key ? '' : key); const sel = document.getElementById('f-' + dim); if (sel) sel.value = F[dim]; render(); }
+      }
     });
   }
+  mkChart('ch-status', 'status', 'qtd');
+  mkChart('ch-tipo', 'tipo', 'valor');
+  mkChart('ch-orgao', 'orgao', 'valor');
+  mkChart('ch-uo', 'uo', 'valor');
+
+  function updChart(id, dim, metric, arr) {
+    const rows = agg(arr, dim, metric).slice(0, 10);
+    const ch = charts[id];
+    ch._keys = rows.map(r => r.k);
+    ch.data.labels = rows.map(r => r.label);
+    ch.data.datasets[0].data = rows.map(r => r.v);
+    ch.data.datasets[0].backgroundColor = rows.map(r => (F[dim] && F[dim] !== r.k) ? RED_SOFT : RED);
+    ch.update();
+  }
+
+  const STB = {vigente:'success', suspenso:'warning', rescindido:'danger', encerrado:'secondary'};
+  const fmtData = iso => { if (!iso) return '—'; const p = iso.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; };
+  function updTable(arr) {
+    const rows = [...arr].sort((a, b) => {
+      let x = a[sortK], y = b[sortK];
+      if (x === null) x = ''; if (y === null) y = '';
+      if (typeof x === 'string') { x = x.toLowerCase(); y = String(y).toLowerCase(); }
+      return x < y ? -1 * sortDir : x > y ? 1 * sortDir : 0;
+    });
+    const LIMIT = 200, shown = rows.slice(0, LIMIT);
+    document.getElementById('tbl-body').innerHTML = shown.map(d => {
+      const dd = dias(d.fim), venc = (dd !== null && dd >= 0 && dd <= 90);
+      return `<tr>
+        <td><a href="${d.url}" class="fw-semibold text-decoration-none">${esc(d.numero)}</a></td>
+        <td>${esc(d.orgao)}</td>
+        <td class="text-muted" style="max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(d.objeto)} — ${esc(d.contratado)}">${esc(d.objeto)}<br><span style="font-size:.72rem;">${esc(d.contratado)}</span></td>
+        <td><span class="small">${esc(lab('tipo', d.tipo))}</span></td>
+        <td class="text-end">${d.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+        <td class="${venc ? 'text-danger fw-semibold' : ''}">${fmtData(d.fim)}</td>
+        <td><span class="badge bg-${STB[d.status] || 'light'}-subtle text-${STB[d.status] || 'dark'}">${esc(lab('status', d.status))}</span></td></tr>`;
+    }).join('') || '<tr><td colspan="7" class="text-center text-muted py-4">Nenhum contrato com os filtros atuais.</td></tr>';
+    document.getElementById('tbl-footer').textContent = rows.length > LIMIT ? `Mostrando ${LIMIT} de ${rows.length} contratos — refine os filtros.` : `${rows.length} contrato(s).`;
+  }
+
+  function updChips() {
+    const map = {status:'Status', tipo:'Tipo', orgao:'Órgão', uo:'Fonte/UO'};
+    const chips = [];
+    Object.keys(map).forEach(dim => { if (F[dim]) chips.push(`<span class="badge rounded-pill text-bg-light border" role="button" data-clr="${dim}">${esc(map[dim])}: ${esc(lab(dim, F[dim]))} <i class="bi bi-x"></i></span>`); });
+    if (F.venc) chips.push('<span class="badge rounded-pill text-bg-light border" role="button" data-clr="venc">Vence ≤90d <i class="bi bi-x"></i></span>');
+    if (F.q) chips.push(`<span class="badge rounded-pill text-bg-light border" role="button" data-clr="q">"${esc(F.q)}" <i class="bi bi-x"></i></span>`);
+    const box = document.getElementById('expl-chips');
+    box.innerHTML = chips.join('');
+    box.querySelectorAll('[data-clr]').forEach(c => c.addEventListener('click', () => {
+      const k = c.dataset.clr;
+      if (k === 'venc') { F.venc = false; document.getElementById('f-venc').checked = false; }
+      else if (k === 'q') { F.q = ''; document.getElementById('f-q').value = ''; }
+      else { F[k] = ''; const s = document.getElementById('f-' + k); if (s) s.value = ''; }
+      render();
+    }));
+    document.getElementById('expl-limpar').classList.toggle('d-none', chips.length === 0);
+  }
+
+  function render() {
+    const arr = filtered();
+    document.getElementById('k-qtd').textContent = arr.length.toLocaleString('pt-BR');
+    document.getElementById('k-valor').textContent = brl(arr.reduce((s, d) => s + d.valor, 0));
+    document.getElementById('k-emp').textContent = brl(arr.reduce((s, d) => s + d.empenhado, 0));
+    updChart('ch-status', 'status', 'qtd', arr);
+    updChart('ch-tipo', 'tipo', 'valor', arr);
+    updChart('ch-orgao', 'orgao', 'valor', arr);
+    updChart('ch-uo', 'uo', 'valor', arr);
+    updChips();
+    updTable(arr);
+    document.getElementById('tbl-resumo').textContent = '· ' + arr.length + ' de ' + DADOS.length;
+  }
+
+  document.querySelectorAll('.expl-sort').forEach(th => th.addEventListener('click', () => {
+    const k = th.dataset.k;
+    if (sortK === k) sortDir *= -1; else { sortK = k; sortDir = (k === 'valor' ? -1 : 1); }
+    render();
+  }));
+
+  render();
 })();
 </script>
 {% endblock %}
