@@ -38,6 +38,26 @@ _STOPWORDS = {
 _MIN_TOKENS = 2  # descricoes com menos tokens significativos nao agrupam
 
 
+def _codigo_catmat_util(codigo):
+    """
+    Normaliza um codigo CATMAT/CATSER para uso como chave de agrupamento.
+    Retorna None quando o codigo NAO deve agrupar itens:
+      - vazio/branco;
+      - placeholder so de zeros ("0", "00", "000") — nao e codigo real,
+        e agrupar por ele junta itens completamente diferentes (bug do
+        grupo "CATMAT 0" que inflava o relatorio com itens sem relacao).
+    Caso contrario, remove zeros a esquerda para que "021172" e "21172"
+    (mesmo item digitado com/sem zero) caiam na mesma chave.
+    """
+    c = (codigo or "").strip()
+    if not c:
+        return None
+    sem_zeros = c.lstrip("0")
+    if not sem_zeros:  # era so zeros
+        return None
+    return sem_zeros
+
+
 def _normalizar(texto):
     """minusculas + sem acentos + so alfanumerico + espacos unicos."""
     texto = unicodedata.normalize("NFKD", texto or "")
@@ -77,7 +97,7 @@ class DuplicatasPCAView(View):
         por_descricao = defaultdict(list)
 
         for item in itens:
-            catmat = (item.codigo_catmat_catser or "").strip()
+            catmat = _codigo_catmat_util(item.codigo_catmat_catser)
             if catmat:
                 por_catmat[catmat].append(item)
             chave = _chave_descricao(item.descricao)
