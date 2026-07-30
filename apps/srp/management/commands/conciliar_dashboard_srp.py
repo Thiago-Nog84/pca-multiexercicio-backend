@@ -67,6 +67,65 @@ OFFICIAL_CONTRACT_ITEMS = {
         3: Decimal("65"),   # Toner MLT-D205L (SCX-4833), Lote 1 — Empenho 2025NE01038
         # Item 2 (MLT-D205E) e itens 4/5/6 (Lote 2) não foram comprados nesta nota — 0.
     },
+    # ---- Entradas abaixo: fonte é o bloco produtos[] da API SIAFE (ver
+    # importar_empenhos_siafe / EmpenhoProduto), importado em 2026-07-30.
+    # Critério de confiança: o preco_unitario do item do produtos[] bate
+    # EXATAMENTE com o valor_unitario do ItemARP — casamento inequívoco,
+    # não é aproximação. Ver docs/fracao_quantidades_2026-07-29.md.
+    ("00043/2025", "25018822"): {
+        # Fonte: Empenho 2025NE00077 (contrato 25018822, L N CASTAGNARO LTDA),
+        # produto "SSD SATA III 480GB" qtd=200 preço_unit=250.00 — bate exato
+        # com o valor_unitario do item 4 (R$250,00). O fallback dividia o
+        # saldo de valor contra o item errado, sobrando 0,14 unidades fantasma.
+        4: Decimal("200"),  # SSD SATA III 480GB — Empenho 2025NE00077
+    },
+    ("00049/2025", "03/2022/PGJ"): {
+        # Fonte: Empenhos 2026NE00046 e 2025NE00061 (contrato 03/2022/PGJ,
+        # DISRUPTEC BRASIL LTDA), produto "SOLUÇÃO CORPORATIVA DE PROTEÇÃO DE
+        # DISPOSITIVOS" qtd=1600 em ambos — bate exato com quantidade_registrada
+        # do item 2 (1600). Preço unitário do SIAFE (R$319,42 / R$305,14) é
+        # menor que o valor_unitario da ARP (R$542,00) — normal em renovação
+        # de assinatura anual com preço renegociado; a quantidade é o que
+        # importa para o saldo da ata, e essa bate exata.
+        2: Decimal("1600"),  # Assinatura de proteção de dispositivos — Empenho 2026NE00046/2025NE00061
+    },
+    ("00024/2025", "2025NE00106"): {
+        # Fonte: Empenho 2025NE00106 (contrato 2025NE00106, SERRA MOBILE
+        # INDÚSTRIA E COMÉRCIO LTDA), produto "POLTRONA OPERACIONAL FIXA"
+        # qtd=10 preço_unit=796.00 — bate exato com o valor_unitario do
+        # item 15 (R$796,00).
+        15: Decimal("10"),  # Poltrona operacional fixa — Empenho 2025NE00106
+    },
+    ("00019/2025", "23/2026/FPDC"): {
+        # Fonte: Empenho 2026NE00040 (contrato 23/2026/FPDC, VENTISOL DA
+        # AMAZÔNIA INDÚSTRIA DE APARELHOS ELÉTRICOS LTDA), produto
+        # "AR-CONDICIONADO SPLIT HIGH WALL 30.000 BTU/H INVERTER" qtd=4
+        # preço_unit=4300.00 — bate exato com o valor_unitario do item 4
+        # (R$4.300,00).
+        4: Decimal("4"),  # Ar-condicionado split 30.000 BTU — Empenho 2026NE00040
+    },
+    ("00029/2025", "2025NE00058"): {
+        # Fonte: Empenho 2025NE00058 (contrato 2025NE00058, MARYLEIDE FONSECA
+        # ALMEIDA LTDA), produtos[]: HEADSETS qtd=200 (R$190,00/un — item 8),
+        # FONE DE OUVIDO qtd=400 (R$110,00/un — item 9), DISPOSITIVO DE ÁUDIO
+        # VIVA-VOZ qtd=100 (R$790,00/un — item 10), WEBCAM FHD qtd=100
+        # (R$100,00/un — item 11). Confiança máxima: a soma bate EXATA com o
+        # valor_inicial do contrato (200×190 + 400×110 + 100×790 + 100×100 =
+        # R$171.000,00 = valor_inicial). O fallback estava fatiando esse valor
+        # junto com o do 27/2026-FMMPPI e sobrando fração fantasma no item 9.
+        8: Decimal("200"),   # Headset biauricular
+        9: Decimal("400"),   # Fone intra-auricular — consome o item 9 inteiro
+        10: Decimal("100"),  # Microfone/dispositivo de áudio viva-voz
+        11: Decimal("100"),  # Câmera web
+    },
+    ("00029/2025", "27/2026-FMMPPI"): {
+        # Fonte: Empenho 2026NE00025 (contrato 27/2026-FMMPPI, mesma
+        # fornecedora), produto único "HEADSETS (CIRCUMAURAL OVER-EAR)"
+        # qtd=100 (R$190,00/un — item 8). Soma bate exata com o valor_inicial
+        # do contrato (100×190 = R$19.000,00). Não compra fone intra-auricular
+        # (item 9) — o fallback errava ao alocar 289 unidades fantasma lá.
+        8: Decimal("100"),  # Headset biauricular
+    },
 }
 
 

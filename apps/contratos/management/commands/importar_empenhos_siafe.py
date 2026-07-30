@@ -15,6 +15,12 @@ FUNCIONAM — diferente da API federal Comprasnet, que não tem empenhos do MPPI
 Vínculo NE↔contrato: campo `codContrato` da NE (código SIAFE de 8 dígitos)
 casa com `Contrato.codigo_siafe`.
 
+Bloco `produtos[]`: cada NE pode trazer produto/serviço, quantidade, unidade,
+preço unitário e preço total (ver docs/nota_empenho_fonte_de_verdade.md §2).
+Persistido em `EmpenhoProduto`, um-para-muitos com `Empenho`. A cada
+reimportação da NE, os itens são substituídos (delete + recria) — não
+acumula histórico próprio, sempre reflete o último payload do SIAFE.
+
 Uso:
     python manage.py importar_empenhos_siafe [--exercicio 2026] [--ug 250101] [--dry-run]
 """
@@ -27,7 +33,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from apps.contratos.models import Contrato, Empenho
+from apps.contratos.models import Contrato, Empenho, EmpenhoProduto
 from apps.siafe.client import SiafeAPIError, SiafeClient
 
 UGS_MPPI = ["250101", "250102", "250104"]
@@ -79,6 +85,7 @@ class Command(BaseCommand):
         self.stdout.write(f"{len(idx)} contrato(s) local(is) com codigo_siafe.\n")
 
         criados = atualizados = sem_contrato = ignoradas = 0
+        produtos_no_payload = produtos_gravados = nes_com_produtos = 0
         liquido_por_contrato = {}  # codigo_siafe -> Decimal (net de anulações)
         agora = timezone.now()
 
@@ -143,6 +150,11 @@ class Command(BaseCommand):
                         "importado_em": agora,
                     }
 
+                    produtos_ne = ne.get("produtos") or []
+                    if produtos_ne:
+                        nes_com_produtos += 1
+                        produtos_no_payload += len(produtos_ne)
+
                     if opts["dry_run"]:
                         existe = Empenho.objects.filter(
                             contrato=contrato, numero_empenho=numero
@@ -153,13 +165,37 @@ class Command(BaseCommand):
                             criados += 1
                         continue
 
-                    _, created = Empenho.objects.update_or_create(
+                    obj, created = Empenho.objects.update_or_create(
                         contrato=contrato, numero_empenho=numero, defaults=defaults
                     )
                     if created:
                         criados += 1
                     else:
                         atualizados += 1
+
+                    # Bloco produtos[] — substitui os itens a cada reimportação
+                    # (não acumula histórico próprio, sempre reflete o SIAFE).
+                    if produtos_ne:
+                        obj.produtos.all().delete()
+                        novos_itens = [
+                            EmpenhoProduto(
+                                empenho=obj,
+                                ordem=posicao,
+                                nome_produto=(p.get("nomeProdutoGenerico") or "")[:255],
+                                descricao_produto=(p.get("descricaoProdutoGenerico") or "").strip(),
+                                unidade_fornecimento=(p.get("unidadeFornecimentoGenerico") or "")[:30],
+                                quantidade=parse_valor(p.get("quantidade")),
+                                preco_unitario=parse_valor(p.get("precoUnitario")),
+                                preco_total=parse_valor(p.get("precoTotal")),
+                            )
+                            for posicao, p in enumerate(produtos_ne)
+                        ]
+                        EmpenhoProduto.objects.bulk_create(novos_itens)
+                        produtos_gravados += len(novos_itens)
+                    elif not created:
+                        # NE atualizada mas sem produtos[] no payload atual — limpa
+                        # itens antigos para não deixar dado obsoleto.
+                        obj.produtos.all().delete()
 
             # Atualiza o agregado no contrato (líquido de anulações)
             contratos_atualizados = 0
@@ -180,7 +216,15 @@ class Command(BaseCommand):
             f"\n{modo}Empenhos criados: {criados} | Atualizados: {atualizados} | "
             f"NEs sem contrato local: {sem_contrato} | NEs sem contrato (avulsas): {ignoradas}"
         ))
-        if not opts["dry_run"]:
+        if opts["dry_run"]:
+            self.stdout.write(
+                f"produtos[] no payload: {produtos_no_payload} item(ns) em {nes_com_produtos} NE(s) "
+                f"(seriam gravados em EmpenhoProduto)"
+            )
+        else:
             self.stdout.write(
                 f"Contratos com valor_empenhado atualizado: {len(liquido_por_contrato)}"
+            )
+            self.stdout.write(
+                f"EmpenhoProduto gravados: {produtos_gravados} item(ns) em {nes_com_produtos} NE(s)"
             )

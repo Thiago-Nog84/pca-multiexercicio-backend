@@ -126,6 +126,29 @@ class Command(BaseCommand):
                         f"valor_inicial={contrato.valor_inicial} | numero_sei={contrato.numero_sei or '—'}"
                     )
                     self.stdout.write(f"     objeto: {(contrato.objeto or '')[:150]}")
+
+                    # produtos[] do SIAFE (ver importar_empenhos_siafe) — quando
+                    # existe, traz quantidade/unidade item a item da própria NE,
+                    # sem depender de caçar PDF no SEI.
+                    itens = list(
+                        contrato.empenhos.prefetch_related("produtos")
+                        .values_list("numero_empenho", "produtos__nome_produto",
+                                      "produtos__quantidade", "produtos__unidade_fornecimento",
+                                      "produtos__preco_unitario")
+                    )
+                    itens = [i for i in itens if i[1] is not None]
+                    if itens:
+                        self.stdout.write("     produtos[] do SIAFE (NE → produto → quantidade/unidade):")
+                        for ne_num, nome, qtd, unid, preco_unit in itens:
+                            self.stdout.write(
+                                f"       {ne_num} | {nome[:60] if nome else '—'} | "
+                                f"qtd={qtd} {unid or ''} | preco_unit={preco_unit}"
+                            )
+                    else:
+                        self.stdout.write(
+                            "     (sem produtos[] importados para este contrato — rode "
+                            "importar_empenhos_siafe de novo, ou este empenho não tinha o bloco)"
+                        )
                 else:
                     self.stdout.write(self.style.WARNING("     (Contrato local não encontrado para este pedido)"))
 

@@ -102,3 +102,53 @@ class Empenho(models.Model):
     @property
     def saldo_a_pagar(self):
         return self.valor_liquidado - self.valor_pago
+
+
+class EmpenhoProduto(models.Model):
+    """
+    Item de produto/serviço do bloco `produtos[]` da Nota de Empenho (API SIAFE).
+
+    Até 2026-07-30 esse bloco existia na API mas não era importado — ver
+    docs/nota_empenho_fonte_de_verdade.md §2. Guarda quantidade, unidade e
+    preço por item, o dado que faltava para resolver casos de quantidade
+    fracionária em ContratacaoDecorrente sem depender de PDF do SEI (ver
+    docs/fracao_quantidades_2026-07-29.md).
+
+    Importado por `importar_empenhos_siafe`: a cada reimportação, os itens do
+    empenho são substituídos (delete + recria), então este modelo sempre
+    reflete o último payload do SIAFE — não acumula histórico próprio.
+    """
+
+    empenho = models.ForeignKey(
+        "contratos.Empenho",
+        on_delete=models.CASCADE,
+        related_name="produtos",
+        help_text="Nota de Empenho da qual este item faz parte",
+    )
+    ordem = models.PositiveSmallIntegerField(
+        default=0, help_text="Posição do item dentro do bloco produtos[] da NE"
+    )
+    nome_produto = models.CharField(
+        max_length=255, blank=True, help_text="nomeProdutoGenerico da API SIAFE"
+    )
+    descricao_produto = models.TextField(
+        blank=True, help_text="descricaoProdutoGenerico da API SIAFE"
+    )
+    unidade_fornecimento = models.CharField(
+        max_length=30, blank=True, help_text="unidadeFornecimentoGenerico da API SIAFE"
+    )
+    quantidade = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal("0"))
+    preco_unitario = models.DecimalField(max_digits=16, decimal_places=4, default=Decimal("0"))
+    preco_total = models.DecimalField(max_digits=16, decimal_places=2, default=Decimal("0"))
+
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Item da Nota de Empenho"
+        verbose_name_plural = "Itens da Nota de Empenho"
+        ordering = ["empenho", "ordem"]
+        unique_together = ("empenho", "ordem")
+
+    def __str__(self):
+        return f"{self.empenho.numero_empenho} #{self.ordem} — {self.nome_produto[:40]} ({self.quantidade})"
