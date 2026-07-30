@@ -1,0 +1,846 @@
+Buscando NEs da UG 250101 — exercício 2026...
+
+=== 2026NE00010 — UG 250101 — ocorrência 1 ===
+  resumo: credor=23653504000106 J P BARBOSA E SILVA LTDA | valor=13478.5 | codContrato='22000628'
+
+  JSON bruto:
+{
+  "id": 233760,
+  "codigo": "2026NE00010",
+  "classificadores": [
+    {
+      "codigoTipoClassificador": 239,
+      "nomeTipoClassificador": "Tipo de Reserva",
+      "nomeClassificador": "1",
+      "valoresClassificador": [
+        "1"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 121,
+      "nomeTipoClassificador": "Órgão Orçamento",
+      "nomeClassificador": "25",
+      "valoresClassificador": [
+        "25"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 26,
+      "nomeTipoClassificador": "Unidade Orçamentária",
+      "nomeClassificador": "25.101",
+      "valoresClassificador": [
+        "25",
+        "101"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 67,
+      "nomeTipoClassificador": "Programa de trabalho",
+      "nomeClassificador": "1.25.101.03.122.0111.2000",
+      "valoresClassificador": [
+        "1",
+        "25",
+        "101",
+        "03",
+        "122",
+        "0111",
+        "2000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 23,
+      "nomeTipoClassificador": "Identificador Exercício Fonte",
+      "nomeClassificador": "1",
+      "valoresClassificador": [
+        "1"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 28,
+      "nomeTipoClassificador": "Fonte",
+      "nomeClassificador": "5.00",
+      "valoresClassificador": [
+        "5",
+        "00"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 33,
+      "nomeTipoClassificador": "Natureza",
+      "nomeClassificador": "3.3.90.30",
+      "valoresClassificador": [
+        "3",
+        "3",
+        "90",
+        "30"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 190,
+      "nomeTipoClassificador": "Autor Emenda",
+      "nomeClassificador": "0",
+      "valoresClassificador": [
+        "0"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 163,
+      "nomeTipoClassificador": "Emenda Parlamentar",
+      "nomeClassificador": "0000.E0000",
+      "valoresClassificador": [
+        "0000",
+        "E0000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 141,
+      "nomeTipoClassificador": "Território",
+      "nomeClassificador": "TD0",
+      "valoresClassificador": [
+        "TD0"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 179,
+      "nomeTipoClassificador": "Plano Orçamentário",
+      "nomeClassificador": "000001",
+      "valoresClassificador": [
+        "000001"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 625,
+      "nomeTipoClassificador": "Marcador Orçamentário",
+      "nomeClassificador": "1106000",
+      "valoresClassificador": [
+        "1106000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 24,
+      "nomeTipoClassificador": "Marcador de Fonte",
+      "nomeClassificador": "5.00.0000",
+      "valoresClassificador": [
+        "5",
+        "00",
+        "0000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 186,
+      "nomeTipoClassificador": "Tipo de Detalhamento de Fonte",
+      "nomeClassificador": "0",
+      "valoresClassificador": [
+        "0"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 159,
+      "nomeTipoClassificador": "Detalhamento de Fonte",
+      "nomeClassificador": "5.00.0000.000000",
+      "valoresClassificador": [
+        "5",
+        "00",
+        "0000",
+        "000000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 38,
+      "nomeTipoClassificador": "Convênio de Receita",
+      "nomeClassificador": "000000",
+      "valoresClassificador": [
+        "000000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 172,
+      "nomeTipoClassificador": "Convênio de Despesa",
+      "nomeClassificador": "000000",
+      "valoresClassificador": [
+        "000000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 54,
+      "nomeTipoClassificador": "Contrato",
+      "nomeClassificador": "22000628",
+      "valoresClassificador": [
+        "22000628"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 200,
+      "nomeTipoClassificador": "Projetos",
+      "nomeClassificador": "0",
+      "valoresClassificador": [
+        "0"
+      ]
+    }
+  ],
+  "codigoDocAlterado": null,
+  "codProcesso": "19.21.0010.0013925/2021-36",
+  "dataProcesso": "2021-10-22",
+  "assuntoProcesso": "Processo sem integração!",
+  "resumoProcesso": null,
+  "anoProcesso": "2026",
+  "statusDocumento": "CONTABILIZADO",
+  "codigoUG": "250101",
+  "nomeUG": "PROCURADORIA GERAL DE JUSTICA",
+  "ordenadoresDespesa": [
+    {
+      "id": "1378",
+      "cpf": "34309179304",
+      "nome": "CLAUDIA PESSOA MARQUES DA ROCHA SEABRA",
+      "cargo": "PROCURADORA GERAL DE JUSTIÇA ¿ PGJ - MPPI",
+      "cpfSecundario": "46097643349",
+      "nomeSecundario": "JORGE LUIZ DA COSTA PESSOA",
+      "cargoSecundario": "CHEFE DE GABINETE - PGJ - ORDENADOR DE DESPESAS Secundário",
+      "dataInicio": "2025-06-21",
+      "dataFim": null
+    }
+  ],
+  "codigoGestao": "00001",
+  "codFonte": "500",
+  "codNatureza": "339030",
+  "codigoCredor": "23653504000106",
+  "nomeCredor": "J P BARBOSA E SILVA LTDA",
+  "dataEmissao": "2026-01-21",
+  "dataCancelamento": null,
+  "dataContabilizacao": "2026-01-21",
+  "valor": 13478.5,
+  "observacao": "CAA. EMPENHO EM FAVOR DA EMPRESA J P BARBOSA E SILVA EIRELI ME, CNPJ nº 23.653.504/0001-06, REFERENTE A CONTRATAÇÃO DA PRESTAÇÃO DE SERVIÇOS E AQUISIÇÃO DE RECARGA DE EXTINTORES DE INCÊNDIO DOS PRÉDIOS DESTE MINISTÉRIO PÚBLICO DO ESTADO DO PIAUÍ - MPPI, PREGÃO ELETRÔNICO N° 03/2022, CONFORME MINUTA CONTRATUAL Nº 03 AO CONTRATO Nº 04/2022, A FIM DE GARANTIR O PAGAMENTO DAS DESPESAS NO EXERCÍCIO FINANCEIRO DE 2026.",
+  "justificativaCancelamento": null,
+  "codClassificacao": "   1.25.101. 1.03.122.0111.2000.1.5.00.3.3.90.30.   0.0000. E0000. TD0.000001.1106000.0000.0.000000.000000.000000.                      22000628.         0",
+  "itens": [
+    {
+      "classificadores": [
+        {
+          "codigoTipoClassificador": 116,
+          "nomeTipoClassificador": "Tipo Patrimonial",
+          "nomeClassificador": "40",
+          "valoresClassificador": [
+            "40"
+          ]
+        },
+        {
+          "codigoTipoClassificador": 162,
+          "nomeTipoClassificador": "Sub-item da Despesa",
+          "nomeClassificador": "6594.61",
+          "valoresClassificador": [
+            "6594",
+            "61"
+          ]
+        }
+      ],
+      "valor": 13478.5,
+      "classificadoresStr": "Classificadores: Tipo: 116; Valores: [40]| Tipo: 162; Valores: [6594, 61]"
+    }
+  ],
+  "cpfCredor": null,
+  "cnpjCredor": "23653504000106",
+  "idNR": 37971,
+  "codNR": "2026NR00012",
+  "modalidade": "GLOBAL",
+  "tipoAlteracaoNE": "NENHUMA",
+  "codContrato": "22000628",
+  "numOriginalContrato": null,
+  "codAcao": "2000",
+  "codDetalhamentoFonte": "5000000000000",
+  "codParcela": null,
+  "codigoOrgao": "25",
+  "produtos": [
+    {
+      "id": 238393,
+      "descricaoProdutoPPA": "Não se aplica",
+      "nomeProdutoGenerico": "RECARGA DE EXTINTOR PQS  06 KG ABC",
+      "descricaoProdutoGenerico": "AQUISIÇÃO DE RECARGA DE EXTINTOR PQS - 06 KG ABC DURANTE O EXERCÍCIO DE 2026.",
+      "unidadeFornecimentoGenerico": "RECARGA",
+      "quantidadePrevista": null,
+      "quantidade": 102.0,
+      "precoUnitario": 73.19,
+      "precoTotal": 7465.38
+    },
+    {
+      "id": 238394,
+      "descricaoProdutoPPA": "Não se aplica",
+      "nomeProdutoGenerico": "RECARGA DE EXTINTOR PQS  06 KG BC",
+      "descricaoProdutoGenerico": "AQUISIÇÃO DE RECARGA DE EXTINTOR PQS - 06 KG BC DURANTE O EXERCÍCIO DE 2026.",
+      "unidadeFornecimentoGenerico": "RECARGA",
+      "quantidadePrevista": null,
+      "quantidade": 60.0,
+      "precoUnitario": 57.43,
+      "precoTotal": 3445.8
+    },
+    {
+      "id": 238395,
+      "descricaoProdutoPPA": "Não se aplica",
+      "nomeProdutoGenerico": "RECARGA DE EXTINTOR PQS  06 KG CO2",
+      "descricaoProdutoGenerico": "AQUISIÇÃO DE RECARGA DE EXTINTOR PQS - 06 KG CO2 DURANTE O EXERCÍCIO DE 2026.",
+      "unidadeFornecimentoGenerico": "RECARGA",
+      "quantidadePrevista": null,
+      "quantidade": 18.0,
+      "precoUnitario": 101.34,
+      "precoTotal": 1824.12
+    },
+    {
+      "id": 238396,
+      "descricaoProdutoPPA": "Não se aplica",
+      "nomeProdutoGenerico": "RECARGA DE EXTINTOR AP 10 LTS",
+      "descricaoProdutoGenerico": "AQUISIÇÃO DE RECARGA DE EXTINTOR AP - 10 LTS KG DURANTE O EXERCÍCIO DE 2026.",
+      "unidadeFornecimentoGenerico": "RECARGA",
+      "quantidadePrevista": null,
+      "quantidade": 20.0,
+      "precoUnitario": 37.16,
+      "precoTotal": 743.2
+    }
+  ],
+  "codigoModalidadeLicitacao": "12",
+  "numeroLicitacao": null,
+  "descModalidadeLicitacao": "Pregão",
+  "embasamentoLegal": "Lei nº 10.520/2002; Pregão Eletrônicon° 03/2022.\n",
+  "idtTipoLicitacaoItem": 20
+}
+Buscando NEs da UG 250102 — exercício 2026...
+
+=== 2026NE00010 — UG 250102 — ocorrência 2 ===
+  resumo: credor=42489485000179 L H C HAIDAR SOUSA | valor=7672.5 | codContrato='26100660'
+
+  JSON bruto:
+{
+  "id": 245141,
+  "codigo": "2026NE00010",
+  "classificadores": [
+    {
+      "codigoTipoClassificador": 239,
+      "nomeTipoClassificador": "Tipo de Reserva",
+      "nomeClassificador": "1",
+      "valoresClassificador": [
+        "1"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 121,
+      "nomeTipoClassificador": "Órgão Orçamento",
+      "nomeClassificador": "25",
+      "valoresClassificador": [
+        "25"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 26,
+      "nomeTipoClassificador": "Unidade Orçamentária",
+      "nomeClassificador": "25.102",
+      "valoresClassificador": [
+        "25",
+        "102"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 67,
+      "nomeTipoClassificador": "Programa de trabalho",
+      "nomeClassificador": "1.25.102.03.122.0111.6113",
+      "valoresClassificador": [
+        "1",
+        "25",
+        "102",
+        "03",
+        "122",
+        "0111",
+        "6113"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 23,
+      "nomeTipoClassificador": "Identificador Exercício Fonte",
+      "nomeClassificador": "1",
+      "valoresClassificador": [
+        "1"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 28,
+      "nomeTipoClassificador": "Fonte",
+      "nomeClassificador": "7.60",
+      "valoresClassificador": [
+        "7",
+        "60"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 33,
+      "nomeTipoClassificador": "Natureza",
+      "nomeClassificador": "3.3.90.39",
+      "valoresClassificador": [
+        "3",
+        "3",
+        "90",
+        "39"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 190,
+      "nomeTipoClassificador": "Autor Emenda",
+      "nomeClassificador": "0",
+      "valoresClassificador": [
+        "0"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 163,
+      "nomeTipoClassificador": "Emenda Parlamentar",
+      "nomeClassificador": "0000.E0000",
+      "valoresClassificador": [
+        "0000",
+        "E0000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 141,
+      "nomeTipoClassificador": "Território",
+      "nomeClassificador": "TD0",
+      "valoresClassificador": [
+        "TD0"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 179,
+      "nomeTipoClassificador": "Plano Orçamentário",
+      "nomeClassificador": "000001",
+      "valoresClassificador": [
+        "000001"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 625,
+      "nomeTipoClassificador": "Marcador Orçamentário",
+      "nomeClassificador": "1106000",
+      "valoresClassificador": [
+        "1106000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 24,
+      "nomeTipoClassificador": "Marcador de Fonte",
+      "nomeClassificador": "7.60.0000",
+      "valoresClassificador": [
+        "7",
+        "60",
+        "0000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 186,
+      "nomeTipoClassificador": "Tipo de Detalhamento de Fonte",
+      "nomeClassificador": "0",
+      "valoresClassificador": [
+        "0"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 159,
+      "nomeTipoClassificador": "Detalhamento de Fonte",
+      "nomeClassificador": "7.60.0000.000000",
+      "valoresClassificador": [
+        "7",
+        "60",
+        "0000",
+        "000000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 38,
+      "nomeTipoClassificador": "Convênio de Receita",
+      "nomeClassificador": "000000",
+      "valoresClassificador": [
+        "000000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 172,
+      "nomeTipoClassificador": "Convênio de Despesa",
+      "nomeClassificador": "000000",
+      "valoresClassificador": [
+        "000000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 54,
+      "nomeTipoClassificador": "Contrato",
+      "nomeClassificador": "26100660",
+      "valoresClassificador": [
+        "26100660"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 200,
+      "nomeTipoClassificador": "Projetos",
+      "nomeClassificador": "0",
+      "valoresClassificador": [
+        "0"
+      ]
+    }
+  ],
+  "codigoDocAlterado": null,
+  "codProcesso": "19.21.0431.0038670/2025-35",
+  "dataProcesso": "2025-10-14",
+  "assuntoProcesso": "Processo sem integração!",
+  "resumoProcesso": null,
+  "anoProcesso": "2026",
+  "statusDocumento": "CONTABILIZADO",
+  "codigoUG": "250102",
+  "nomeUG": "FUNDO ESPECIAL DO MINISTERIO PUBLICO",
+  "ordenadoresDespesa": [
+    {
+      "id": "1379",
+      "cpf": "34309179304",
+      "nome": "CLAUDIA PESSOA MARQUES DA ROCHA SEABRA",
+      "cargo": "PROCURADORA GERAL DE JUSTIÇA ¿ PGJ - MPPI",
+      "cpfSecundario": "46097643349",
+      "nomeSecundario": "JORGE LUIZ DA COSTA PESSOA",
+      "cargoSecundario": "CHEFE DE GABINETE - PGJ - ORDENADOR DE DESPESAS Secundário",
+      "dataInicio": "2025-06-21",
+      "dataFim": null
+    }
+  ],
+  "codigoGestao": "25102",
+  "codFonte": "760",
+  "codNatureza": "339039",
+  "codigoCredor": "42489485000179",
+  "nomeCredor": "L H C HAIDAR SOUSA",
+  "dataEmissao": "2026-02-09",
+  "dataCancelamento": null,
+  "dataContabilizacao": "2026-02-09",
+  "valor": 7672.5,
+  "observacao": "CPPT. EMPENHO EM FAVOR DA EMPRESA L H C HAIDAR SOUSA (HAMED ENGENHARIA E CONSULTORIA), REFERENTE PRESTAÇÃO DE SERVIÇOS ESPECIALIZADOS DE ELABORAÇÃO DE PROJETOS DE PREVENÇÃO E COMBATE A INCÊNDIO E PÂNICO, DESTINADOS A ATENDER ÀS NECESSIDADES DO MINISTÉRIO PÚBLICO DO ESTADO DO PIAUÍ - MPPI, CONFORME AUTORIZAÇÃO DE EMEPNHO (SEI  1266658), AS ESPECIFICAÇÕES, EXIGÊNCIAS TÉCNICAS E QUANTITATIVOS DESCRITOS NA TABELA CONSTANTE DO ITEM 1.5 NESTE TERMO DE REFERÊNCIA (SEI  1202650), ALUSIVO DISPENSA ELETRÔNICA Nº 35/2025, ART. 75, I, LEI 14.133/2021, COM FUNDAMENTAÇÃO LEGAL ART. 75, INCISO I, DA LEI Nº 14.133/2021. DECRETO 21.872/2023.",
+  "justificativaCancelamento": null,
+  "codClassificacao": "   1.25.102. 1.03.122.0111.6113.1.7.60.3.3.90.39.   0.0000. E0000. TD0.000001.1106000.0000.0.000000.000000.000000.                      26100660.         0",
+  "itens": [
+    {
+      "classificadores": [
+        {
+          "codigoTipoClassificador": 116,
+          "nomeTipoClassificador": "Tipo Patrimonial",
+          "nomeClassificador": "43",
+          "valoresClassificador": [
+            "43"
+          ]
+        },
+        {
+          "codigoTipoClassificador": 162,
+          "nomeTipoClassificador": "Sub-item da Despesa",
+          "nomeClassificador": "2736.51",
+          "valoresClassificador": [
+            "2736",
+            "51"
+          ]
+        }
+      ],
+      "valor": 7672.5,
+      "classificadoresStr": "Classificadores: Tipo: 116; Valores: [43]| Tipo: 162; Valores: [2736, 51]"
+    }
+  ],
+  "cpfCredor": null,
+  "cnpjCredor": "42489485000179",
+  "idNR": 43383,
+  "codNR": "2026NR00010",
+  "modalidade": "GLOBAL",
+  "tipoAlteracaoNE": "NENHUMA",
+  "codContrato": "26100660",
+  "numOriginalContrato": null,
+  "codAcao": "6113",
+  "codDetalhamentoFonte": "7600000000000",
+  "codParcela": null,
+  "codigoOrgao": "25",
+  "produtos": [
+    {
+      "id": 249932,
+      "descricaoProdutoPPA": "Não se aplica",
+      "nomeProdutoGenerico": "PROJETOS DE PREVENÇÃO E COMBATE A INCÊNDIO E PÂNICO PARA O MPPI.",
+      "descricaoProdutoGenerico": "PRESTAÇÃO DE SERVIÇOS ESPECIALIZADOS DE ELABORAÇÃO DE PROJETOS DE PREVENÇÃO E COMBATE A\nINCÊNDIO E PÂNICO, DESTINADOS A ATENDER ÀS NECESSIDADES DO MINISTÉRIO PÚBLICO DO ESTADO DO PIAUÍ - MPPI.",
+      "unidadeFornecimentoGenerico": "UNIDADE",
+      "quantidadePrevista": null,
+      "quantidade": 1.0,
+      "precoUnitario": 7672.5,
+      "precoTotal": 7672.5
+    }
+  ],
+  "codigoModalidadeLicitacao": "06",
+  "numeroLicitacao": null,
+  "descModalidadeLicitacao": "Dispensa de Licitação",
+  "embasamentoLegal": "Dispensa Eletrônica nº 35/2025, art. 75, I, Lei 14.133/2021.",
+  "idtTipoLicitacaoItem": 23
+}
+Buscando NEs da UG 250104 — exercício 2026...
+
+=== 2026NE00010 — UG 250104 — ocorrência 3 ===
+  resumo: credor=80664091334 EDIVAR CRUZ CARVALHO | valor=1007.5 | codContrato='00000000'
+
+  JSON bruto:
+{
+  "id": 234597,
+  "codigo": "2026NE00010",
+  "classificadores": [
+    {
+      "codigoTipoClassificador": 239,
+      "nomeTipoClassificador": "Tipo de Reserva",
+      "nomeClassificador": "1",
+      "valoresClassificador": [
+        "1"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 121,
+      "nomeTipoClassificador": "Órgão Orçamento",
+      "nomeClassificador": "25",
+      "valoresClassificador": [
+        "25"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 26,
+      "nomeTipoClassificador": "Unidade Orçamentária",
+      "nomeClassificador": "25.104",
+      "valoresClassificador": [
+        "25",
+        "104"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 67,
+      "nomeTipoClassificador": "Programa de trabalho",
+      "nomeClassificador": "1.25.104.03.122.0111.6114",
+      "valoresClassificador": [
+        "1",
+        "25",
+        "104",
+        "03",
+        "122",
+        "0111",
+        "6114"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 23,
+      "nomeTipoClassificador": "Identificador Exercício Fonte",
+      "nomeClassificador": "1",
+      "valoresClassificador": [
+        "1"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 28,
+      "nomeTipoClassificador": "Fonte",
+      "nomeClassificador": "7.59",
+      "valoresClassificador": [
+        "7",
+        "59"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 33,
+      "nomeTipoClassificador": "Natureza",
+      "nomeClassificador": "3.3.90.14",
+      "valoresClassificador": [
+        "3",
+        "3",
+        "90",
+        "14"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 190,
+      "nomeTipoClassificador": "Autor Emenda",
+      "nomeClassificador": "0",
+      "valoresClassificador": [
+        "0"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 163,
+      "nomeTipoClassificador": "Emenda Parlamentar",
+      "nomeClassificador": "0000.E0000",
+      "valoresClassificador": [
+        "0000",
+        "E0000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 141,
+      "nomeTipoClassificador": "Território",
+      "nomeClassificador": "TD0",
+      "valoresClassificador": [
+        "TD0"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 179,
+      "nomeTipoClassificador": "Plano Orçamentário",
+      "nomeClassificador": "000001",
+      "valoresClassificador": [
+        "000001"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 625,
+      "nomeTipoClassificador": "Marcador Orçamentário",
+      "nomeClassificador": "1106000",
+      "valoresClassificador": [
+        "1106000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 24,
+      "nomeTipoClassificador": "Marcador de Fonte",
+      "nomeClassificador": "7.59.0000",
+      "valoresClassificador": [
+        "7",
+        "59",
+        "0000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 186,
+      "nomeTipoClassificador": "Tipo de Detalhamento de Fonte",
+      "nomeClassificador": "0",
+      "valoresClassificador": [
+        "0"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 159,
+      "nomeTipoClassificador": "Detalhamento de Fonte",
+      "nomeClassificador": "7.59.0000.000000",
+      "valoresClassificador": [
+        "7",
+        "59",
+        "0000",
+        "000000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 38,
+      "nomeTipoClassificador": "Convênio de Receita",
+      "nomeClassificador": "000000",
+      "valoresClassificador": [
+        "000000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 172,
+      "nomeTipoClassificador": "Convênio de Despesa",
+      "nomeClassificador": "000000",
+      "valoresClassificador": [
+        "000000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 54,
+      "nomeTipoClassificador": "Contrato",
+      "nomeClassificador": "00000000",
+      "valoresClassificador": [
+        "00000000"
+      ]
+    },
+    {
+      "codigoTipoClassificador": 200,
+      "nomeTipoClassificador": "Projetos",
+      "nomeClassificador": "0",
+      "valoresClassificador": [
+        "0"
+      ]
+    }
+  ],
+  "codigoDocAlterado": null,
+  "codProcesso": "19.21.0745.0002400/2026-53",
+  "dataProcesso": null,
+  "assuntoProcesso": "Processo sem integração!",
+  "resumoProcesso": null,
+  "anoProcesso": "2026",
+  "statusDocumento": "CONTABILIZADO",
+  "codigoUG": "250104",
+  "nomeUG": "FUNDO DE PROTECAO E DEFESA DO CONSUMIDOR",
+  "ordenadoresDespesa": [
+    {
+      "id": "43",
+      "cpf": "09733965391",
+      "nome": "NIVALDO RIBEIRO",
+      "cargo": "COORDENADOR GERAL DO DO PROCON",
+      "cpfSecundario": "81913192334",
+      "nomeSecundario": "JOÃO PAULO SANTIAGO SALES ",
+      "cargoSecundario": "GESTOR SUPLENTE DO FPDC",
+      "dataInicio": "2015-07-31",
+      "dataFim": null
+    }
+  ],
+  "codigoGestao": "25104",
+  "codFonte": "759",
+  "codNatureza": "339014",
+  "codigoCredor": "80664091334",
+  "nomeCredor": "EDIVAR CRUZ CARVALHO",
+  "dataEmissao": "2026-01-26",
+  "dataCancelamento": null,
+  "dataContabilizacao": "2026-01-26",
+  "valor": 1007.5,
+  "observacao": "GCGPROCON Empenho referente a 2 (duas) diárias e 1 (uma) meia diária, conforme Lei Complementar nº 13/1993, Ato Conjunto PGJ/PROCON n.º 01/2017 e Ato PGJ nº 1487/2025, em favor de Edivar Cruz Carvalho (Coordenador Técnico do Procon), por deslocamento de Teresina-PI para Betânia do Piauí-PI, no período de 29 a 31/01/2026, para atuar nas atividades do MP em Ação Procon Itinerante, conforme PORTARIA PGJ/PI Nº 217/2026.",
+  "justificativaCancelamento": null,
+  "codClassificacao": "   1.25.104. 1.03.122.0111.6114.1.7.59.3.3.90.14.   0.0000. E0000. TD0.000001.1106000.0000.0.000000.000000.000000.                      00000000.         0",
+  "itens": [
+    {
+      "classificadores": [
+        {
+          "codigoTipoClassificador": 116,
+          "nomeTipoClassificador": "Tipo Patrimonial",
+          "nomeClassificador": "76",
+          "valoresClassificador": [
+            "76"
+          ]
+        },
+        {
+          "codigoTipoClassificador": 162,
+          "nomeTipoClassificador": "Sub-item da Despesa",
+          "nomeClassificador": "2144.01",
+          "valoresClassificador": [
+            "2144",
+            "01"
+          ]
+        }
+      ],
+      "valor": 1007.5,
+      "classificadoresStr": "Classificadores: Tipo: 116; Valores: [76]| Tipo: 162; Valores: [2144, 01]"
+    }
+  ],
+  "cpfCredor": "80664091334",
+  "cnpjCredor": null,
+  "idNR": 38907,
+  "codNR": "2026NR00008",
+  "modalidade": "ORDINARIO",
+  "tipoAlteracaoNE": "NENHUMA",
+  "codContrato": "00000000",
+  "numOriginalContrato": null,
+  "codAcao": "6114",
+  "codDetalhamentoFonte": "7590000000000",
+  "codParcela": null,
+  "codigoOrgao": "25",
+  "produtos": [
+    {
+      "id": 239292,
+      "descricaoProdutoPPA": "Não se aplica",
+      "nomeProdutoGenerico": "DIÁRIAS",
+      "descricaoProdutoGenerico": "DIÁRIAS NO PAÍS DENTRO DO ESTADO",
+      "unidadeFornecimentoGenerico": "UNIDADE",
+      "quantidadePrevista": null,
+      "quantidade": 2.5,
+      "precoUnitario": 403.0,
+      "precoTotal": 1007.5
+    }
+  ],
+  "codigoModalidadeLicitacao": "08",
+  "numeroLicitacao": null,
+  "descModalidadeLicitacao": "Não aplicável",
+  "embasamentoLegal": "Lei Complementar nº 13/1993, Ato Conjunto PGJ/PROCON n.º 01/2017 e Ato PGJ nº 1487/2025",
+  "idtTipoLicitacaoItem": 13
+}
+
+3 ocorrência(s) de 2026NE00010 encontrada(s).
+  ATENÇÃO: o mesmo número de NE existe em mais de uma UG — a numeração é sequencial POR UG, não global. Qualquer casamento por número de NE precisa levar a UG em conta.

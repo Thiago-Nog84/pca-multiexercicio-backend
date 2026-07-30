@@ -68,6 +68,66 @@ CONTRATOS_MANUAIS = [
         "unidade_orcamentaria": "pgj",
         "numero_arp_origem": "51/2025",  # ARP Nº 51/2025, Pregão Eletrônico nº 90023/2025, Lotes 05 e 07
     },
+    {
+        # Fonte: 4 documentos do SEI 19.21.0010.0018316/2024-04, fornecidos em
+        # 2026-07-30 — Contrato (0795673), Apostilamento 01 (0953619),
+        # Apostilamento 02 (1053628) e Termo Aditivo 01 (1222671).
+        # Achado via sugerir_vinculo_ne_contrato: codContrato=24010263 com 2 NEs
+        # de 2026 (2026NE00885 R$25.000 peças + 2026NE00886 R$100.000 serviços,
+        # ambas emitidas em 28/07/2026) sem par local — este contrato nunca
+        # tinha sido cadastrado. Era a última divergência acionável da PGJ na
+        # conciliação com o TCE (diferença de exatamente R$125.000,00).
+        #
+        # HISTÓRICO DE VALOR (o contrato precisou de 2 apostilamentos para
+        # corrigir um erro material de soma no instrumento original):
+        #   - Contrato original (assinado 24/07/2024): texto da Cláusula
+        #     Terceira dizia "R$223.042,39, sendo R$61.956,21 serviços e
+        #     R$10.000,00 peças" — não fecha (61.956,21 + 10.000 = 71.956,21).
+        #     O Anexo I do próprio contrato já trazia o total correto de
+        #     R$259.042,39 (R$223.042,39 serviços + R$36.000,00 peças).
+        #   - Apostilamento 01 (17/02/2025): corrigiu o total para R$259.042,39,
+        #     mas manteve peças em R$10.000,00 — ainda não fechava.
+        #   - Apostilamento 02 (10/06/2025): corrigiu peças para R$36.000,00.
+        #     Só então 223.042,39 + 36.000,00 = 259.042,39 fecha.
+        #   - Termo Aditivo 01 (11/12/2025): prorroga 18 meses a partir de
+        #     24/01/2026 e reajusta pelo IPCA/IBGE — novo valor R$271.367,89
+        #     (R$233.654,97 serviços + R$37.712,92 peças).
+        #
+        # valor_inicial = valor original já corrigido pelos apostilamentos
+        # (que são meras correções de erro material, não alteram o objeto).
+        # valor_atual = valor após o Termo Aditivo 01 (reajuste IPCA).
+        "numero_contrato": "29/2024/PGJ",
+        "numero_sei": "19.21.0010.0018316/2024-04",
+        "tipo": "servico_continuo",
+        "objeto": (
+            "Contratação de empresa especializada na prestação de serviços de "
+            "manutenção preventiva e corretiva COM FORNECIMENTO DE PEÇAS dos "
+            "aparelhos de ar-condicionado tipo split, bebedouro, purificador de "
+            "água, frigobar, geladeira, recarga de gás para split, geladeira, "
+            "frigobar e bebedouro, bem como instalação, desinstalação e "
+            "substituição de aparelhos de ar-condicionado (tipo split) de "
+            "propriedade do MPPI, na sede da PGJ e demais órgãos, em Teresina e "
+            "no interior do Estado (Lotes II, III e IV)."
+        ),
+        "contratado_razao_social": "EASWELL ENGENHARIA LTDA",
+        "contratado_cnpj_cpf": "37.827.616/0001-40",
+        "valor_inicial": Decimal("259042.39"),
+        "valor_atual": Decimal("271367.89"),
+        # Não há dado de execução/medição nos documentos fornecidos — o saldo
+        # real depende das ordens de serviço já executadas. Registrado igual ao
+        # valor_atual; ajustar quando houver a memória de execução.
+        "saldo_disponivel": Decimal("271367.89"),
+        # Deixado zerado de propósito: o importar_empenhos_siafe recalcula a
+        # partir das NEs reais (2024NE00671, 2025NE01494/01495, 2026NE00885/00886).
+        "valor_empenhado": Decimal("0.00"),
+        "codigo_siafe": "24010263",
+        "data_assinatura": date(2024, 7, 24),      # última assinatura eletrônica (contratada)
+        "data_inicio_vigencia": date(2024, 7, 24),  # 18 meses da assinatura
+        # Aditivo 01: mais 18 meses contados de 24/01/2026 -> 24/07/2027
+        "data_fim_vigencia": date(2027, 7, 24),
+        "unidade_orcamentaria": "pgj",
+        "numero_arp_origem": "23/2023",  # ATA 23/2023, Pregão Eletrônico 28/2023, Lotes II, III e IV
+    },
 ]
 
 

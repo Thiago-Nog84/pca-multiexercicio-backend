@@ -1,4 +1,8 @@
-# Integração TCE-PI (Portal da Cidadania) e conciliação de empenhos — 2026-07-29
+# Integração TCE-PI (Portal da Cidadania) e conciliação de empenhos — 2026-07-29/30
+
+> **Status: conciliação CONCLUÍDA.** Nos três órgãos do MPPI, todas as
+> divergências restantes têm causa identificada e documentada. Nenhuma decorre
+> de erro de dado. Ver "Estado final" abaixo.
 
 ## Contexto
 
@@ -33,114 +37,196 @@ licitações por órgão/data, documentos. Registrado em `INSTALLED_APPS`;
 | `listar_nes_sem_contrato_local` | Lista NEs cujo `codContrato` não bate com nenhum contrato local, separando compra direta |
 | `sugerir_vinculo_ne_contrato` | Para cada `codContrato` órfão, sugere se falta só o `codigo_siafe` ou o contrato inteiro |
 | `auditar_empenhos_manuais` | Confere `Empenho` com `importado_siafe=False` contra o SIAFE |
+| `limpar_empenhos_fabricados` | Remove empenhos manuais com número fabricado (dupla condição de segurança) |
+| `dump_ne_siafe` | Despeja o JSON bruto de uma NE em todas as UGs |
 | `cadastrar_contrato_manual` | Cadastra contrato confirmado por documento fonte (idempotente) |
 | `corrigir_codigo_siafe_manual` | Preenche/corrige `codigo_siafe` com vínculo confirmado |
 | `corrigir_unidade_orcamentaria_manual` | Preenche `unidade_orcamentaria` confirmada manualmente |
 | `inferir_fonte_contratos_via_tcepi` | Infere `unidade_orcamentaria` cruzando CNPJ com credores do TCE |
 
-## Resultado da conciliação (exercício 2026)
+---
 
-**52 CONFERE | 4 DIVERGE | 2 NÃO ENCONTRADO** nos três órgãos.
+# Estado final (exercício 2026)
 
-Partindo de 25 CONFERE / 4 DIVERGE só na PGJ, no início.
+| Órgão | Divergências | Situação |
+|---|---|---|
+| **FMMP** (250102) | 0 | conciliado |
+| **FEPDC** (250104) | 0 | conciliado |
+| **PGJ** (250101) | 2 | ambas NE sem instrumento contratual |
 
-## Correções aplicadas
+Evolução: começou em **25 CONFERE / 4 DIVERGE / 2 NÃO ENCONTRADO** (só PGJ) e
+terminou com **0 NÃO ENCONTRADO** e todas as divergências explicadas.
 
-1. **Bug no `conciliar_tcepi`**: NEs `tipo='anulacao'` estavam sendo somadas como
-   positivas. Master Facilities aparecia com R$6,08mi local × R$1,07mi no TCE;
-   descontando a anulação (`2026NE00738`, R$2.504.625,82) sobre a NE
-   `2026NE00434` (R$3.572.724,80), o líquido é R$1.068.098,98 — bate exato.
-2. **EPSG (CNPJ 04276973000109)**: contratos pk=230 (`23002407`) e pk=238
-   (`21/2024`) estavam sem `unidade_orcamentaria`. A soma dos 3 contratos dela
-   (R$545.495,59) bate exatamente com o total do TCE para a PGJ — confirmando
-   que os 3 são PGJ. Aplicado via `corrigir_unidade_orcamentaria_manual`.
-3. **Contrato 13/2026/PGJ (Laís G de Sousa) não existia no banco**. Achado via
-   `investigar_ne_faltante`: NE `2026NE00165` (R$22.501,00) com
-   `codContrato=26100672` sem par local. Confirmado pelo PDF SEI
-   19.21.0428.0012055/2026-09. Cadastrado via `cadastrar_contrato_manual`.
-4. **`codigo_siafe` preenchido em 3 contratos** (valor e objeto idênticos aos da NE):
-   - pk=268 `43/2026/FMMPPI` → `26000337` (DOMINI, R$42.940,40)
-   - pk=264 `07/2026/FMMPPI` → `26100631` (NORDESTE, R$31.860,00)
-   - pk=263 `05/2026/PGJ` → `26100643` (NTSEC, R$1.553.207,77) — **resolve a
-     pendência antiga** "05/2026/PGJ (NTSEC) NÃO foi preenchido, numeração
-     interna do MPPI não corresponde 1:1 à sequência SIASG"
-5. **`codigo_siafe` corrigido**: pk=176 `10/2026/FPDC` (SORELLE) apontava para
-   `25017404` (código de 2025 num contrato de 2026); correto é `26100669`.
-6. **`unidade_orcamentaria` inferida em massa**: 51 de 75 contratos sem
-   classificação resolvidos automaticamente cruzando CNPJ com credores do TCE
-   (`inferir_fonte_contratos_via_tcepi`), mais 6 pelo `inferir_fonte_contratos`
-   por sufixo. 11 ficaram ambíguos (CNPJ presente em mais de um órgão) e 13 não
-   encontrados no TCE (quase todos pessoa física, locação de imóvel antiga).
-7. **Timeout do `SiafeClient`**: autenticação usava 15s enquanto as consultas
-   usam 30s — causou `ReadTimeout` real. Alinhado para 30s.
+## As 2 divergências remanescentes (sem correção possível)
 
-## Limitação estrutural documentada (não é bug)
+| Credor | Diferença | NE | Causa |
+|---|---|---|---|
+| INSS | R$ 130.000,00 | `2026NE00167` | juros de dívida contratual, `codContrato='00000000'` |
+| ZENITE | R$ 5.568,00 | `2026NE00818` | contratação sem contrato (compra direta) |
 
-O TCE soma **todo** o empenhado do credor, inclusive despesas **sem instrumento
-contratual** (compra direta / dispensa). O modelo `Empenho` local exige FK
-obrigatória para `Contrato`, então NE sem contrato não é registrável — no SIAFE
-ela vem com `codContrato='00000000'` e é contada como "avulsa" (832 NEs em 2026).
+Ambas são o mesmo caso: **NE sem instrumento contratual**. O modelo `Empenho`
+exige FK obrigatória para `Contrato`, então despesa direta não é registrável
+por design (são 832 NEs "avulsas" em 2026). Se um dia for necessário
+contabilizá-las, a saída é tornar `Empenho.contrato` opcional — decisão de
+modelagem, não correção de dado.
 
-Consequência: para credores com compra direta, o total local fica legitimamente
-abaixo do TCE. Caso confirmado: ZENITE, diferença de R$5.568,00 = NE
-`2026NE00818`, contratação sem contrato. **Nada a corrigir.**
-
-Isso está documentado no docstring do `conciliar_tcepi` e a saída do comando já
-sugere rodar `investigar_ne_faltante` quando local < TCE.
+O caso do INSS foi previsto pela leitura das despesas por elemento do TCE:
+"Principal da Dívida Contratual Resgatado" R$123.310,88 (= valor local) e
+"Juros sobre a Dívida por Contrato" R$130.000,00 (= a diferença).
 
 ---
 
-# PENDENTE — retomar daqui
+# Correções aplicadas
 
-## 1. Empenhos manuais fabricados (PRIORIDADE — decisão pendente)
+## Bugs de código
 
-`auditar_empenhos_manuais --exercicio 2025` revelou que **~38 dos 62** registros
-de `Empenho` com `importado_siafe=False` têm `numero_empenho` **fabricado a
-partir do número do contrato**, não são NEs reais:
+1. **`conciliar_tcepi` somava anulação como positiva.** NEs
+   `tipo='anulacao'` reduzem o empenhado; somá-las dobrava a divergência.
+   Master Facilities aparecia com R$6,08mi local × R$1,07mi no TCE; descontando
+   a anulação `2026NE00738` (R$2.504.625,82) sobre a NE `2026NE00434`
+   (R$3.572.724,80), o líquido é R$1.068.098,98 — bate exato.
+2. **`SiafeClient`: timeout da autenticação era 15s** enquanto as consultas usam
+   30s — causou `ReadTimeout` real. Alinhado para 30s. (O SIAFE ainda apresenta
+   timeouts intermitentes; basta repetir o comando.)
+
+## Limpeza de dados fabricados (41 registros, R$ 11.929.638,15)
+
+`auditar_empenhos_manuais` revelou que 41 dos 65 `Empenho` com
+`importado_siafe=False` tinham `numero_empenho` **fabricado a partir do número
+do contrato** — provável origem: o antigo `vincular_empenhos_siafe` e seu dict
+`EMPENHOS_CONHECIDOS` hardcoded.
 
 | Contrato local | `numero_empenho` gravado |
 |---|---|
 | `56/2025 PGJ` | `2025NE00056` |
-| `78/2025` | `2025NE00078` |
 | `120/2025` | `2025NE00120` |
+| `58/2025/PGJ` | `2025NE00058A` (sufixo inventado) |
+| `2025NR00104` | `2025NR00104` (nota de RESERVA, não empenho) |
 | `25017488` | `25017488` (codigo_siafe copiado) |
 
-Provável origem: o antigo comando `vincular_empenhos_siafe`, que tinha um dict
-`EMPENHOS_CONHECIDOS` hardcoded (ver memória do projeto: "69 linhas, TODAS
-`importado_siafe=False`").
+Por coincidência, NEs com esses números existem no SIAFE — mas pertencem a
+outros credores (diárias, suprimento de fundos, folha de pagamento). Os valores
+também não correspondiam a empenho nenhum: eram o valor do **contrato**.
 
-Três variantes:
+Caso comprovado por documento: pk=26, NE `2026NE00010`, R$25.132,47, registrado
+como SORELLE no contrato `10/2026/FPDC`. A NE `2026NE00010` real da UG 250102 é
+de L H C HAIDAR SOUSA, R$7.672,50, contrato SIAFE `26100660` — credor, órgão,
+objeto e valor diferentes.
 
-- **24 casos `CREDOR DIFERENTE`** — o número fabricado colide com uma NE real do
-  SIAFE que pertence a outro credor (diárias, suprimento de fundos, folha de
-  pagamento). Dano comprovado: inflam o empenhado do credor errado e quebram a
-  conciliação com o TCE.
-- **4 casos com sufixo "A"** inventado (`2025NE00058A`, `104A`, `105A`, `106A`).
-- **10 casos** usando `codigo_siafe` de 8 dígitos ou número de nota de reserva
-  (`2025NR00104`) no lugar do número de empenho.
+O `limpar_empenhos_fabricados` exige **duas condições** para apagar: (1) não
+conferir com nenhuma NE real do SIAFE (mesmo número E mesmo credor, em qualquer
+UG) e (2) padrão de fabricação detectado. Registros que falham só na condição 1
+vão para REVISAR e nunca são apagados automaticamente — na prática deu zero.
+Salvaguardas: aborta se a consulta ao SIAFE falhar em qualquer UG, e recalcula
+`valor_empenhado` dos contratos afetados a partir do que sobrou.
 
-Os valores também não batem — o `valor_empenhado` desses registros parece ser o
-valor do **contrato**, não de um empenho (ex: pk=3 local R$23.370,00 × SIAFE
-R$53.400,00).
+Efeito colateral positivo: duas divergências que apareciam como "NÃO ENCONTRADO
+NO TCE" (ALTACON R$1.490.701,03 e LCS R$47.169,78) eram exatamente registros
+fabricados. O TCE estava certo o tempo todo.
 
-**Caso que originou a investigação:** pk=26, NE `2026NE00010`, R$25.132,47,
-registrado como SORELLE no contrato `10/2026/FPDC`. O documento SIAFE
-(NL `2026NL00135` / OB `2026OB00362`) prova que essa NE é de **L H C HAIDAR
-SOUSA** (CNPJ 42.489.485/0001-79), **UG 250102 (FMMP)**, contrato SIAFE
-`26100660`, objeto "projetos de prevenção e combate a incêndio" — credor, órgão
-e objeto totalmente diferentes.
+## Contratos que não existiam no banco
 
-**Decisão pendente** (opções levantadas):
-- (a) apagar todos os ~38 fabricados e repovoar com `importar_empenhos_siafe`;
-- (b) apagar só os 24 com credor errado (dano comprovado), deixando os 14
-  "NÃO ENCONTRADA" para análise;
-- (c) só gerar relatório e levar à equipe antes de excluir;
-- (d) rodar `auditar_empenhos_manuais --exercicio 2026` antes de decidir, para
-  dimensionar o problema nos dois exercícios.
+1. **13/2026/PGJ (Laís G de Sousa)** — achado via NE `2026NE00165` (R$22.501,00)
+   com `codContrato=26100672` sem par local. Fonte: PDF SEI
+   19.21.0428.0012055/2026-09.
+2. **29/2024/PGJ (EASWELL Engenharia)** — achado via `codContrato=24010263` com
+   2 NEs de 2026 (`2026NE00885` R$25.000 peças + `2026NE00886` R$100.000
+   serviços) sem par local; a diferença no TCE era exatamente R$125.000,00.
+   Fonte: 4 documentos do SEI 19.21.0010.0018316/2024-04.
 
-**`auditar_empenhos_manuais --exercicio 2026` ainda NÃO foi rodado.**
+   Esse contrato tem um histórico de valor incomum — precisou de **dois
+   apostilamentos** para corrigir um erro material de soma:
 
-## 2. Contratos faltando cadastrar (20 casos)
+   | Documento | Data | Valor | Observação |
+   |---|---|---|---|
+   | Contrato | 24/07/2024 | R$223.042,39 declarado | texto dizia "R$61.956,21 serviços + R$10.000 peças" — não fecha |
+   | Apostilamento 01 | 17/02/2025 | R$259.042,39 | corrigiu o total, mas manteve peças em R$10.000 — ainda não fechava |
+   | Apostilamento 02 | 10/06/2025 | R$259.042,39 | corrigiu peças para R$36.000 — só então fecha |
+   | Termo Aditivo 01 | 11/12/2025 | **R$271.367,89** | prorroga 18 meses de 24/01/2026 e reajusta pelo IPCA |
+
+   Cadastrado com `valor_inicial` = R$259.042,39 e `valor_atual` = R$271.367,89.
+   `saldo_disponivel` ficou provisoriamente igual ao `valor_atual` — os
+   documentos não trazem medições executadas.
+
+## Vínculos SIAFE corrigidos
+
+- `codigo_siafe` **preenchido** (valor e objeto idênticos aos da NE):
+  pk=268 `43/2026/FMMPPI` → `26000337`; pk=264 `07/2026/FMMPPI` → `26100631`;
+  pk=263 `05/2026/PGJ` → `26100643` — este **resolve a pendência antiga** da
+  NTSEC ("numeração interna do MPPI não corresponde 1:1 à sequência SIASG").
+- `codigo_siafe` **corrigido**: pk=176 `10/2026/FPDC` (SORELLE) apontava para
+  `25017404`, código de 2025 num contrato de 2026; correto é `26100669`.
+
+## Classificação orçamentária (59 contratos)
+
+- 51 resolvidos por `inferir_fonte_contratos_via_tcepi` (cruzamento de CNPJ com
+  credores do TCE — resolve só quando o CNPJ aparece em UM único órgão).
+- 6 por `inferir_fonte_contratos` (sufixo do número).
+- 2 manualmente (EPSG pk=230 e pk=238): a soma dos 3 contratos dela
+  (R$545.495,59) bate exatamente com o total do TCE para a PGJ.
+
+**Isso não é cosmético.** O `conciliar_tcepi` filtra por
+`contrato__unidade_orcamentaria`; contrato sem classificação não entra em
+nenhum órgão. Foi exatamente a causa das divergências de READY TECNOLOGIA
+(R$4.500.000) e MULTIPAR (R$5.688,52): todas as NEs estavam importadas, mas
+parte dos contratos não tinha órgão, então ficavam fora da soma. Em ambos os
+casos o total líquido local já batia 100% com o TCE.
+
+---
+
+# Achados estruturais (importantes para trabalho futuro)
+
+## 1. Número de NE NÃO é único — é sequencial POR UG
+
+`2026NE00010` existe nas TRÊS UGs do MPPI, com credores e valores diferentes:
+
+| UG | Credor | Valor | `codContrato` |
+|---|---|---|---|
+| 250101 | J P BARBOSA E SILVA | R$ 13.478,50 | `22000628` |
+| 250102 | L H C HAIDAR SOUSA | R$ 7.672,50 | `26100660` |
+| 250104 | EDIVAR CRUZ CARVALHO | R$ 1.007,50 | `00000000` |
+
+Qualquer casamento por número de NE precisa levar a UG em conta. O
+`auditar_empenhos_manuais` usa `ocorrencias[0]` quando nenhum CNPJ bate — a
+conclusão do diagnóstico continua válida, mas a UG exibida pode não ser a
+pretendida.
+
+## 2. Valor de empenho ≠ valor de contrato
+
+Um empenho pode cobrir a despesa **total** do contrato ou apenas a **prevista
+para o exercício**. Ver `docs/nota_empenho_fonte_de_verdade.md` § 4.
+
+## 3. A API do SIAFE não cobre 2024
+
+`importar_empenhos_siafe --exercicio 2024` retorna **0 NEs** nas três UGs. A
+cobertura parece começar em 2025. Conciliação histórica anterior a isso é
+inviável por esse caminho (ex.: a NE `2024NE00671`, original do contrato
+29/2024/PGJ, não é recuperável).
+
+## 4. A base do TCE é atualizada continuamente
+
+O valor do TCE para READY TECNOLOGIA mudou de R$4.777.258,75 para
+R$5.777.258,75 entre 29 e 30/07. As despesas por elemento também subiram.
+Divergências devem ser lidas na data em que foram apuradas.
+
+## 5. O bloco `produtos[]` da NE não é importado
+
+A API do SIAFE devolve, por NE, `nomeProdutoGenerico`,
+`descricaoProdutoGenerico`, `unidadeFornecimentoGenerico`, `quantidade`,
+`precoUnitario` e `precoTotal`. É exatamente o dado que falta para resolver os
+casos de quantidade fracionária (`docs/fracao_quantidades_2026-07-29.md`) sem
+depender de caçar PDF no SEI. **Próximo passo natural.**
+
+---
+
+# PENDENTE
+
+## 1. Importar o bloco `produtos[]` das NEs (próximo passo acordado)
+
+Envolve migration (novo modelo ou campo JSON). Ver § 5 acima e
+`docs/nota_empenho_fonte_de_verdade.md`.
+
+## 2. Contratos faltando cadastrar (18 casos restantes)
 
 `sugerir_vinculo_ne_contrato --exercicio 2026`, grupo (2). Maiores:
 
@@ -153,39 +239,37 @@ e objeto totalmente diferentes.
 | `26100671` | R$31.014,15 | E PACHECO LOPES FILHO (higiene e limpeza) |
 
 Vários têm contrato equivalente de 2025 no banco (Rainha do Gás, Porto Seguro,
-Double Soluções, EASWELL) — provavelmente renovações/novos contratos do
-exercício ainda não cadastrados. Cada um precisa do documento fonte (SEI/PNCP)
-antes de usar `cadastrar_contrato_manual`.
+Double Soluções) — provavelmente renovações. Cada um precisa do documento fonte
+antes de usar `cadastrar_contrato_manual`. Note que esses **não** aparecem mais
+como divergência no `conciliar_tcepi` (os credores conferem), mas as NEs deles
+seguem sem vínculo local.
 
 ## 3. Casos ambíguos de vínculo
 
 - **ALFA GESTÃO (2 casos)**: `26000315` (R$2.504.625,82, "auxiliar de serviços
   gerais, bombeiro") e `26000311` (R$926.168,89, "46 postos de agente de
-  limpeza"). Candidatos locais: pk=262 `36/2026` (R$4.017.118,08, "Agente de
-  Limpeza") e pk=265 `35/2026/PGJ` (R$10.863.437,28, registro de preços).
-  Pelo objeto, `26000311`→pk=262 e `26000315`→pk=265, mas os valores não batem.
-  **Nota importante:** o valor de `26000315` (R$2.504.625,82) é **exatamente** o
-  da anulação da Master Facilities no contrato `29/2026/PGJ` — indício forte de
-  sucessão contratual (troca de prestador no mesmo objeto).
+  limpeza"). Candidatos: pk=262 `36/2026` e pk=265 `35/2026/PGJ`. Pelo objeto,
+  `26000311`→pk=262 e `26000315`→pk=265, mas os valores não batem.
+  **Nota:** o valor de `26000315` é **exatamente** o da anulação da Master
+  Facilities no contrato `29/2026/PGJ` — indício forte de sucessão contratual
+  (troca de prestador no mesmo objeto).
 - **pk=102 `06/2026/FPDC`** tem `codigo_siafe='26100635'`, mas o SIAFE mostra o
   contrato do SISTEMA AVANÇADO (mesmo valor R$10.080,00) como `26100634` —
-  diferença de um dígito, possível erro de digitação. Conferir qual é o correto.
+  diferença de um dígito.
 
-## 4. Divergências de conciliação ainda abertas
+## 4. Classificação orçamentária restante
 
-- **READY TECNOLOGIA** (FMMP): local R$1.277.258,75 × TCE R$4.777.258,75 —
-  diferença de **exatamente R$3.500.000,00** (número redondo demais para ser
-  coincidência).
-- **ALTACON ENGENHARIA** (FMMP): R$1.490.701,03 local, mas não aparece como
-  credor do FMMP no TCE — possível `unidade_orcamentaria` errada.
-- **MULTIPAR** (FMMP): local R$770,64 × TCE R$6.459,16.
-- **LCS COMÉRCIO DE FOTOGRAFIA** (FEPDC): R$47.169,78 local, ausente no TCE.
+11 contratos ambíguos (CNPJ em mais de um órgão) e 13 não encontrados no TCE
+(quase todos pessoa física, locações de 2015–2018).
 
-## 5. Outros pendentes
+## 5. Outros
 
-- 11 contratos com `unidade_orcamentaria` ambígua (CNPJ em mais de um órgão) e
-  13 não encontrados no TCE (pessoa física / locações antigas 2015–2018).
 - `liquidado local = R$0,00` em todos os credores: a importação do SIAFE só traz
-  empenho, não liquidação. Melhorar cruzando com `notas_liquidacao_por_ug`.
-- Endpoint de licitações do TCE não retorna nada para os órgãos do MPPI no
-  exercício — investigar se é questão de esfera/parâmetro ou ausência de dado.
+  empenho. Liquidação viria de `notas_liquidacao_por_ug`.
+- Endpoint de licitações do TCE não retorna nada para os órgãos do MPPI —
+  investigar se é parâmetro/esfera ou ausência de dado.
+- ARP `23/2023` (origem do contrato 29/2024/PGJ) não existe no banco — some-se
+  às ARPs faltantes já registradas como pendência.
+- Cadastrar os 2 apostilamentos e o aditivo do contrato 29/2024/PGJ nos modelos
+  `Apostilamento` e `Aditivo` (bom caso de teste: tem os dois tipos e três
+  mudanças de valor).
