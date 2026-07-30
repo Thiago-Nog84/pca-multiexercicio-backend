@@ -333,83 +333,8 @@
   </div>
 </div>
 
-<!-- LINHA 3: CATEGORIAS + MODALIDADES + URGENTES -->
+<!-- LINHA 3: PRÓXIMAS A VENCER + SRP + EXECUÇÃO FINANCEIRA -->
 <div class="row g-4 mb-4">
-  <!-- Por categoria -->
-  <div class="col-md-4">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-header bg-white border-bottom py-3">
-        <i class="bi bi-tags me-2 text-primary"></i><strong>Por Categoria</strong>
-      </div>
-      <div class="card-body p-0">
-        <table class="table table-sm mb-0">
-          <thead class="table-light">
-            <tr>
-              <th style="font-size:.75rem;">Categoria</th>
-              <th class="text-end" style="font-size:.75rem;">Qtd</th>
-              <th class="text-end" style="font-size:.75rem;">Valor (R$)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for c in por_categoria %}
-            <tr>
-              <td style="font-size:.8rem;">
-                {% if c.categoria == "material" %}<i class="bi bi-box me-1 text-muted"></i>Material
-                {% elif c.categoria == "servico" %}<i class="bi bi-tools me-1 text-muted"></i>Serviço
-                {% elif c.categoria == "obras" %}<i class="bi bi-building me-1 text-muted"></i>Obras
-                {% elif c.categoria == "solucao_ti" %}<i class="bi bi-cpu me-1 text-muted"></i>TIC
-                {% else %}<i class="bi bi-tag me-1 text-muted"></i>{{ c.categoria|capfirst }}{% endif %}
-              </td>
-              <td class="text-end fw-semibold" style="font-size:.8rem;">{{ c.qtd }}</td>
-              <td class="text-end text-muted" style="font-size:.75rem;">{% if c.valor %}{{ c.valor|floatformat:"0g" }}{% else %}—{% endif %}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="3" class="text-center text-muted py-3">Sem dados</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Por modalidade -->
-  <div class="col-md-4">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-header bg-white border-bottom py-3">
-        <i class="bi bi-hammer me-2 text-primary"></i><strong>Por Modalidade</strong>
-      </div>
-      <div class="card-body">
-        {% for m in por_modalidade %}
-        <div class="d-flex justify-content-between align-items-center mb-1">
-          <span style="font-size:.78rem;">
-            {% if m.modalidade == "pregao_eletronico" %}Pregão Eletrônico
-            {% elif m.modalidade == "dispensa" %}Dispensa (art. 75)
-            {% elif m.modalidade == "inexigibilidade" %}Inexigibilidade (art. 74)
-            {% elif m.modalidade == "arp_propria" %}ARP Própria
-            {% elif m.modalidade == "arp_carona" %}ARP Carona
-            {% elif m.modalidade == "concorrencia" %}Concorrência
-            {% else %}{{ m.modalidade|cut:"_"|capfirst }}{% endif %}
-          </span>
-          <span class="badge bg-primary rounded-pill" style="font-size:.7rem;">{{ m.qtd }}</span>
-        </div>
-        {% if total_itens %}
-        <div class="progress mb-2" style="height:4px;">
-          <div class="progress-bar
-            {% if m.modalidade == "arp_propria" or m.modalidade == "arp_carona" %}bg-info
-            {% elif m.modalidade == "pregao_eletronico" %}bg-primary
-            {% elif m.modalidade == "dispensa" or m.modalidade == "inexigibilidade" %}bg-warning
-            {% else %}bg-secondary{% endif %}"
-            style="width:{% widthratio m.qtd total_itens 100 %}%">
-          </div>
-        </div>
-        {% endif %}
-        {% empty %}
-        <p class="text-muted text-center py-3">Sem dados</p>
-        {% endfor %}
-      </div>
-    </div>
-  </div>
-
   <!-- Próximas a vencer -->
   <div class="col-md-4">
     <div class="card border-0 shadow-sm h-100">
@@ -452,10 +377,7 @@
       </div>
     </div>
   </div>
-</div>
 
-<!-- LINHA 4: SRP + EXECUCAO FINANCEIRA + UO -->
-<div class="row g-4 mb-4">
   <!-- SRP -->
   <div class="col-md-4">
     <div class="card border-0 shadow-sm h-100">
@@ -520,41 +442,6 @@
     </div>
   </div>
 
-  <!-- Por unidade orçamentária -->
-  <div class="col-md-4">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-header bg-white border-bottom py-3">
-        <i class="bi bi-building me-2 text-primary"></i><strong>Por Unidade Orçamentária</strong>
-      </div>
-      <div class="card-body p-0">
-        <table class="table table-sm mb-0">
-          <thead class="table-light">
-            <tr>
-              <th style="font-size:.75rem;">UO</th>
-              <th class="text-end" style="font-size:.75rem;">Qtd</th>
-              <th class="text-end" style="font-size:.75rem;">Valor (R$)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for uo in por_uo %}
-            <tr>
-              <td style="font-size:.8rem;">
-                {% if uo.unidade_orcamentaria == "pgj" %}PGJ
-                {% elif uo.unidade_orcamentaria == "fmmp" %}FMMP
-                {% elif uo.unidade_orcamentaria == "fepdc" %}FEPDC
-                {% else %}{{ uo.unidade_orcamentaria|upper }}{% endif %}
-              </td>
-              <td class="text-end" style="font-size:.8rem;">{{ uo.qtd }}</td>
-              <td class="text-end text-muted" style="font-size:.75rem;">{% if uo.valor %}{{ uo.valor|floatformat:"0g" }}{% else %}—{% endif %}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="3" class="text-center text-muted py-3">Sem dados</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
 </div>
 
 <!-- INSTRUCAO CONTRATUAL — ETAPAS -->

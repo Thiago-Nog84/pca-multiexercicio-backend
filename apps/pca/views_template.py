@@ -65,22 +65,6 @@ class DashboardPCAView(View):
         valor_total = itens.aggregate(total=Sum("valor_total_estimado"))["total"] or 0
         valor_empenhado = itens.aggregate(total=Sum("valor_empenhado"))["total"] or 0
 
-        por_status = (
-            itens.values("status")
-            .annotate(qtd=Count("id"))
-            .order_by("-qtd")
-        )
-        por_categoria = (
-            itens.values("categoria")
-            .annotate(qtd=Count("id"), valor=Sum("valor_total_estimado"))
-            .order_by("-valor")
-        )
-        por_modalidade = (
-            itens.values("modalidade")
-            .annotate(qtd=Count("id"))
-            .order_by("-qtd")
-        )
-
         suspensos    = itens.filter(status="suspenso").count()
         concluidos   = itens.filter(status="concluido").count()
         em_andamento = itens.filter(status__in=["em_andamento", "iniciado"]).count()
@@ -107,20 +91,6 @@ class DashboardPCAView(View):
         valor_srp  = itens.filter(is_srp=True).aggregate(
             total=Sum("valor_total_estimado")
         )["total"] or 0
-
-        # ---------- por unidade orçamentária ----------
-        por_uo = list(
-            itens.values("unidade_orcamentaria")
-            .annotate(qtd=Count("id"), valor=Sum("valor_total_estimado"))
-            .order_by("-valor")
-        )
-
-        # ---------- por tipo de demanda ----------
-        por_tipo = list(
-            itens.values("tipo_demanda")
-            .annotate(qtd=Count("id"))
-            .order_by("-qtd")
-        )
 
         # ---------- 5 itens mais urgentes (vencendo em breve, ativos) ----------
         urgentes = list(
@@ -179,9 +149,6 @@ class DashboardPCAView(View):
             "nao_iniciados": nao_iniciados,
             "pendentes_validacao": pendentes_validacao,
             "em_diligencia": em_diligencia,
-            "por_status": list(por_status),
-            "por_categoria": list(por_categoria),
-            "por_modalidade": list(por_modalidade),
             # alertas
             "hoje": hoje,
             "atrasados": atrasados,
@@ -191,9 +158,6 @@ class DashboardPCAView(View):
             # srp
             "itens_srp": itens_srp,
             "valor_srp": valor_srp,
-            # distribuições extras
-            "por_uo": por_uo,
-            "por_tipo": por_tipo,
             "urgentes": urgentes,
         }
         return render(request, self.template_name, context)
