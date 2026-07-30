@@ -52,6 +52,16 @@ MESCLAGENS = [
         "R$47.000+R$32.000=R$79.000,00 — bate exato) tinha codContrato "
         "diferente e virou o contrato avulso fabricado '25018988'.",
     ),
+    (
+        273, 274, "AE 1029968/2025-FMMP", "41/2025/FMMP/PI",
+        "Mesma contratação MULTPAR (CNPJ 22.561.863/0001-70, ARP 00012/2025, "
+        "SEI 19.21.0431.0015069/2025-69, codigo_siafe 25015651, R$27.841,71). "
+        "O registro fabricado 'AE 1029968/2025-FMMP' capturou as NEs 2025NE00027 "
+        "(R$27.841,71) e 2025NE00063 (anulação R$8.549,81) = R$19.291,90, "
+        "deixando o contrato formal 41/2025/FMMP/PI com empenho 0. Como AMBOS "
+        "têm o mesmo codigo_siafe, apagar o duplicado deixa 41/2025 dono único "
+        "do código — reimportações futuras passam a linkar certo (2026-07-30).",
+    ),
 ]
 
 
