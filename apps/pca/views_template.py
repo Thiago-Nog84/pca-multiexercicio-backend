@@ -30,9 +30,10 @@ def _resolver_pca(request, todos_pcas):
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Count, Max, Q, Sum
+from django.db.models import Count, F, Max, Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
 
@@ -130,9 +131,42 @@ class DashboardPCAView(View):
 
         pct_executado = int((valor_empenhado / valor_total * 100) if valor_total else 0)
 
+        # ---------- dados por item para o explorador interativo (client-side) ----------
+        # Serializa cada demanda em tipos JSON simples. O template filtra,
+        # agrega e desenha os graficos no navegador (sem recarregar a pagina).
+        itens_raw = (
+            itens.annotate(unidade_sigla=F("dfd__unidade__sigla"))
+            .values(
+                "pk", "codigo_pca", "descricao", "categoria", "modalidade",
+                "status", "unidade_orcamentaria", "tipo_demanda",
+                "valor_total_estimado", "valor_empenhado", "is_srp",
+                "data_pretendida_conclusao", "unidade_sigla",
+            )
+        )
+        itens_data = [
+            {
+                "codigo": d["codigo_pca"] or f"#{d['pk']}",
+                "url": reverse("pca:item_detalhe", args=[d["pk"]]),
+                "desc": (d["descricao"] or "")[:160],
+                "unidade": d["unidade_sigla"] or "—",
+                "categoria": d["categoria"] or "",
+                "modalidade": d["modalidade"] or "",
+                "status": d["status"] or "",
+                "uo": d["unidade_orcamentaria"] or "",
+                "tipo": d["tipo_demanda"] or "",
+                "valor": float(d["valor_total_estimado"] or 0),
+                "empenhado": float(d["valor_empenhado"] or 0),
+                "srp": bool(d["is_srp"]),
+                "prazo": d["data_pretendida_conclusao"].isoformat()
+                if d["data_pretendida_conclusao"] else None,
+            }
+            for d in itens_raw
+        ]
+
         context = {
             "pca": pca,
             "todos_pcas": todos_pcas_qs,
+            "itens_data": itens_data,
             "total_dfds": dfds.count(),
             "total_itens": total_itens,
             "valor_total": valor_total,

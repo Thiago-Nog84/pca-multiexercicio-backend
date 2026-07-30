@@ -185,6 +185,92 @@
   </div>
 </div>
 
+<!-- ═══════════ EXPLORADOR INTERATIVO DE DEMANDAS ═══════════ -->
+{{ itens_data|json_script:"pca-itens-data" }}
+<div class="card border-0 shadow-sm mb-3" id="explorador">
+  <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <span>
+      <i class="bi bi-sliders me-2 text-primary"></i><strong>Explorar Demandas</strong>
+      <span class="text-muted small ms-2 d-none d-md-inline">— filtre e clique nos gráficos para cruzar as informações (sem recarregar a página)</span>
+    </span>
+    <button type="button" id="expl-limpar" class="btn btn-sm btn-outline-secondary d-none">
+      <i class="bi bi-x-circle me-1"></i>Limpar filtros
+    </button>
+  </div>
+  <div class="card-body">
+    <!-- barra de filtros -->
+    <div class="row g-2 mb-3">
+      <div class="col-12 col-md-4">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+          <input type="text" id="f-q" class="form-control" placeholder="Buscar por descrição ou código…" autocomplete="off">
+        </div>
+      </div>
+      <div class="col-6 col-md"><select id="f-unidade" class="form-select form-select-sm"></select></div>
+      <div class="col-6 col-md"><select id="f-categoria" class="form-select form-select-sm"></select></div>
+      <div class="col-6 col-md"><select id="f-modalidade" class="form-select form-select-sm"></select></div>
+      <div class="col-6 col-md"><select id="f-status" class="form-select form-select-sm"></select></div>
+      <div class="col-6 col-md"><select id="f-uo" class="form-select form-select-sm"></select></div>
+      <div class="col-6 col-md-auto d-flex align-items-center">
+        <div class="form-check form-switch small mb-0">
+          <input class="form-check-input" type="checkbox" id="f-srp">
+          <label class="form-check-label" for="f-srp">Só SRP</label>
+        </div>
+      </div>
+    </div>
+    <!-- chips de filtros ativos -->
+    <div id="expl-chips" class="d-flex flex-wrap gap-1 mb-3"></div>
+    <!-- mini KPIs reativos ao filtro -->
+    <div class="row g-2 mb-3">
+      <div class="col-4"><div class="p-2 rounded text-center" style="background:#f8fafc;border:1px solid #e2e8f0;">
+        <div class="fs-5 fw-bold text-primary" id="k-qtd">0</div><div class="small text-muted">demandas no recorte</div></div></div>
+      <div class="col-4"><div class="p-2 rounded text-center" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+        <div class="fw-bold text-success" style="font-size:1rem;" id="k-valor">R$ 0</div><div class="small text-muted">valor estimado</div></div></div>
+      <div class="col-4"><div class="p-2 rounded text-center" style="background:#fef9c3;border:1px solid #fde68a;">
+        <div class="fw-bold text-warning" style="font-size:1rem;" id="k-emp">R$ 0</div><div class="small text-muted">empenhado</div></div></div>
+    </div>
+    <!-- gráficos interativos (clique numa barra p/ filtrar) -->
+    <div class="row g-3">
+      <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
+        <div class="small fw-semibold text-muted mb-1">Por categoria <span class="fw-normal">· valor (R$)</span></div>
+        <div style="position:relative;height:190px;"><canvas id="ch-categoria"></canvas></div></div></div>
+      <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
+        <div class="small fw-semibold text-muted mb-1">Por unidade orçamentária <span class="fw-normal">· valor (R$)</span></div>
+        <div style="position:relative;height:190px;"><canvas id="ch-uo"></canvas></div></div></div>
+      <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
+        <div class="small fw-semibold text-muted mb-1">Por modalidade <span class="fw-normal">· nº de demandas</span></div>
+        <div style="position:relative;height:190px;"><canvas id="ch-modalidade"></canvas></div></div></div>
+      <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
+        <div class="small fw-semibold text-muted mb-1">Por status <span class="fw-normal">· nº de demandas</span></div>
+        <div style="position:relative;height:190px;"><canvas id="ch-status"></canvas></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- tabela interativa (busca + ordenação, reflete os filtros) -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-bottom py-3">
+    <i class="bi bi-table me-2 text-primary"></i><strong>Demandas</strong>
+    <span class="text-muted small ms-2" id="tbl-resumo"></span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0" style="font-size:.83rem;">
+      <thead class="table-light">
+        <tr>
+          <th class="expl-sort" data-k="codigo" role="button" style="cursor:pointer;">Código <i class="bi bi-arrow-down-up text-muted" style="font-size:.65rem;"></i></th>
+          <th class="expl-sort" data-k="unidade" role="button" style="cursor:pointer;">Unidade</th>
+          <th>Descrição</th>
+          <th class="expl-sort" data-k="categoria" role="button" style="cursor:pointer;">Categoria</th>
+          <th class="expl-sort text-end" data-k="valor" role="button" style="cursor:pointer;">Valor (R$)</th>
+          <th class="expl-sort" data-k="status" role="button" style="cursor:pointer;">Status</th>
+        </tr>
+      </thead>
+      <tbody id="tbl-body"></tbody>
+    </table>
+  </div>
+  <div class="px-3 py-2 border-top small text-muted" id="tbl-footer"></div>
+</div>
+
 <!-- FUNIL / PIPELINE DE INSTRUCAO CONTRATUAL -->
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-header bg-white border-bottom py-3">
@@ -555,4 +641,173 @@
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block extra_js %}
+{% if pca %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  const el = document.getElementById('pca-itens-data');
+  if (!el || typeof Chart === 'undefined') return;
+  const DADOS = JSON.parse(el.textContent);
+
+  // rótulos (espelham as choices do model ItemPCA)
+  const L = {
+    categoria: {material:'Material de Consumo', material_permanente:'Material Permanente', servico:'Serviço', servico_engenharia:'Serv. Engenharia', servico_terceirizado:'Serv. Terceirizado', obras:'Obras', solucao_ti:'Solução de TIC', software:'Software', treinamento:'Treinamento', publicidade:'Publicidade'},
+    modalidade: {pregao_eletronico:'Pregão Eletrônico', concorrencia:'Concorrência', concurso:'Concurso', dispensa:'Dispensa', inexigibilidade:'Inexigibilidade', arp_propria:'ARP Própria', arp_carona:'ARP Carona'},
+    status: {nao_iniciado:'Não Iniciado', pendente_validacao:'Pend. Validação', iniciado:'Iniciado', em_diligencia:'Em Diligência', em_andamento:'Em Andamento', concluido:'Concluído', suspenso:'Suspenso'},
+    uo: {pgj:'PGJ', fmmp:'FMMP', fepdc:'FEPDC'}
+  };
+  const lab = (dim, v) => (L[dim] && L[dim][v]) || v || '—';
+  const brl = v => v.toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0});
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const RED = '#9B2335', RED_SOFT = 'rgba(155,35,53,.28)';
+
+  const F = {q:'', unidade:'', categoria:'', modalidade:'', status:'', uo:'', srp:false};
+  let sortK = 'valor', sortDir = -1;
+
+  function filtered() {
+    const q = F.q.trim().toLowerCase();
+    return DADOS.filter(d => {
+      if (F.unidade && d.unidade !== F.unidade) return false;
+      if (F.categoria && d.categoria !== F.categoria) return false;
+      if (F.modalidade && d.modalidade !== F.modalidade) return false;
+      if (F.status && d.status !== F.status) return false;
+      if (F.uo && d.uo !== F.uo) return false;
+      if (F.srp && !d.srp) return false;
+      if (q && !(d.desc.toLowerCase().includes(q) || d.codigo.toLowerCase().includes(q))) return false;
+      return true;
+    });
+  }
+  function agg(arr, dim, metric) {
+    const m = new Map();
+    arr.forEach(d => { const k = d[dim] || ''; m.set(k, (m.get(k) || 0) + (metric === 'valor' ? d.valor : 1)); });
+    return [...m.entries()].map(([k, v]) => ({k, label: lab(dim, k), v})).sort((a, b) => b.v - a.v);
+  }
+
+  // selects populados a partir dos próprios dados
+  function fillSelect(id, dim, placeholder) {
+    const sel = document.getElementById(id);
+    const vals = [...new Set(DADOS.map(d => d[dim]).filter(Boolean))]
+      .map(v => ({v, label: lab(dim, v)})).sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+    sel.innerHTML = '<option value="">' + placeholder + '</option>' +
+      vals.map(o => `<option value="${esc(o.v)}">${esc(o.label)}</option>`).join('');
+    sel.addEventListener('change', () => { F[dim] = sel.value; render(); });
+  }
+  fillSelect('f-unidade', 'unidade', 'Unidade (todas)');
+  fillSelect('f-categoria', 'categoria', 'Categoria (todas)');
+  fillSelect('f-modalidade', 'modalidade', 'Modalidade (todas)');
+  fillSelect('f-status', 'status', 'Status (todos)');
+  fillSelect('f-uo', 'uo', 'UO (todas)');
+  document.getElementById('f-q').addEventListener('input', e => { F.q = e.target.value; render(); });
+  document.getElementById('f-srp').addEventListener('change', e => { F.srp = e.target.checked; render(); });
+  document.getElementById('expl-limpar').addEventListener('click', () => {
+    Object.assign(F, {q:'', unidade:'', categoria:'', modalidade:'', status:'', uo:'', srp:false});
+    ['f-unidade','f-categoria','f-modalidade','f-status','f-uo'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('f-q').value = '';
+    document.getElementById('f-srp').checked = false;
+    render();
+  });
+
+  // gráficos
+  const charts = {};
+  function mkChart(id, dim, metric) {
+    charts[id] = new Chart(document.getElementById(id), {
+      type: 'bar',
+      data: {labels: [], datasets: [{data: [], backgroundColor: RED, borderRadius: 3, maxBarThickness: 22}]},
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => metric === 'valor' ? brl(c.parsed.x) : c.parsed.x + ' demanda(s)'}}},
+        scales: {
+          x: {beginAtZero: true, ticks: {callback: v => metric === 'valor' ? (v >= 1e6 ? (v/1e6)+'M' : v >= 1e3 ? (v/1e3)+'k' : v) : v}},
+          y: {ticks: {autoSkip: false, font: {size: 11}}}
+        },
+        onClick: (e, els) => {
+          if (!els.length) return;
+          const key = charts[id]._keys[els[0].index];
+          F[dim] = (F[dim] === key ? '' : key);
+          const sel = document.getElementById('f-' + dim); if (sel) sel.value = F[dim];
+          render();
+        }
+      }
+    });
+  }
+  mkChart('ch-categoria', 'categoria', 'valor');
+  mkChart('ch-uo', 'uo', 'valor');
+  mkChart('ch-modalidade', 'modalidade', 'qtd');
+  mkChart('ch-status', 'status', 'qtd');
+
+  function updChart(id, dim, metric, arr) {
+    const rows = agg(arr, dim, metric).slice(0, 10);
+    const ch = charts[id];
+    ch._keys = rows.map(r => r.k);
+    ch.data.labels = rows.map(r => r.label);
+    ch.data.datasets[0].data = rows.map(r => r.v);
+    ch.data.datasets[0].backgroundColor = rows.map(r => (F[dim] && F[dim] !== r.k) ? RED_SOFT : RED);
+    ch.update();
+  }
+
+  function updTable(arr) {
+    const rows = [...arr].sort((a, b) => {
+      let x = a[sortK], y = b[sortK];
+      if (typeof x === 'string') { x = x.toLowerCase(); y = String(y).toLowerCase(); }
+      return x < y ? -1 * sortDir : x > y ? 1 * sortDir : 0;
+    });
+    const LIMIT = 200, shown = rows.slice(0, LIMIT);
+    document.getElementById('tbl-body').innerHTML = shown.map(d => `<tr>
+      <td><a href="${d.url}" class="fw-semibold text-decoration-none">${esc(d.codigo)}</a></td>
+      <td>${esc(d.unidade)}</td>
+      <td class="text-muted" style="max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(d.desc)}">${esc(d.desc)}</td>
+      <td><span class="small">${esc(lab('categoria', d.categoria))}</span></td>
+      <td class="text-end">${d.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+      <td><span class="badge bg-light text-dark border">${esc(lab('status', d.status))}</span></td></tr>`).join('')
+      || '<tr><td colspan="6" class="text-center text-muted py-4">Nenhuma demanda com os filtros atuais.</td></tr>';
+    document.getElementById('tbl-footer').textContent = rows.length > LIMIT
+      ? `Mostrando ${LIMIT} de ${rows.length} demandas — refine os filtros para ver o restante.`
+      : `${rows.length} demanda(s).`;
+  }
+
+  function updChips() {
+    const map = {unidade:'Unidade', categoria:'Categoria', modalidade:'Modalidade', status:'Status', uo:'UO'};
+    const chips = [];
+    Object.keys(map).forEach(dim => { if (F[dim]) chips.push(`<span class="badge rounded-pill text-bg-light border" role="button" data-clr="${dim}">${esc(map[dim])}: ${esc(lab(dim, F[dim]))} <i class="bi bi-x"></i></span>`); });
+    if (F.srp) chips.push('<span class="badge rounded-pill text-bg-light border" role="button" data-clr="srp">Só SRP <i class="bi bi-x"></i></span>');
+    if (F.q) chips.push(`<span class="badge rounded-pill text-bg-light border" role="button" data-clr="q">"${esc(F.q)}" <i class="bi bi-x"></i></span>`);
+    const box = document.getElementById('expl-chips');
+    box.innerHTML = chips.join('');
+    box.querySelectorAll('[data-clr]').forEach(c => c.addEventListener('click', () => {
+      const k = c.dataset.clr;
+      if (k === 'srp') { F.srp = false; document.getElementById('f-srp').checked = false; }
+      else if (k === 'q') { F.q = ''; document.getElementById('f-q').value = ''; }
+      else { F[k] = ''; const s = document.getElementById('f-' + k); if (s) s.value = ''; }
+      render();
+    }));
+    document.getElementById('expl-limpar').classList.toggle('d-none', chips.length === 0);
+  }
+
+  function render() {
+    const arr = filtered();
+    document.getElementById('k-qtd').textContent = arr.length.toLocaleString('pt-BR');
+    document.getElementById('k-valor').textContent = brl(arr.reduce((s, d) => s + d.valor, 0));
+    document.getElementById('k-emp').textContent = brl(arr.reduce((s, d) => s + d.empenhado, 0));
+    updChart('ch-categoria', 'categoria', 'valor', arr);
+    updChart('ch-uo', 'uo', 'valor', arr);
+    updChart('ch-modalidade', 'modalidade', 'qtd', arr);
+    updChart('ch-status', 'status', 'qtd', arr);
+    updChips();
+    updTable(arr);
+    document.getElementById('tbl-resumo').textContent = '· ' + arr.length + ' de ' + DADOS.length;
+  }
+
+  document.querySelectorAll('.expl-sort').forEach(th => th.addEventListener('click', () => {
+    const k = th.dataset.k;
+    if (sortK === k) sortDir *= -1; else { sortK = k; sortDir = (k === 'valor' ? -1 : 1); }
+    render();
+  }));
+
+  render();
+})();
+</script>
+{% endif %}
 {% endblock %}
