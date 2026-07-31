@@ -50,3 +50,14 @@ conciliacao_*.txt
 # Lotes de execução do conciliar_dashboard_srp (a01.txt..a31.txt, lote_a.txt etc.)
 a[0-9][0-9].txt
 lote*.txt
+# Despejos de depuração pontuais na raiz (dumps de fornecedor / itens / empenhos /
+# mapas), descartáveis e refeitos sob demanda — nunca entregáveis.
+*_empenhos.txt
+altacon*.txt
+coinstel*.txt
+multipar*.txt
+radnor*.txt
+fracao_*.txt
+itens_[0-9]*.txt
+map_[0-9]*.txt
+sugestoes_*.txt
