@@ -99,8 +99,31 @@ class Command(BaseCommand):
                     continue
                 self.stdout.write(f"  {len(nes)} NEs recebidas")
 
+                # -- PASS 1: Build mapping from codigo -> codContrato para herança em reforços
+                empenho_para_contrato = {}
                 for ne in nes:
+                    numero = (ne.get("codigo") or "").strip()
+                    cod_c = (ne.get("codContrato") or "").strip()
+                    if numero and cod_c and cod_c not in ("0", "00000000"):
+                        empenho_para_contrato[numero] = cod_c
+
+                for ne in nes:
+                    numero = (ne.get("codigo") or "").strip()
+                    if not numero:
+                        continue
+
                     cod_contrato = (ne.get("codContrato") or "").strip()
+                    
+                    if not cod_contrato or cod_contrato in ("0", "00000000"):
+                        # Herda do empenho original se for reforço/anulação
+                        doc_alterado = (ne.get("codigoDocAlterado") or "").strip()
+                        if doc_alterado:
+                            cod_contrato = empenho_para_contrato.get(doc_alterado)
+                            if not cod_contrato:
+                                emp_original = Empenho.objects.filter(numero_empenho=doc_alterado).select_related("contrato").first()
+                                if emp_original and emp_original.contrato and emp_original.contrato.codigo_siafe:
+                                    cod_contrato = emp_original.contrato.codigo_siafe
+
                     if not cod_contrato or cod_contrato in ("0", "00000000"):
                         ignoradas += 1
                         continue
@@ -108,10 +131,6 @@ class Command(BaseCommand):
                     contrato = idx.get(cod_contrato)
                     if contrato is None:
                         sem_contrato += 1
-                        continue
-
-                    numero = (ne.get("codigo") or "").strip()
-                    if not numero:
                         continue
 
                     valor = parse_valor(ne.get("valor"))

@@ -222,8 +222,8 @@
     </div>
     <div class="row g-2">
       {% if vencendo_30 %}
-      <div class="col-6 col-md-2">
-        <div class="rounded p-2 text-center" style="background:#fff5f5;border:1px solid #fecaca;">
+      <div class="col-6 col-md-2" role="button" onclick="setVencFilter('30')">
+        <div class="rounded p-2 text-center" style="background:#fff5f5;border:1px solid #fecaca; transition: all 0.2s;" onmouseover="this.style.filter='brightness(0.95)'" onmouseout="this.style.filter='none'">
           <div class="fs-4 fw-bold text-danger">{{ vencendo_30 }}</div>
           <div class="small text-danger"><i class="bi bi-exclamation-circle me-1"></i>≤ 30 dias</div>
           <div style="font-size:.65rem;" class="text-muted">locais</div>
@@ -231,8 +231,8 @@
       </div>
       {% endif %}
       {% if vencendo_90 %}
-      <div class="col-6 col-md-2">
-        <div class="rounded p-2 text-center" style="background:#fffbeb;border:1px solid #fde68a;">
+      <div class="col-6 col-md-2" role="button" onclick="setVencFilter('90')">
+        <div class="rounded p-2 text-center" style="background:#fffbeb;border:1px solid #fde68a; transition: all 0.2s;" onmouseover="this.style.filter='brightness(0.95)'" onmouseout="this.style.filter='none'">
           <div class="fs-4 fw-bold text-warning">{{ vencendo_90 }}</div>
           <div class="small text-warning"><i class="bi bi-clock me-1"></i>≤ 90 dias</div>
           <div style="font-size:.65rem;" class="text-muted">locais</div>
@@ -240,8 +240,8 @@
       </div>
       {% endif %}
       {% if vencendo_120 %}
-      <div class="col-6 col-md-2">
-        <div class="rounded p-2 text-center" style="background:#fdf4ff;border:1px solid #e9d5ff;">
+      <div class="col-6 col-md-2" role="button" onclick="setVencFilter('120_ti')">
+        <div class="rounded p-2 text-center" style="background:#fdf4ff;border:1px solid #e9d5ff; transition: all 0.2s;" onmouseover="this.style.filter='brightness(0.95)'" onmouseout="this.style.filter='none'">
           <div class="fs-4 fw-bold" style="color:#7c3aed;">{{ vencendo_120 }}</div>
           <div class="small" style="color:#7c3aed;"><i class="bi bi-clock-history me-1"></i>≤ 120 dias</div>
           <div style="font-size:.65rem;" class="text-muted">TI (Res. CNMP 283)</div>
@@ -293,7 +293,6 @@
       </div>
       <div class="col-6 col-md"><select id="f-status" class="form-select form-select-sm"></select></div>
       <div class="col-6 col-md"><select id="f-tipo" class="form-select form-select-sm"></select></div>
-      <div class="col-6 col-md"><select id="f-orgao" class="form-select form-select-sm"></select></div>
       <div class="col-6 col-md"><select id="f-uo" class="form-select form-select-sm"></select></div>
       <div class="col-6 col-md"><select id="f-acao" class="form-select form-select-sm"></select></div>
       <div class="col-6 col-md-auto d-flex align-items-center">
@@ -329,16 +328,16 @@
     </div>
     <div class="row g-3">
       <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
-        <div class="small fw-semibold text-muted mb-1">Por status <span class="fw-normal">· nº de contratos</span></div>
+        <div class="small fw-semibold text-muted mb-1">Distribuição por Status <span class="fw-normal">· Quantidade de contratos</span></div>
         <div style="position:relative;height:190px;"><canvas id="ch-status"></canvas></div></div></div>
       <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
-        <div class="small fw-semibold text-muted mb-1">Por tipo <span class="fw-normal">· valor (R$)</span></div>
+        <div class="small fw-semibold text-muted mb-1">Distribuição por Natureza do Objeto <span class="fw-normal">· Volume contratado (R$)</span></div>
         <div style="position:relative;height:190px;"><canvas id="ch-tipo"></canvas></div></div></div>
       <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
-        <div class="small fw-semibold text-muted mb-1">Por órgão <span class="fw-normal">· valor (R$)</span></div>
+        <div class="small fw-semibold text-muted mb-1">Alocação por Órgão <span class="fw-normal">· Volume contratado (R$)</span></div>
         <div style="position:relative;height:190px;"><canvas id="ch-orgao"></canvas></div></div></div>
       <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
-        <div class="small fw-semibold text-muted mb-1">Por faixa de vigência <span class="fw-normal">· nº de contratos</span></div>
+        <div class="small fw-semibold text-muted mb-1">Horizonte de Vigência <span class="fw-normal">· Quantidade de contratos</span></div>
         <div style="position:relative;height:190px;"><canvas id="ch-vigencia"></canvas></div></div></div>
     </div>
   </div>
@@ -1050,7 +1049,13 @@
       if (F.orgao && d.orgao !== F.orgao) return false;
       if (F.uo && d.uo !== F.uo) return false;
       if (!skipAcao && F.acao && acaoDe(d) !== F.acao) return false;
-      if (F.venc) { const dd = dias(d.fim); if (dd === null || dd < 0 || dd > 90) return false; }
+      if (F.venc) { 
+        const dd = dias(d.fim); 
+        if (dd === null || dd < 0) return false; 
+        if (F.venc === '30' && dd > 30) return false;
+        if ((F.venc === '90' || F.venc === true) && dd > 90) return false;
+        if (F.venc === '120_ti' && (dd > 120 || d.tipo !== 'solucao_ti')) return false;
+      }
       if (F.faixa && faixaOf(d) !== F.faixa) return false;
       if (q && !(d.objeto.toLowerCase().includes(q) || d.numero.toLowerCase().includes(q) || d.contratado.toLowerCase().includes(q))) return false;
       return true;
@@ -1069,7 +1074,6 @@
   }
   fillSelect('f-status', 'status', 'Status (todos)');
   fillSelect('f-tipo', 'tipo', 'Tipo (todos)');
-  fillSelect('f-orgao', 'orgao', 'Órgão (todos)');
   fillSelect('f-uo', 'uo', 'Fonte/UO (todas)');
   // select de ação (valores fixos, não vêm dos dados)
   (function () {
@@ -1079,7 +1083,14 @@
     sel.addEventListener('change', () => { F.acao = sel.value; render(); });
   })();
   document.getElementById('f-q').addEventListener('input', e => { F.q = e.target.value; render(); });
-  document.getElementById('f-venc').addEventListener('change', e => { F.venc = e.target.checked; render(); });
+  document.getElementById('f-venc').addEventListener('change', e => { F.venc = e.target.checked ? '90' : ''; render(); });
+  
+  window.setVencFilter = function(val) {
+    F.venc = (F.venc === val) ? '' : val;
+    document.getElementById('f-venc').checked = (F.venc === '90' || F.venc === true);
+    render();
+    document.getElementById('contratos-data').scrollIntoView({behavior: 'smooth', block: 'start'});
+  };
   document.querySelectorAll('.acao-card').forEach(c => c.addEventListener('click', () => {
     const k = c.dataset.acao;
     F.acao = (F.acao === k ? '' : k);
@@ -1087,8 +1098,8 @@
     render();
   }));
   document.getElementById('expl-limpar').addEventListener('click', () => {
-    Object.assign(F, {q:'', status:'', tipo:'', orgao:'', uo:'', acao:'', venc:false, faixa:''});
-    ['f-status','f-tipo','f-orgao','f-uo','f-acao'].forEach(id => document.getElementById(id).value = '');
+    Object.assign(F, {q:'', status:'', tipo:'', uo:'', acao:'', venc:false, faixa:''});
+    ['f-status','f-tipo','f-uo','f-acao'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('f-q').value = ''; document.getElementById('f-venc').checked = false;
     render();
   });
@@ -1168,11 +1179,13 @@
   }
 
   function updChips() {
-    const map = {status:'Status', tipo:'Tipo', orgao:'Órgão', uo:'Fonte/UO'};
+    const map = {status:'Status', tipo:'Tipo', uo:'Fonte/UO'};
     const chips = [];
     Object.keys(map).forEach(dim => { if (F[dim]) chips.push(`<span class="badge rounded-pill text-bg-light border" role="button" data-clr="${dim}">${esc(map[dim])}: ${esc(lab(dim, F[dim]))} <i class="bi bi-x"></i></span>`); });
     if (F.acao) chips.push(`<span class="badge rounded-pill text-bg-light border" role="button" data-clr="acao">Ação: ${esc(ACAO[F.acao].label)} <i class="bi bi-x"></i></span>`);
-    if (F.venc) chips.push('<span class="badge rounded-pill text-bg-light border" role="button" data-clr="venc">Vence ≤90d <i class="bi bi-x"></i></span>');
+    if (F.venc === '30') chips.push('<span class="badge rounded-pill text-bg-light border" role="button" data-clr="venc">Vence ≤30d <i class="bi bi-x"></i></span>');
+    else if (F.venc === '90' || F.venc === true) chips.push('<span class="badge rounded-pill text-bg-light border" role="button" data-clr="venc">Vence ≤90d <i class="bi bi-x"></i></span>');
+    else if (F.venc === '120_ti') chips.push('<span class="badge rounded-pill text-bg-light border" role="button" data-clr="venc">Vence ≤120d (TI) <i class="bi bi-x"></i></span>');
     if (F.faixa) chips.push(`<span class="badge rounded-pill text-bg-light border" role="button" data-clr="faixa">Vigência: ${esc(FAIXA_LAB[F.faixa] || F.faixa)} <i class="bi bi-x"></i></span>`);
     if (F.q) chips.push(`<span class="badge rounded-pill text-bg-light border" role="button" data-clr="q">"${esc(F.q)}" <i class="bi bi-x"></i></span>`);
     const box = document.getElementById('expl-chips');

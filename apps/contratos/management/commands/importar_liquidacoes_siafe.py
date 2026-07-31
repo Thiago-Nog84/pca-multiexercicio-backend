@@ -40,6 +40,7 @@ Uso:
 """
 
 import time
+import re
 from collections import defaultdict
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
@@ -121,11 +122,21 @@ class Command(BaseCommand):
                     if not ne:
                         continue
                     cod = (str(nl.get("codigo") or "")).strip() or f"__idx{n_nls}_{n_dup}"
+                    
+                    valor = _dec(nl.get("valor"))
+                    obs = (nl.get("observacao") or "").upper()
+                    m = re.search(r"M[EÊ]S\s+DE\s+[A-ZÇ]+\/\d{4}", obs)
+                    
+                    if m:
+                        dedup_key = f"SEMANTICA:{valor}_{m.group(0)}"
+                    else:
+                        dedup_key = f"CODIGO:{cod}"
+
                     slot = liq_nl[(ne, ug)]
-                    if cod in slot:          # mesma NL já contada (restos a pagar)
+                    if dedup_key in slot:          # mesma NL já contada (restos a pagar ou reemissão)
                         n_dup += 1
                         continue
-                    slot[cod] = _dec(nl.get("valor"))
+                    slot[dedup_key] = valor
                     n_nls += 1
                     d = _data(nl.get("dataContabilizacao") or nl.get("dataEmissao"))
                     if d and ((ne, ug) not in data_liq or d > data_liq[(ne, ug)]):
