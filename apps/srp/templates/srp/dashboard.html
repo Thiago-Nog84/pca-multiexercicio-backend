@@ -387,6 +387,7 @@
           {% for entrada in grupo.list %}
           {% with arp=entrada.arp %}
           <tr
+            data-pk="{{ arp.pk }}"
             data-numero="{{ arp.numero_arp|lower }}"
             data-fornecedor="{{ arp.fornecedor_razao_social|lower }}"
             data-objeto="{{ arp.objeto|lower }}"
@@ -522,13 +523,11 @@
   // ── Gráfico Status (barras horizontais — barra > rosca, cap. 2) ─────────────
   // Aqui a cor CODIFICA o dado (verde=vigente, cinza=encerrada…), uso legítimo
   // segundo cap. 4-5. Por isso mantemos as cores por status.
-  const ds = {{ chart_status|safe }};
-  new Chart(document.getElementById('chartStatus'), {
+  // Gráficos recalculados a partir das linhas VISÍVEIS da tabela — reativos
+  // aos filtros (busca/status/ano/vencimento) e ao drill-down por clique.
+  const chStatus = new Chart(document.getElementById('chartStatus'), {
     type: 'bar',
-    data: {
-      labels: ds.labels.map(l => l.charAt(0).toUpperCase() + l.slice(1)),
-      datasets: [{ data: ds.data, backgroundColor: ds.labels.map(l => STATUS_COR[l] || '#94a3b8'), borderRadius: 4 }]
-    },
+    data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderRadius: 4 }] },
     options: {
       indexAxis: 'y',
       layout: { padding: { right: 30 } },
@@ -540,9 +539,10 @@
       scales: { x: semEixo, y: soCat },
       onClick(e, els) {
         if (els.length) {
-          const label = ds.labels[els[0].index];
-          document.getElementById('filtro-status').value = label;
-          filtrar();
+          const k = chStatus._keys[els[0].index];
+          const sel = document.getElementById('filtro-status');
+          sel.value = (sel.value === k ? '' : k);
+          window.filtrar();
           document.getElementById('tabela-arps').scrollIntoView({ behavior:'smooth' });
         }
       }
@@ -550,33 +550,14 @@
   });
 
   // ── Gráfico Ano ─────────────────────────────────────────────────────────────
-  const da = {{ chart_ano|safe }};
-  new Chart(document.getElementById('chartAno'), {
+  const chAno = new Chart(document.getElementById('chartAno'), {
     type: 'bar',
-    data: {
-      labels: da.labels,
-      datasets: [{
-        label: 'Valor Registrado (R$)',
-        data: da.valores,
-        backgroundColor: '#2563eb99',
-        borderColor: '#2563eb',
-        borderWidth: 1,
-        borderRadius: 4,
-      },{
-        label: 'ARPs',
-        data: da.counts,
-        type: 'line',
-        yAxisID: 'y2',
-        borderColor: '#dc2626',
-        backgroundColor: '#dc262620',
-        pointBackgroundColor: '#dc2626',
-        tension: .3,
-        borderWidth: 2,
-      }]
-    },
+    data: { labels: [], datasets: [
+      { label: 'Valor Registrado (R$)', data: [], backgroundColor: '#2563eb99', borderColor: '#2563eb', borderWidth: 1, borderRadius: 4 },
+      { label: 'ARPs', data: [], type: 'line', yAxisID: 'y2', borderColor: '#dc2626', backgroundColor: '#dc262620', pointBackgroundColor: '#dc2626', tension: .3, borderWidth: 2 }
+    ]},
     options: {
       responsive: true,
-      // Gráfico de 2 séries (valor + contagem): rótulo direto poluiria — mantém eixos, sem grade.
       plugins: { legend: { labels: { font: { size:11 } } }, datalabels: { display: false } },
       scales: {
         y:  { grid: { display: false }, ticks: { callback: v => 'R$ ' + (v/1e6).toFixed(1) + 'M', font:{size:10} } },
@@ -584,8 +565,10 @@
       },
       onClick(e, els) {
         if (els.length) {
-          document.getElementById('filtro-ano').value = da.labels[els[0].index];
-          filtrar();
+          const k = chAno._keys[els[0].index];
+          const sel = document.getElementById('filtro-ano');
+          sel.value = (sel.value === k ? '' : k);
+          window.filtrar();
           document.getElementById('tabela-arps').scrollIntoView({ behavior:'smooth' });
         }
       }
@@ -593,30 +576,58 @@
   });
 
   // ── Gráfico Top 10 ──────────────────────────────────────────────────────────
-  const dt = {{ chart_top|safe }};
-  new Chart(document.getElementById('chartTop'), {
+  const chTop = new Chart(document.getElementById('chartTop'), {
     type: 'bar',
-    data: {
-      labels: dt.labels,
-      datasets: [{ label: 'Valor (R$)', data: dt.valores, backgroundColor: AZUL, borderRadius: 4 }]
-    },
+    data: { labels: [], datasets: [{ label: 'Valor (R$)', data: [], backgroundColor: AZUL, borderRadius: 4 }] },
     options: {
       indexAxis: 'y',
       responsive: true,
       layout: { padding: { right: 54 } },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => 'R$ ' + ctx.raw.toLocaleString('pt-BR', {minimumFractionDigits:2}) + ' — ' + dt.objetos[ctx.dataIndex] } },
+        tooltip: { callbacks: { label: ctx => 'R$ ' + ctx.raw.toLocaleString('pt-BR', {minimumFractionDigits:2}) + ' — ' + (chTop._objetos[ctx.dataIndex] || '') } },
         datalabels: dlMi
       },
       scales: { x: semEixo, y: soCat },
       onClick(e, els) {
-        if (els.length) {
-          window.location = '/srp/arp/' + dt.pks[els[0].index] + '/';
+        if (els.length && chTop._pks[els[0].index]) {
+          window.location = '/srp/arp/' + chTop._pks[els[0].index] + '/';
         }
       }
     }
   });
+
+  // Recalcula os 3 gráficos a partir das linhas atualmente visíveis
+  function atualizarGraficos() {
+    const rows = [...document.getElementById('tbody-arps').querySelectorAll('tr:not(.separador-ano)')]
+      .filter(tr => tr.style.display !== 'none');
+    // status (contagem)
+    const cs = {};
+    rows.forEach(r => { const s = r.dataset.status || '—'; cs[s] = (cs[s] || 0) + 1; });
+    const sKeys = ['vigente', 'suspensa', 'encerrada', 'cancelada'].filter(s => cs[s]);
+    chStatus._keys = sKeys;
+    chStatus.data.labels = sKeys.map(s => s.charAt(0).toUpperCase() + s.slice(1));
+    chStatus.data.datasets[0].data = sKeys.map(s => cs[s]);
+    chStatus.data.datasets[0].backgroundColor = sKeys.map(s => STATUS_COR[s] || '#94a3b8');
+    chStatus.update();
+    // ano (valor + contagem)
+    const av = {}, ac = {};
+    rows.forEach(r => { const a = r.dataset.ano; if (!a) return; av[a] = (av[a] || 0) + (parseFloat(r.dataset.valor) || 0); ac[a] = (ac[a] || 0) + 1; });
+    const aKeys = Object.keys(av).sort();
+    chAno._keys = aKeys;
+    chAno.data.labels = aKeys;
+    chAno.data.datasets[0].data = aKeys.map(a => Math.round(av[a] * 100) / 100);
+    chAno.data.datasets[1].data = aKeys.map(a => ac[a]);
+    chAno.update();
+    // top 10 por valor
+    const top = rows.map(r => ({ num: (r.dataset.numero || '').toUpperCase(), obj: r.dataset.objeto || '', pk: r.dataset.pk, val: parseFloat(r.dataset.valor) || 0 }))
+      .sort((a, b) => b.val - a.val).slice(0, 10);
+    chTop._objetos = top.map(t => t.obj);
+    chTop._pks = top.map(t => t.pk);
+    chTop.data.labels = top.map(t => t.num);
+    chTop.data.datasets[0].data = top.map(t => t.val);
+    chTop.update();
+  }
 
   // ── Gráfico Unidades ────────────────────────────────────────────────────────
   const cuEl = document.getElementById('chartUnidades');
@@ -704,6 +715,7 @@
     btnLimpar.style.display = inputBusca.value?'':'none';
     tableWrapper.style.display = n?'':'none';
     semResult.style.display = n?'none':'';
+    atualizarGraficos();
   };
 
   window.limparFiltros = function() {
@@ -721,6 +733,7 @@
     }
   });
 
+  atualizarGraficos();  // popula os gráficos com o conjunto inicial (todas as ARPs)
 })();
 </script>
 {% endblock %}

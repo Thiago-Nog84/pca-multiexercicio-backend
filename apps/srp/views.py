@@ -392,24 +392,6 @@ class DashboardSRPView(View):
         # P5: sem ordem natural entre status, ordena por valor (contagem) desc.
         # A cor é por lookup de label no JS (STATUS_COR[l]), não por posição —
         # reordenar aqui não quebra o mapeamento de cor.
-        status_ordenado = sorted(por_status.items(), key=lambda x: -x[1])
-        chart_status = json.dumps({
-            "labels": [k for k, v in status_ordenado],
-            "data": [v for k, v in status_ordenado],
-        })
-        anos_sorted = sorted(por_ano.keys())
-        chart_ano = json.dumps({
-            "labels": [str(a) for a in anos_sorted],
-            "valores": [round(por_ano[a], 2) for a in anos_sorted],
-            "counts": [por_ano_count[a] for a in anos_sorted],
-        })
-        chart_top = json.dumps({
-            "labels": [t[0] for t in top_valor],
-            "objetos": [t[1] for t in top_valor],
-            "valores": [round(t[2], 2) for t in top_valor],
-            "pks": [t[3] for t in top_valor],
-        })
-
         # Subtítulos dinâmicos (Storytelling com Dados, cap. 7 — título conta
         # a história, não só rotula). Ver docs/melhorias_visuais_storytelling.md P4.
         subtitulo_status = subtitulo_dominante(por_status.items(), sufixo=" das ARPs")
@@ -476,9 +458,6 @@ class DashboardSRPView(View):
             "anos_disponiveis": anos_disponiveis,
             "unidades_com_arps": unidades_com_arps,
             "arps_criticas_lista": arps_criticas_lista,
-            "chart_status": chart_status,
-            "chart_ano": chart_ano,
-            "chart_top": chart_top,
             "subtitulo_status": subtitulo_status,
             "subtitulo_unidades": subtitulo_unidades,
             "subtitulo_ano": subtitulo_ano,
