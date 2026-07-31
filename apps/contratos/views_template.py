@@ -232,15 +232,22 @@ class DashboardContratosView(View):
                 "orgao": c["orgao_sigla"] or "—",
                 "uo": c["unidade_orcamentaria"] or "",
                 "valor": float(c["valor_atual"] or 0),
+                "vi": float(c["valor_inicial"] or 0),
                 "empenhado": float(c["valor_empenhado"] or 0),
                 "saldo": float(c["saldo_disponivel"] or 0),
+                "adv": float(c["aditivos_valor"] or 0),
+                "nad": c["n_aditivos"] or 0,
                 "fim": c["data_fim_vigencia"].isoformat() if c["data_fim_vigencia"] else None,
             }
-            for c in contratos.annotate(orgao_sigla=F("orgao__sigla")).values(
+            for c in contratos.annotate(
+                orgao_sigla=F("orgao__sigla"),
+                n_aditivos=Count("aditivos"),
+                aditivos_valor=Sum("aditivos__valor_acrescimo"),
+            ).values(
                 "pk", "numero_contrato", "objeto", "contratado_razao_social",
                 "tipo", "status", "orgao_sigla", "unidade_orcamentaria",
-                "valor_atual", "valor_empenhado", "saldo_disponivel",
-                "data_fim_vigencia",
+                "valor_inicial", "valor_atual", "valor_empenhado", "saldo_disponivel",
+                "data_fim_vigencia", "n_aditivos", "aditivos_valor",
             )
         ]
 

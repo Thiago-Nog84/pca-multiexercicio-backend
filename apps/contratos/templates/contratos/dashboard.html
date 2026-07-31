@@ -295,6 +295,7 @@
       <div class="col-6 col-md"><select id="f-tipo" class="form-select form-select-sm"></select></div>
       <div class="col-6 col-md"><select id="f-orgao" class="form-select form-select-sm"></select></div>
       <div class="col-6 col-md"><select id="f-uo" class="form-select form-select-sm"></select></div>
+      <div class="col-6 col-md"><select id="f-acao" class="form-select form-select-sm"></select></div>
       <div class="col-6 col-md-auto d-flex align-items-center">
         <div class="form-check form-switch small mb-0">
           <input class="form-check-input" type="checkbox" id="f-venc">
@@ -309,7 +310,18 @@
       <div class="col-4"><div class="p-2 rounded text-center" style="background:#f0fdf4;border:1px solid #bbf7d0;">
         <div class="fw-bold text-success" style="font-size:1rem;" id="k-valor">R$ 0</div><div class="small text-muted">valor atual</div></div></div>
       <div class="col-4"><div class="p-2 rounded text-center" style="background:#fef9c3;border:1px solid #fde68a;">
-        <div class="fw-bold text-warning" style="font-size:1rem;" id="k-emp">R$ 0</div><div class="small text-muted">empenhado</div></div></div>
+        <div class="fw-bold text-warning" style="font-size:1rem;" id="k-emp">R$ 0</div><div class="small text-muted">empenhado <span id="k-pct"></span></div></div></div>
+    </div>
+    <!-- cartões de ação sugerida (clicáveis) -->
+    <div class="row g-2 mb-3" id="acao-cards">
+      <div class="col-6 col-md-3"><div class="p-2 rounded text-center acao-card" role="button" data-acao="sem_empenho" style="background:#fff1f2;border:1px solid #fecdd3;">
+        <div class="fw-bold text-danger" id="a-sem_empenho">0</div><div class="small text-danger" style="font-size:.72rem;"><i class="bi bi-cash-stack me-1"></i>Sem empenho</div></div></div>
+      <div class="col-6 col-md-3"><div class="p-2 rounded text-center acao-card" role="button" data-acao="vencendo" style="background:#fffbeb;border:1px solid #fde68a;">
+        <div class="fw-bold text-warning" id="a-vencendo">0</div><div class="small text-warning" style="font-size:.72rem;"><i class="bi bi-alarm me-1"></i>Vencendo ≤90d</div></div></div>
+      <div class="col-6 col-md-3"><div class="p-2 rounded text-center acao-card" role="button" data-acao="expirada" style="background:#f5f3ff;border:1px solid #ddd6fe;">
+        <div class="fw-bold" style="color:#7c3aed;" id="a-expirada">0</div><div class="small" style="color:#7c3aed;font-size:.72rem;"><i class="bi bi-calendar-x me-1"></i>Vigência expirada</div></div></div>
+      <div class="col-6 col-md-3"><div class="p-2 rounded text-center acao-card" role="button" data-acao="aditivo_limite" style="background:#eff6ff;border:1px solid #bfdbfe;">
+        <div class="fw-bold text-primary" id="a-aditivo_limite">0</div><div class="small text-primary" style="font-size:.72rem;"><i class="bi bi-file-earmark-plus me-1"></i>Aditivo no limite</div></div></div>
     </div>
     <div class="row g-3">
       <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
@@ -322,8 +334,8 @@
         <div class="small fw-semibold text-muted mb-1">Por órgão <span class="fw-normal">· valor (R$)</span></div>
         <div style="position:relative;height:190px;"><canvas id="ch-orgao"></canvas></div></div></div>
       <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
-        <div class="small fw-semibold text-muted mb-1">Por fonte / UO <span class="fw-normal">· valor (R$)</span></div>
-        <div style="position:relative;height:190px;"><canvas id="ch-uo"></canvas></div></div></div>
+        <div class="small fw-semibold text-muted mb-1">Por faixa de vigência <span class="fw-normal">· nº de contratos</span></div>
+        <div style="position:relative;height:190px;"><canvas id="ch-vigencia"></canvas></div></div></div>
     </div>
   </div>
 </div>
@@ -342,8 +354,11 @@
           <th>Objeto / Contratado</th>
           <th class="expl-sort" data-k="tipo" role="button" style="cursor:pointer;">Tipo</th>
           <th class="expl-sort text-end" data-k="valor" role="button" style="cursor:pointer;">Valor (R$)</th>
+          <th class="expl-sort text-end" data-k="empenhado" role="button" style="cursor:pointer;">Empenhado</th>
+          <th class="text-end">% emp</th>
           <th class="expl-sort" data-k="fim" role="button" style="cursor:pointer;">Vigência</th>
           <th class="expl-sort" data-k="status" role="button" style="cursor:pointer;">Status</th>
+          <th>Ação sugerida</th>
         </tr>
       </thead>
       <tbody id="tbl-body"></tbody>
@@ -959,18 +974,46 @@
   const RED = '#9B2335', RED_SOFT = 'rgba(155,35,53,.28)';
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
   const dias = iso => iso ? Math.round((new Date(iso) - hoje) / 86400000) : null;
+  const FAIXAS = [
+    {k:'vencido', label:'Vencido'}, {k:'d30', label:'≤30 dias'}, {k:'d90', label:'31–90 dias'},
+    {k:'d180', label:'91–180 dias'}, {k:'d180p', label:'>180 dias'}, {k:'sem', label:'Sem data'}
+  ];
+  const FAIXA_LAB = Object.fromEntries(FAIXAS.map(f => [f.k, f.label]));
+  const faixaOf = d => { const dd = dias(d.fim); if (dd === null) return 'sem'; if (dd < 0) return 'vencido'; if (dd <= 30) return 'd30'; if (dd <= 90) return 'd90'; if (dd <= 180) return 'd180'; return 'd180p'; };
 
-  const F = {q:'', status:'', tipo:'', orgao:'', uo:'', venc:false};
+  // % empenhado do valor atual (informativo — p/ multianuais empenho é a fatia do exercício)
+  const pctEmp = d => d.valor > 0 ? Math.round(d.empenhado / d.valor * 100) : 0;
+  // ação sugerida (1 categoria por contrato, por prioridade)
+  const ACAO = {
+    sem_empenho:    {label:'Sem empenho',       hint:'empenhar',                 cor:'#dc3545'},
+    vencendo:       {label:'Vencendo ≤90d',      hint:'aditivo / nova contratação', cor:'#d97706'},
+    expirada:       {label:'Vigência expirada',  hint:'encerrar / nova contratação', cor:'#7c3aed'},
+    aditivo_limite: {label:'Aditivo no limite',  hint:'atenção ao teto legal',    cor:'#2563eb'},
+    ok:             {label:'—',                  hint:'',                         cor:'#94a3b8'},
+  };
+  const ACAO_KEYS = ['sem_empenho', 'vencendo', 'expirada', 'aditivo_limite'];
+  const acaoDe = d => {
+    const dd = dias(d.fim);
+    if (d.status === 'vigente' && dd !== null && dd < 0) return 'expirada';
+    if (d.vi > 0 && d.adv / d.vi >= (d.tipo === 'obra' ? 0.25 : 0.50)) return 'aditivo_limite';
+    if (d.status === 'vigente' && d.empenhado === 0) return 'sem_empenho';
+    if (d.status === 'vigente' && dd !== null && dd >= 0 && dd <= 90) return 'vencendo';
+    return 'ok';
+  };
+
+  const F = {q:'', status:'', tipo:'', orgao:'', uo:'', acao:'', venc:false, faixa:''};
   let sortK = 'valor', sortDir = -1;
 
-  function filtered() {
+  function filtered(skipAcao) {
     const q = F.q.trim().toLowerCase();
     return DADOS.filter(d => {
       if (F.status && d.status !== F.status) return false;
       if (F.tipo && d.tipo !== F.tipo) return false;
       if (F.orgao && d.orgao !== F.orgao) return false;
       if (F.uo && d.uo !== F.uo) return false;
+      if (!skipAcao && F.acao && acaoDe(d) !== F.acao) return false;
       if (F.venc) { const dd = dias(d.fim); if (dd === null || dd < 0 || dd > 90) return false; }
+      if (F.faixa && faixaOf(d) !== F.faixa) return false;
       if (q && !(d.objeto.toLowerCase().includes(q) || d.numero.toLowerCase().includes(q) || d.contratado.toLowerCase().includes(q))) return false;
       return true;
     });
@@ -990,11 +1033,24 @@
   fillSelect('f-tipo', 'tipo', 'Tipo (todos)');
   fillSelect('f-orgao', 'orgao', 'Órgão (todos)');
   fillSelect('f-uo', 'uo', 'Fonte/UO (todas)');
+  // select de ação (valores fixos, não vêm dos dados)
+  (function () {
+    const sel = document.getElementById('f-acao');
+    sel.innerHTML = '<option value="">Ação (todas)</option>' +
+      ACAO_KEYS.map(k => `<option value="${k}">${esc(ACAO[k].label)}</option>`).join('');
+    sel.addEventListener('change', () => { F.acao = sel.value; render(); });
+  })();
   document.getElementById('f-q').addEventListener('input', e => { F.q = e.target.value; render(); });
   document.getElementById('f-venc').addEventListener('change', e => { F.venc = e.target.checked; render(); });
+  document.querySelectorAll('.acao-card').forEach(c => c.addEventListener('click', () => {
+    const k = c.dataset.acao;
+    F.acao = (F.acao === k ? '' : k);
+    document.getElementById('f-acao').value = F.acao;
+    render();
+  }));
   document.getElementById('expl-limpar').addEventListener('click', () => {
-    Object.assign(F, {q:'', status:'', tipo:'', orgao:'', uo:'', venc:false});
-    ['f-status','f-tipo','f-orgao','f-uo'].forEach(id => document.getElementById(id).value = '');
+    Object.assign(F, {q:'', status:'', tipo:'', orgao:'', uo:'', acao:'', venc:false, faixa:''});
+    ['f-status','f-tipo','f-orgao','f-uo','f-acao'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('f-q').value = ''; document.getElementById('f-venc').checked = false;
     render();
   });
@@ -1015,7 +1071,7 @@
   mkChart('ch-status', 'status', 'qtd');
   mkChart('ch-tipo', 'tipo', 'valor');
   mkChart('ch-orgao', 'orgao', 'valor');
-  mkChart('ch-uo', 'uo', 'valor');
+  mkChart('ch-vigencia', 'faixa', 'qtd');
 
   function updChart(id, dim, metric, arr) {
     const rows = agg(arr, dim, metric).slice(0, 10);
@@ -1024,6 +1080,19 @@
     ch.data.labels = rows.map(r => r.label);
     ch.data.datasets[0].data = rows.map(r => r.v);
     ch.data.datasets[0].backgroundColor = rows.map(r => (F[dim] && F[dim] !== r.k) ? RED_SOFT : RED);
+    ch.update();
+  }
+
+  // gráfico de vigência: ordem natural das faixas (não por valor)
+  function updVigencia(arr) {
+    const counts = {};
+    arr.forEach(d => { const k = faixaOf(d); counts[k] = (counts[k] || 0) + 1; });
+    const rows = FAIXAS.filter(f => counts[f.k]);
+    const ch = charts['ch-vigencia'];
+    ch._keys = rows.map(f => f.k);
+    ch.data.labels = rows.map(f => f.label);
+    ch.data.datasets[0].data = rows.map(f => counts[f.k]);
+    ch.data.datasets[0].backgroundColor = rows.map(f => (F.faixa && F.faixa !== f.k) ? RED_SOFT : RED);
     ch.update();
   }
 
@@ -1039,15 +1108,22 @@
     const LIMIT = 200, shown = rows.slice(0, LIMIT);
     document.getElementById('tbl-body').innerHTML = shown.map(d => {
       const dd = dias(d.fim), venc = (dd !== null && dd >= 0 && dd <= 90);
+      const pe = pctEmp(d), a = acaoDe(d);
+      const acaoTd = a === 'ok'
+        ? '<span class="text-muted">—</span>'
+        : `<span class="badge" style="background:${ACAO[a].cor}1a;color:${ACAO[a].cor};" title="${esc(ACAO[a].hint)}">${esc(ACAO[a].label)}</span>`;
       return `<tr>
         <td><a href="${d.url}" class="fw-semibold text-decoration-none">${esc(d.numero)}</a></td>
         <td>${esc(d.orgao)}</td>
-        <td class="text-muted" style="max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(d.objeto)} — ${esc(d.contratado)}">${esc(d.objeto)}<br><span style="font-size:.72rem;">${esc(d.contratado)}</span></td>
+        <td class="text-muted" style="max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(d.objeto)} — ${esc(d.contratado)}">${esc(d.objeto)}<br><span style="font-size:.72rem;">${esc(d.contratado)}</span></td>
         <td><span class="small">${esc(lab('tipo', d.tipo))}</span></td>
         <td class="text-end">${d.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+        <td class="text-end">${d.empenhado.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+        <td class="text-end ${pe === 0 ? 'text-danger' : 'text-muted'}">${pe}%</td>
         <td class="${venc ? 'text-danger fw-semibold' : ''}">${fmtData(d.fim)}</td>
-        <td><span class="badge bg-${STB[d.status] || 'light'}-subtle text-${STB[d.status] || 'dark'}">${esc(lab('status', d.status))}</span></td></tr>`;
-    }).join('') || '<tr><td colspan="7" class="text-center text-muted py-4">Nenhum contrato com os filtros atuais.</td></tr>';
+        <td><span class="badge bg-${STB[d.status] || 'light'}-subtle text-${STB[d.status] || 'dark'}">${esc(lab('status', d.status))}</span></td>
+        <td>${acaoTd}</td></tr>`;
+    }).join('') || '<tr><td colspan="10" class="text-center text-muted py-4">Nenhum contrato com os filtros atuais.</td></tr>';
     document.getElementById('tbl-footer').textContent = rows.length > LIMIT ? `Mostrando ${LIMIT} de ${rows.length} contratos — refine os filtros.` : `${rows.length} contrato(s).`;
   }
 
@@ -1055,7 +1131,9 @@
     const map = {status:'Status', tipo:'Tipo', orgao:'Órgão', uo:'Fonte/UO'};
     const chips = [];
     Object.keys(map).forEach(dim => { if (F[dim]) chips.push(`<span class="badge rounded-pill text-bg-light border" role="button" data-clr="${dim}">${esc(map[dim])}: ${esc(lab(dim, F[dim]))} <i class="bi bi-x"></i></span>`); });
+    if (F.acao) chips.push(`<span class="badge rounded-pill text-bg-light border" role="button" data-clr="acao">Ação: ${esc(ACAO[F.acao].label)} <i class="bi bi-x"></i></span>`);
     if (F.venc) chips.push('<span class="badge rounded-pill text-bg-light border" role="button" data-clr="venc">Vence ≤90d <i class="bi bi-x"></i></span>');
+    if (F.faixa) chips.push(`<span class="badge rounded-pill text-bg-light border" role="button" data-clr="faixa">Vigência: ${esc(FAIXA_LAB[F.faixa] || F.faixa)} <i class="bi bi-x"></i></span>`);
     if (F.q) chips.push(`<span class="badge rounded-pill text-bg-light border" role="button" data-clr="q">"${esc(F.q)}" <i class="bi bi-x"></i></span>`);
     const box = document.getElementById('expl-chips');
     box.innerHTML = chips.join('');
@@ -1071,13 +1149,24 @@
 
   function render() {
     const arr = filtered();
+    const tv = arr.reduce((s, d) => s + d.valor, 0), te = arr.reduce((s, d) => s + d.empenhado, 0);
     document.getElementById('k-qtd').textContent = arr.length.toLocaleString('pt-BR');
-    document.getElementById('k-valor').textContent = brl(arr.reduce((s, d) => s + d.valor, 0));
-    document.getElementById('k-emp').textContent = brl(arr.reduce((s, d) => s + d.empenhado, 0));
+    document.getElementById('k-valor').textContent = brl(tv);
+    document.getElementById('k-emp').textContent = brl(te);
+    document.getElementById('k-pct').textContent = tv > 0 ? '(' + Math.round(te / tv * 100) + '%)' : '';
+    // cartões de ação: contam sobre o recorte SEM o filtro de ação (cross-filter)
+    const base = filtered(true);
+    const counts = {sem_empenho: 0, vencendo: 0, expirada: 0, aditivo_limite: 0};
+    base.forEach(d => { const a = acaoDe(d); if (counts[a] !== undefined) counts[a]++; });
+    ACAO_KEYS.forEach(k => {
+      document.getElementById('a-' + k).textContent = counts[k];
+      const card = document.querySelector('.acao-card[data-acao="' + k + '"]');
+      if (card) card.style.outline = (F.acao === k ? '2px solid ' + ACAO[k].cor : '');
+    });
     updChart('ch-status', 'status', 'qtd', arr);
     updChart('ch-tipo', 'tipo', 'valor', arr);
     updChart('ch-orgao', 'orgao', 'valor', arr);
-    updChart('ch-uo', 'uo', 'valor', arr);
+    updVigencia(arr);
     updChips();
     updTable(arr);
     document.getElementById('tbl-resumo').textContent = '· ' + arr.length + ' de ' + DADOS.length;
