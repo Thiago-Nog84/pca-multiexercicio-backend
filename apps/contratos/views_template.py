@@ -223,9 +223,11 @@ class DashboardContratosView(View):
         # agrega e desenha os gráficos no navegador, sem recarregar a página.
         # Liquidado por contrato em query SEPARADA (evita multiplicação de JOIN
         # ao misturar Sum sobre 'empenhos' com Count/Sum sobre 'aditivos').
-        liq_por_contrato = {
-            r["contrato"]: r["s"]
-            for r in Empenho.objects.values("contrato").annotate(s=Sum("valor_liquidado"))
+        exec_por_contrato = {
+            r["contrato"]: (r["liq"] or 0, r["pg"] or 0)
+            for r in Empenho.objects.values("contrato").annotate(
+                liq=Sum("valor_liquidado"), pg=Sum("valor_pago")
+            )
         }
         contratos_data = [
             {
@@ -240,7 +242,8 @@ class DashboardContratosView(View):
                 "valor": float(c["valor_atual"] or 0),
                 "vi": float(c["valor_inicial"] or 0),
                 "empenhado": float(c["valor_empenhado"] or 0),
-                "liq": float(liq_por_contrato.get(c["pk"], 0) or 0),
+                "liq": float(exec_por_contrato.get(c["pk"], (0, 0))[0]),
+                "pago": float(exec_por_contrato.get(c["pk"], (0, 0))[1]),
                 "saldo": float(c["saldo_disponivel"] or 0),
                 "adv": float(c["aditivos_valor"] or 0),
                 "nad": c["n_aditivos"] or 0,

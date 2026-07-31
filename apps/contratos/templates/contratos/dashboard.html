@@ -360,6 +360,7 @@
           <th class="expl-sort text-end" data-k="valor" role="button" style="cursor:pointer;">Valor (R$)</th>
           <th class="expl-sort text-end" data-k="empenhado" role="button" style="cursor:pointer;">Empenhado</th>
           <th class="expl-sort text-end" data-k="liq" role="button" style="cursor:pointer;">Liquidado</th>
+          <th class="expl-sort text-end" data-k="pago" role="button" style="cursor:pointer;">Pago</th>
           <th class="text-end" title="Liquidado ÷ Empenhado">% exec</th>
           <th class="expl-sort" data-k="fim" role="button" style="cursor:pointer;">Vigência</th>
           <th class="expl-sort" data-k="status" role="button" style="cursor:pointer;">Status</th>
@@ -1130,11 +1131,12 @@
         <td class="text-end">${d.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
         <td class="text-end">${d.empenhado.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
         <td class="text-end">${d.liq.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+        <td class="text-end">${d.pago.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
         <td class="text-end ${px >= 90 ? 'text-danger fw-semibold' : 'text-muted'}">${d.empenhado > 0 ? px + '%' : '—'}</td>
         <td class="${venc ? 'text-danger fw-semibold' : ''}">${fmtData(d.fim)}</td>
         <td><span class="badge bg-${STB[d.status] || 'light'}-subtle text-${STB[d.status] || 'dark'}">${esc(lab('status', d.status))}</span></td>
         <td>${acaoTd}</td></tr>`;
-    }).join('') || '<tr><td colspan="11" class="text-center text-muted py-4">Nenhum contrato com os filtros atuais.</td></tr>';
+    }).join('') || '<tr><td colspan="12" class="text-center text-muted py-4">Nenhum contrato com os filtros atuais.</td></tr>';
     document.getElementById('tbl-footer').textContent = rows.length > LIMIT ? `Mostrando ${LIMIT} de ${rows.length} contratos — refine os filtros.` : `${rows.length} contrato(s).`;
   }
 
