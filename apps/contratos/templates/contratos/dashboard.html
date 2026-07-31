@@ -344,34 +344,7 @@
   </div>
 </div>
 
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-white border-bottom py-3">
-    <i class="bi bi-table me-2 text-primary"></i><strong>Contratos</strong>
-    <span class="text-muted small ms-2" id="tbl-resumo"></span>
-  </div>
-  <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0" style="font-size:.83rem;">
-      <thead class="table-light">
-        <tr>
-          <th class="expl-sort" data-k="numero" role="button" style="cursor:pointer;">Nº <i class="bi bi-arrow-down-up text-muted" style="font-size:.65rem;"></i></th>
-          <th class="expl-sort" data-k="orgao" role="button" style="cursor:pointer;">Órgão</th>
-          <th>Objeto / Contratado</th>
-          <th class="expl-sort" data-k="tipo" role="button" style="cursor:pointer;">Tipo</th>
-          <th class="expl-sort text-end" data-k="valor" role="button" style="cursor:pointer;">Valor (R$)</th>
-          <th class="expl-sort text-end" data-k="empenhado" role="button" style="cursor:pointer;">Empenhado</th>
-          <th class="expl-sort text-end" data-k="liq" role="button" style="cursor:pointer;">Liquidado</th>
-          <th class="expl-sort text-end" data-k="pago" role="button" style="cursor:pointer;">Pago</th>
-          <th class="text-end" title="Liquidado ÷ Empenhado">% exec</th>
-          <th class="expl-sort" data-k="fim" role="button" style="cursor:pointer;">Vigência</th>
-          <th class="expl-sort" data-k="status" role="button" style="cursor:pointer;">Status</th>
-          <th>Ação sugerida</th>
-        </tr>
-      </thead>
-      <tbody id="tbl-body"></tbody>
-    </table>
-  </div>
-  <div class="px-3 py-2 border-top small text-muted" id="tbl-footer"></div>
-</div>
+<!-- (tabela de Contratos movida para o fim da página) -->
 
 <!-- LINHA 2: CONTRATOS LOCAIS DETALHADOS -->
 <div class="row g-4 mb-4">
@@ -891,73 +864,124 @@
     </div>
   </div>
 
-  <!-- Referências normativas de gestão contratual -->
-  <div class="col-md-6">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-header bg-white border-bottom py-3">
-        <i class="bi bi-book me-2 text-success"></i><strong>Referências Normativas</strong>
+  <!-- (Referências Normativas movidas para o fim da página) -->
+
+</div>
+
+<!-- ═══════════ TABELA DE CONTRATOS (fim da página) ═══════════ -->
+<div class="card border-0 shadow-sm mb-4" id="tabela-contratos">
+  <div class="card-header bg-white border-bottom py-3">
+    <i class="bi bi-table me-2 text-primary"></i><strong>Contratos</strong>
+    <span class="text-muted small ms-2" id="tbl-resumo"></span>
+    <span class="text-muted small ms-2 d-none d-md-inline">— clique no nº do contrato para ver os detalhes, empenhos e pagamentos</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0" style="font-size:.83rem;">
+      <thead class="table-light">
+        <tr>
+          <th class="expl-sort" data-k="numero" role="button" style="cursor:pointer;">Nº <i class="bi bi-arrow-down-up text-muted" style="font-size:.65rem;"></i></th>
+          <th class="expl-sort" data-k="orgao" role="button" style="cursor:pointer;">Órgão</th>
+          <th>Objeto / Contratado</th>
+          <th class="expl-sort" data-k="tipo" role="button" style="cursor:pointer;">Tipo</th>
+          <th class="expl-sort text-end" data-k="valor" role="button" style="cursor:pointer;">Valor (R$)</th>
+          <th class="expl-sort text-end" data-k="empenhado" role="button" style="cursor:pointer;">Empenhado</th>
+          <th class="expl-sort text-end" data-k="liq" role="button" style="cursor:pointer;">Liquidado</th>
+          <th class="expl-sort text-end" data-k="pago" role="button" style="cursor:pointer;">Pago</th>
+          <th class="text-end" title="Liquidado ÷ Empenhado">% exec</th>
+          <th class="expl-sort" data-k="fim" role="button" style="cursor:pointer;">Vigência</th>
+          <th class="expl-sort" data-k="status" role="button" style="cursor:pointer;">Status</th>
+          <th>Ação sugerida</th>
+        </tr>
+      </thead>
+      <tbody id="tbl-body"></tbody>
+    </table>
+  </div>
+  <div class="px-3 py-2 border-top small text-muted" id="tbl-footer"></div>
+</div>
+
+<!-- Modal de detalhe do contrato -->
+<div class="modal fade" id="contrato-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header py-2" style="background:#f8fafc;">
+        <div>
+          <h5 class="modal-title mb-0" id="cm-titulo"><i class="bi bi-file-earmark-ruled text-primary me-2"></i><span></span></h5>
+          <div class="text-muted small" id="cm-sub"></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
       </div>
-      <div class="card-body">
-        <div class="row g-2">
-          <div class="col-6">
-            <div class="d-flex gap-2 align-items-start">
-              <i class="bi bi-check2 text-success mt-1 flex-shrink-0"></i>
-              <div style="font-size:.75rem;">
-                <div class="fw-semibold">Contrato</div>
-                <div class="text-muted">arts. 89–107 NLLC · Ato PGJ 1414/2024</div>
-              </div>
-            </div>
+      <div class="modal-body" id="cm-body"></div>
+      <div class="modal-footer py-2">
+        <a href="#" id="cm-admin" class="btn btn-sm btn-outline-secondary" target="_blank"><i class="bi bi-pencil-square me-1"></i>Abrir no admin</a>
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ REFERÊNCIAS NORMATIVAS (rodapé) ═══════════ -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white border-bottom py-3">
+    <i class="bi bi-book me-2 text-success"></i><strong>Referências Normativas</strong>
+  </div>
+  <div class="card-body">
+    <div class="row g-2">
+      <div class="col-6 col-md-4">
+        <div class="d-flex gap-2 align-items-start">
+          <i class="bi bi-check2 text-success mt-1 flex-shrink-0"></i>
+          <div style="font-size:.75rem;">
+            <div class="fw-semibold">Contrato</div>
+            <div class="text-muted">arts. 89–107 NLLC · Ato PGJ 1414/2024</div>
           </div>
-          <div class="col-6">
-            <div class="d-flex gap-2 align-items-start">
-              <i class="bi bi-check2 text-success mt-1 flex-shrink-0"></i>
-              <div style="font-size:.75rem;">
-                <div class="fw-semibold">Serv. Contínuos</div>
-                <div class="text-muted">24–120 meses · Ato PGJ 1415/2024</div>
-              </div>
-            </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="d-flex gap-2 align-items-start">
+          <i class="bi bi-check2 text-success mt-1 flex-shrink-0"></i>
+          <div style="font-size:.75rem;">
+            <div class="fw-semibold">Serv. Contínuos</div>
+            <div class="text-muted">24–120 meses · Ato PGJ 1415/2024</div>
           </div>
-          <div class="col-6">
-            <div class="d-flex gap-2 align-items-start">
-              <i class="bi bi-check2 text-success mt-1 flex-shrink-0"></i>
-              <div style="font-size:.75rem;">
-                <div class="fw-semibold">TI (fiscalização)</div>
-                <div class="text-muted">Quadripartite · Res. CNMP 283/2024, art. 36</div>
-              </div>
-            </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="d-flex gap-2 align-items-start">
+          <i class="bi bi-check2 text-success mt-1 flex-shrink-0"></i>
+          <div style="font-size:.75rem;">
+            <div class="fw-semibold">TI (fiscalização)</div>
+            <div class="text-muted">Quadripartite · Res. CNMP 283/2024, art. 36</div>
           </div>
-          <div class="col-6">
-            <div class="d-flex gap-2 align-items-start">
-              <i class="bi bi-check2 text-success mt-1 flex-shrink-0"></i>
-              <div style="font-size:.75rem;">
-                <div class="fw-semibold">Eficácia PNCP</div>
-                <div class="text-muted">Publicação obrigatória · art. 174 NLLC</div>
-              </div>
-            </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="d-flex gap-2 align-items-start">
+          <i class="bi bi-check2 text-success mt-1 flex-shrink-0"></i>
+          <div style="font-size:.75rem;">
+            <div class="fw-semibold">Eficácia PNCP</div>
+            <div class="text-muted">Publicação obrigatória · art. 174 NLLC</div>
           </div>
-          <div class="col-6">
-            <div class="d-flex gap-2 align-items-start">
-              <i class="bi bi-check2 text-success mt-1 flex-shrink-0"></i>
-              <div style="font-size:.75rem;">
-                <div class="fw-semibold">Aditivos</div>
-                <div class="text-muted">art. 124 NLLC · 25% obras · 50% demais</div>
-              </div>
-            </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="d-flex gap-2 align-items-start">
+          <i class="bi bi-check2 text-success mt-1 flex-shrink-0"></i>
+          <div style="font-size:.75rem;">
+            <div class="fw-semibold">Aditivos</div>
+            <div class="text-muted">art. 124 NLLC · 25% obras · 50% demais</div>
           </div>
-          <div class="col-6">
-            <div class="d-flex gap-2 align-items-start">
-              <i class="bi bi-check2 text-success mt-1 flex-shrink-0"></i>
-              <div style="font-size:.75rem;">
-                <div class="fw-semibold">Alerta vigência TI</div>
-                <div class="text-muted">120 dias antes do vencimento (Res. CNMP 283)</div>
-              </div>
-            </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="d-flex gap-2 align-items-start">
+          <i class="bi bi-check2 text-success mt-1 flex-shrink-0"></i>
+          <div style="font-size:.75rem;">
+            <div class="fw-semibold">Alerta vigência TI</div>
+            <div class="text-muted">120 dias antes do vencimento (Res. CNMP 283)</div>
           </div>
         </div>
       </div>
     </div>
   </div>
-
 </div>
 
 <!-- Explorador interativo de contratos (Chart.js) -->
@@ -968,6 +992,7 @@
   const el = document.getElementById('contratos-data');
   if (!el || typeof Chart === 'undefined') return;
   const DADOS = JSON.parse(el.textContent);
+  const BY_PK = Object.fromEntries(DADOS.map(d => [d.pk, d]));
 
   const L = {
     status: {vigente:'Vigente', suspenso:'Suspenso', rescindido:'Rescindido', encerrado:'Encerrado'},
@@ -1003,7 +1028,9 @@
   const ACAO_KEYS = ['empenho_compl', 'exaurindo', 'sem_empenho', 'vencendo', 'expirada', 'aditivo_limite'];
   const acaoDe = d => {
     const dd = dias(d.fim), vig = d.status === 'vigente';
-    if (vig && dd !== null && dd < 0) return 'expirada';
+    // vencido é "expirada" só se NÃO tiver execução recente — um contrato
+    // sendo pago no ano corrente/anterior está vivo, mesmo com data placeholder.
+    if (vig && dd !== null && dd < 0 && !d.ativo) return 'expirada';
     if (vig && d.valor > 0 && d.liq / d.valor >= 0.90) return 'exaurindo';
     if (vig && d.empenhado > 0 && d.liq / d.empenhado >= 0.90) return 'empenho_compl';
     if (d.vi > 0 && d.adv / d.vi >= (d.tipo === 'obra' ? 0.25 : 0.50)) return 'aditivo_limite';
@@ -1124,7 +1151,7 @@
         ? '<span class="text-muted">—</span>'
         : `<span class="badge" style="background:${ACAO[a].cor}1a;color:${ACAO[a].cor};" title="${esc(ACAO[a].hint)}">${esc(ACAO[a].label)}</span>`;
       return `<tr>
-        <td><a href="${d.url}" class="fw-semibold text-decoration-none">${esc(d.numero)}</a></td>
+        <td><a href="#" class="fw-semibold text-decoration-none contrato-link" data-pk="${d.pk}">${esc(d.numero)}</a></td>
         <td>${esc(d.orgao)}</td>
         <td class="text-muted" style="max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(d.objeto)} — ${esc(d.contratado)}">${esc(d.objeto)}<br><span style="font-size:.72rem;">${esc(d.contratado)}</span></td>
         <td><span class="small">${esc(lab('tipo', d.tipo))}</span></td>
@@ -1190,6 +1217,117 @@
     if (sortK === k) sortDir *= -1; else { sortK = k; sortDir = (k === 'valor' ? -1 : 1); }
     render();
   }));
+
+  // ─────────── Modal de detalhe do contrato ───────────
+  const brl2 = v => (v || 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL', minimumFractionDigits:2, maximumFractionDigits:2});
+  const modalEl = document.getElementById('contrato-modal');
+  // Bootstrap é carregado no fim do base.html (depois deste bloco), então
+  // instancia o modal preguiçosamente, só no primeiro clique.
+  let bsModal = null;
+  function getModal() {
+    if (!bsModal && modalEl && window.bootstrap) {
+      bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    }
+    return bsModal;
+  }
+
+  function kpiBox(label, valor, cor) {
+    return `<div class="col-6 col-md-4"><div class="border rounded p-2 h-100" style="background:#f8fafc;">
+      <div class="text-muted" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.03em;">${label}</div>
+      <div class="fw-bold" style="font-size:.95rem;color:${cor || '#1e293b'};">${valor}</div></div></div>`;
+  }
+
+  function abrirModal(pk) {
+    const d = BY_PK[pk];
+    const m = getModal();
+    if (!d || !m) return;
+    const dd = dias(d.fim);
+    const vigTxt = d.fim
+      ? fmtData(d.fim) + (dd !== null ? ` <span class="badge ${dd < 0 ? 'bg-danger' : dd <= 90 ? 'bg-warning text-dark' : 'bg-light text-dark border'}" style="font-size:.6rem;">${dd < 0 ? 'vencido há ' + Math.abs(dd) + 'd' : 'faltam ' + dd + 'd'}</span>` : '')
+      : '—';
+    const px = pctExec(d), pe = pctEmp(d), a = acaoDe(d);
+    document.querySelector('#cm-titulo span').textContent = d.numero + '  ·  ' + d.orgao;
+    document.getElementById('cm-sub').innerHTML =
+      `<span class="badge bg-${STB[d.status] || 'light'}-subtle text-${STB[d.status] || 'dark'} me-1">${esc(lab('status', d.status))}</span>`
+      + `<span class="text-muted">${esc(lab('tipo', d.tipo))}</span>`
+      + (a !== 'ok' ? ` &nbsp;·&nbsp; <span class="badge" style="background:${ACAO[a].cor}1a;color:${ACAO[a].cor};" title="${esc(ACAO[a].hint)}">${esc(ACAO[a].label)}</span>` : '');
+    document.getElementById('cm-admin').href = d.url;
+
+    let html = '';
+    // objeto + contratado
+    html += `<div class="mb-3">
+      <div class="text-muted" style="font-size:.68rem;text-transform:uppercase;letter-spacing:.03em;">Objeto</div>
+      <div style="font-size:.85rem;">${esc(d.objeto) || '—'}</div>
+      <div class="mt-2 d-flex flex-wrap gap-3 small">
+        <span><i class="bi bi-building me-1 text-muted"></i><strong>${esc(d.contratado)}</strong>${d.cnpj ? ' <span class="text-muted">('+esc(d.cnpj)+')</span>' : ''}</span>
+        ${d.sei ? '<span><i class="bi bi-folder2-open me-1 text-muted"></i>SEI '+esc(d.sei)+'</span>' : ''}
+        ${d.uo ? '<span><i class="bi bi-diagram-3 me-1 text-muted"></i>UO '+esc(d.uo)+'</span>' : ''}
+      </div></div>`;
+    // KPIs financeiros
+    html += '<div class="row g-2 mb-3">';
+    html += kpiBox('Valor inicial', brl2(d.vi));
+    html += kpiBox('Valor atual', brl2(d.valor), '#0d6efd');
+    html += kpiBox('Saldo disponível', brl2(d.saldo));
+    html += kpiBox('Empenhado' + (pe ? ` <span class="text-muted">(${pe}% do valor)</span>` : ''), brl2(d.empenhado), '#b45309');
+    html += kpiBox('Liquidado' + (px ? ` <span class="text-muted">(${px}% do emp.)</span>` : ''), brl2(d.liq), '#0f766e');
+    html += kpiBox('Pago', brl2(d.pago), '#15803d');
+    html += '</div>';
+    // vigência
+    html += `<div class="row g-2 mb-3">
+      ${kpiBox('Assinatura', d.assinatura ? fmtData(d.assinatura) : '—')}
+      ${kpiBox('Início vigência', d.inicio ? fmtData(d.inicio) : '—')}
+      ${kpiBox('Fim vigência', vigTxt)}
+    </div>`;
+
+    // aditivos
+    if (d.aditivos && d.aditivos.length) {
+      html += `<div class="mb-2"><div class="fw-semibold small mb-1"><i class="bi bi-file-earmark-plus me-1 text-primary"></i>Aditivos (${d.aditivos.length})</div>
+        <div class="table-responsive"><table class="table table-sm align-middle mb-0" style="font-size:.78rem;">
+        <thead class="table-light"><tr><th>Nº</th><th>Tipo</th><th>Assinatura</th><th>Nova vigência</th><th class="text-end">Acréscimo</th></tr></thead><tbody>`;
+      d.aditivos.forEach(ad => {
+        html += `<tr><td>${ad.num}º</td><td>${esc(ad.tipo)}</td><td>${ad.assinatura ? fmtData(ad.assinatura) : '—'}</td>
+          <td>${ad.nova_fim ? fmtData(ad.nova_fim) : '—'}</td><td class="text-end">${ad.acrescimo ? brl2(ad.acrescimo) : '—'}</td></tr>`;
+      });
+      html += '</tbody></table></div></div>';
+    }
+
+    // empenhos
+    html += `<div class="fw-semibold small mb-1 mt-2"><i class="bi bi-receipt me-1 text-warning"></i>Empenhos, liquidações e pagamentos (${d.empenhos ? d.empenhos.length : 0})</div>`;
+    if (d.empenhos && d.empenhos.length) {
+      html += `<div class="table-responsive"><table class="table table-sm table-hover align-middle mb-0" style="font-size:.76rem;">
+        <thead class="table-light"><tr>
+          <th>Nota de Empenho</th><th>Tipo</th><th class="text-end">Empenhado</th><th class="text-end">Liquidado</th>
+          <th class="text-end">Pago</th><th>Status</th><th>Fonte / Elemento</th></tr></thead><tbody>`;
+      d.empenhos.forEach(e => {
+        const stCor = e.status === 'Pago' ? 'success' : e.status === 'Liquidado' ? 'info' : e.status === 'Parcialmente Liquidado' ? 'warning' : 'secondary';
+        html += `<tr>
+          <td class="font-monospace fw-semibold">${esc(e.ne)}${e.emissao ? '<br><span class="text-muted" style="font-size:.66rem;">'+fmtData(e.emissao)+'</span>' : ''}</td>
+          <td>${esc(e.tipo)}</td>
+          <td class="text-end">${brl2(e.valor)}</td>
+          <td class="text-end">${e.liq ? brl2(e.liq) : '<span class="text-muted">—</span>'}</td>
+          <td class="text-end">${e.pago ? brl2(e.pago) : '<span class="text-muted">—</span>'}</td>
+          <td><span class="badge bg-${stCor}-subtle text-${stCor}" style="font-size:.62rem;">${esc(e.status)}</span></td>
+          <td class="text-muted" style="font-size:.7rem;">${esc(e.fonte || '—')}${e.elem ? ' · ' + esc(e.elem) : ''}</td></tr>`;
+      });
+      // rodapé de totais
+      const te = d.empenhos.reduce((s,e)=>s+e.valor,0), tl = d.empenhos.reduce((s,e)=>s+e.liq,0), tp = d.empenhos.reduce((s,e)=>s+e.pago,0);
+      html += `</tbody><tfoot><tr class="fw-semibold" style="border-top:2px solid #e2e8f0;">
+        <td colspan="2" class="text-end">Total</td><td class="text-end">${brl2(te)}</td><td class="text-end">${brl2(tl)}</td>
+        <td class="text-end">${brl2(tp)}</td><td colspan="2"></td></tr></tfoot></table></div>`;
+    } else {
+      html += '<p class="text-muted small mb-0"><i class="bi bi-info-circle me-1"></i>Nenhum empenho vinculado a este contrato.</p>';
+    }
+
+    document.getElementById('cm-body').innerHTML = html;
+    m.show();
+  }
+
+  document.getElementById('tbl-body').addEventListener('click', e => {
+    const link = e.target.closest('.contrato-link');
+    if (!link) return;
+    e.preventDefault();
+    abrirModal(Number(link.dataset.pk));
+  });
 
   render();
 })();

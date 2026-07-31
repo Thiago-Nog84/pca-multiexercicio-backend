@@ -223,31 +223,100 @@ class DashboardContratosView(View):
         # agrega e desenha os gráficos no navegador, sem recarregar a página.
         # Liquidado por contrato em query SEPARADA (evita multiplicação de JOIN
         # ao misturar Sum sobre 'empenhos' com Count/Sum sobre 'aditivos').
-        exec_por_contrato = {
-            r["contrato"]: (r["liq"] or 0, r["pg"] or 0)
-            for r in Empenho.objects.values("contrato").annotate(
-                liq=Sum("valor_liquidado"), pg=Sum("valor_pago")
-            )
-        }
+        # Empenhado/liquidado/pago por contrato, TODOS pela mesma fonte (linhas
+        # de Empenho) para as três etapas ficarem coerentes no card e na tabela.
+        # O empenhado é LÍQUIDO: soma dos empenhos/reforços menos as anulações
+        # (tipo="anulacao"). Sem isso, o card mostrava o valor_empenhado do
+        # Contrato (só a fatia do exercício corrente) contra liquidado/pago de
+        # todos os anos — gerando distorções como "liquidado = 200% do empenhado".
+        exec_por_contrato = {}
+        for r in Empenho.objects.values("contrato").annotate(
+            emp_pos=Sum("valor_empenhado", filter=~Q(tipo="anulacao")),
+            emp_anu=Sum("valor_empenhado", filter=Q(tipo="anulacao")),
+            liq=Sum("valor_liquidado"),
+            pg=Sum("valor_pago"),
+        ):
+            net_emp = (r["emp_pos"] or 0) - (r["emp_anu"] or 0)
+            exec_por_contrato[r["contrato"]] = (net_emp, r["liq"] or 0, r["pg"] or 0)
+        # Contratos com execução RECENTE (empenho do ano corrente ou anterior
+        # com liquidação/pagamento > 0) — sinal de que estão vivos, mesmo que a
+        # data de fim seja placeholder. Usado para não marcá-los como "expirados".
+        ativos_pks = set(
+            Empenho.objects.filter(ano_exercicio__gte=hoje.year - 1)
+            .filter(Q(valor_liquidado__gt=0) | Q(valor_pago__gt=0))
+            .values_list("contrato_id", flat=True).distinct()
+        )
+
+        # Detalhamento por contrato para o modal (empenhos + aditivos).
+        # Uma query cada, agrupadas em memória por contrato_id.
+        _STATUS_EMP = dict(Empenho.STATUS_LIQUIDACAO)
+        _TIPO_EMP = dict(Empenho.TIPO)
+        empenhos_por_contrato = {}
+        for e in Empenho.objects.values(
+            "contrato", "numero_empenho", "ano_exercicio", "tipo",
+            "valor_empenhado", "valor_liquidado", "valor_pago",
+            "fonte_recurso", "elemento_despesa", "unidade_orcamentaria",
+            "status_liquidacao", "data_emissao",
+        ).order_by("-ano_exercicio", "numero_empenho"):
+            _sinal = -1 if e["tipo"] == "anulacao" else 1
+            empenhos_por_contrato.setdefault(e["contrato"], []).append({
+                "ne": e["numero_empenho"],
+                "ano": e["ano_exercicio"],
+                "tipo": _TIPO_EMP.get(e["tipo"], e["tipo"]),
+                "valor": _sinal * float(e["valor_empenhado"] or 0),
+                "liq": float(e["valor_liquidado"] or 0),
+                "pago": float(e["valor_pago"] or 0),
+                "fonte": e["fonte_recurso"] or "",
+                "elem": e["elemento_despesa"] or "",
+                "uo": e["unidade_orcamentaria"] or "",
+                "status": _STATUS_EMP.get(e["status_liquidacao"], e["status_liquidacao"]),
+                "emissao": e["data_emissao"].isoformat() if e["data_emissao"] else None,
+            })
+
+        _TIPO_ADI = dict(Aditivo.TIPO)
+        aditivos_por_contrato = {}
+        for a in Aditivo.objects.values(
+            "contrato", "numero_aditivo", "tipo", "data_assinatura",
+            "nova_data_fim_vigencia", "valor_acrescimo", "objeto_aditivo",
+        ).order_by("numero_aditivo"):
+            aditivos_por_contrato.setdefault(a["contrato"], []).append({
+                "num": a["numero_aditivo"],
+                "tipo": _TIPO_ADI.get(a["tipo"], a["tipo"]),
+                "assinatura": a["data_assinatura"].isoformat() if a["data_assinatura"] else None,
+                "nova_fim": a["nova_data_fim_vigencia"].isoformat() if a["nova_data_fim_vigencia"] else None,
+                "acrescimo": float(a["valor_acrescimo"] or 0),
+                "objeto": (a["objeto_aditivo"] or "")[:220],
+            })
+
         contratos_data = [
             {
+                "pk": c["pk"],
                 "numero": c["numero_contrato"] or f"#{c['pk']}",
                 "url": reverse("admin:contratos_contrato_change", args=[c["pk"]]),
-                "objeto": (c["objeto"] or "")[:160],
+                "objeto": (c["objeto"] or "")[:400],
                 "contratado": c["contratado_razao_social"] or "—",
+                "cnpj": c["contratado_cnpj_cpf"] or "",
                 "tipo": c["tipo"] or "",
                 "status": c["status"] or "",
                 "orgao": c["orgao_sigla"] or "—",
                 "uo": c["unidade_orcamentaria"] or "",
+                "sei": c["numero_sei"] or "",
                 "valor": float(c["valor_atual"] or 0),
                 "vi": float(c["valor_inicial"] or 0),
-                "empenhado": float(c["valor_empenhado"] or 0),
-                "liq": float(exec_por_contrato.get(c["pk"], (0, 0))[0]),
-                "pago": float(exec_por_contrato.get(c["pk"], (0, 0))[1]),
+                # empenhado: fatia líquida das notas (fallback p/ o campo do
+                # Contrato quando não há linhas de Empenho importadas).
+                "empenhado": float(exec_por_contrato[c["pk"]][0]) if c["pk"] in exec_por_contrato else float(c["valor_empenhado"] or 0),
+                "liq": float(exec_por_contrato.get(c["pk"], (0, 0, 0))[1]),
+                "pago": float(exec_por_contrato.get(c["pk"], (0, 0, 0))[2]),
                 "saldo": float(c["saldo_disponivel"] or 0),
                 "adv": float(c["aditivos_valor"] or 0),
                 "nad": c["n_aditivos"] or 0,
+                "ativo": c["pk"] in ativos_pks,
+                "assinatura": c["data_assinatura"].isoformat() if c["data_assinatura"] else None,
+                "inicio": c["data_inicio_vigencia"].isoformat() if c["data_inicio_vigencia"] else None,
                 "fim": c["data_fim_vigencia"].isoformat() if c["data_fim_vigencia"] else None,
+                "empenhos": empenhos_por_contrato.get(c["pk"], []),
+                "aditivos": aditivos_por_contrato.get(c["pk"], []),
             }
             for c in contratos.annotate(
                 orgao_sigla=F("orgao__sigla"),
@@ -255,9 +324,11 @@ class DashboardContratosView(View):
                 aditivos_valor=Sum("aditivos__valor_acrescimo"),
             ).values(
                 "pk", "numero_contrato", "objeto", "contratado_razao_social",
-                "tipo", "status", "orgao_sigla", "unidade_orcamentaria",
+                "contratado_cnpj_cpf", "tipo", "status", "orgao_sigla",
+                "unidade_orcamentaria", "numero_sei",
                 "valor_inicial", "valor_atual", "valor_empenhado", "saldo_disponivel",
-                "data_fim_vigencia", "n_aditivos", "aditivos_valor",
+                "data_assinatura", "data_inicio_vigencia", "data_fim_vigencia",
+                "n_aditivos", "aditivos_valor",
             )
         ]
 
