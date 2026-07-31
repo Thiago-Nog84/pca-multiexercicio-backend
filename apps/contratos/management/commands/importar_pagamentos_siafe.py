@@ -99,9 +99,18 @@ class Command(BaseCommand):
         self.stdout.write(f"Credores contratuais a consultar: {len(credores)}")
 
         # ── 2. Busca OBs por credor e agrega pago por (codigoNE, UG) ──
-        pago = defaultdict(Decimal)     # (codigoNE, ug) -> soma pago
+        # Dois cuidados essenciais (achado 2026-07-31, NE 2025NE00013 do
+        # contrato 60/2024/FMMPPI, que mostrava pago > liquidado):
+        #   (a) só conta OB com dataPagamento EFETIVA — OB emitida sem pagamento
+        #       (dataPagamento nula) não é 3º estágio;
+        #   (b) DEDUPLICA por codigoNL: o SIAFE às vezes reemite a OB por
+        #       devolução bancária SEM marcar dataCancelamento, e as duas OBs
+        #       pagam a mesma liquidação (NL) com o mesmo valor — somar as duas
+        #       dobrava o pago. Guardamos o MAIOR valor por NL (reemissão repete
+        #       o valor), garantindo um pagamento por liquidação.
+        pago_nl = defaultdict(dict)     # (codigoNE, ug) -> {codigoNL: maior valor}
         data_pg = {}                    # (codigoNE, ug) -> maior data
-        n_obs = n_canceladas = 0
+        n_obs = n_canceladas = n_sem_pgto = 0
         ugs_set = set(UGS_MPPI)
 
         for i, cred in enumerate(credores, 1):
@@ -114,20 +123,31 @@ class Command(BaseCommand):
                     if ob.get("dataCancelamento"):
                         n_canceladas += 1
                         continue
+                    dp = _data(ob.get("dataPagamento"))
+                    if not dp:
+                        n_sem_pgto += 1
+                        continue
                     ne = (str(ob.get("codigoNE") or "")).strip()
                     ug = (str(ob.get("codigoUGEmpenho") or "")).strip()
                     if not ne or ug not in ugs_set:
                         continue
                     n_obs += 1
-                    pago[(ne, ug)] += _dec(ob.get("valor"))
-                    d = _data(ob.get("dataPagamento") or ob.get("dataContabilizacao"))
-                    if d and ((ne, ug) not in data_pg or d > data_pg[(ne, ug)]):
-                        data_pg[(ne, ug)] = d
+                    valor = _dec(ob.get("valor"))
+                    # sem NL (ex.: restos a pagar não processados) → chave única
+                    # pela própria OB para não deduplicar indevidamente.
+                    nl = (str(ob.get("codigoNL") or "")).strip() or f"__ob_{ob.get('codigo')}"
+                    slot = pago_nl[(ne, ug)]
+                    slot[nl] = max(slot.get(nl, Decimal("0")), valor)
+                    if (ne, ug) not in data_pg or dp > data_pg[(ne, ug)]:
+                        data_pg[(ne, ug)] = dp
             if i % 20 == 0:
                 self.stdout.write(f"  … {i}/{len(credores)} credores processados")
 
+        pago = {k: sum(v.values()) for k, v in pago_nl.items()}
+
         self.stdout.write(self.style.SUCCESS(
-            f"\n{n_obs} OB(s) de contrato agregadas ({n_canceladas} canceladas ignoradas); "
+            f"\n{n_obs} OB(s) paga(s) agregadas ({n_canceladas} canceladas + "
+            f"{n_sem_pgto} sem data de pagamento ignoradas); "
             f"{len(pago)} par(es) empenho+UG com pagamento."
         ))
 

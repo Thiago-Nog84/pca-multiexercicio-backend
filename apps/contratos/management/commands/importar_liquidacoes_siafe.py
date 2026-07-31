@@ -19,8 +19,11 @@ Cada NL traz:
   - `dataCancelamento`        → quando preenchido, a NL foi cancelada (ignorada)
 
 A liquidação de UM empenho pode ser feita por VÁRIAS NLs (parcelas) e ao
-longo de mais de um exercício (restos a pagar) — por isso somamos todas as
-NLs de todos os exercícios pedidos por `codigoEmpenhoVinculado`.
+longo de mais de um exercício (restos a pagar) — somamos as NLs de todos os
+exercícios pedidos por `codigoEmpenhoVinculado`, mas DEDUPLICANDO por nº de NL:
+a mesma NL de um exercício reaparece no listing do exercício seguinte (restos a
+pagar) e, sem dedup, seria contada em dobro (inflava o liquidado acima do
+empenhado — achado 2026-07-31, 64/2022/PGJ).
 
 ⚠️ Colisão de nº de NE entre UGs (ver [[project-pca-empenho-fonte-confiavel]]):
 quando mais de um `Empenho` local tem o mesmo `numero_empenho`, desambigua
@@ -96,9 +99,15 @@ class Command(BaseCommand):
         # `unidade_orcamentaria` (250101/250102/250104) — então a chave
         # correta e sem ambiguidade é (codigoEmpenhoVinculado, UG).
         # (codContrato da NL vem quase sempre nulo, não serve para desambiguar.)
-        liq = defaultdict(Decimal)     # (numero_empenho, ug) -> soma liquidado
+        # ⚠️ DEDUP por nº de NL: uma NL de um exercício REAPARECE no listing do
+        # exercício seguinte como restos a pagar (ex.: 2025NL02300 aparece na
+        # consulta de 2025 e na de 2026). Somar as duas dobrava o liquidado —
+        # achado 2026-07-31 no 64/2022/PGJ (NE 2025NE01040/01293 apareciam com
+        # liquidado > empenhado). Guardamos {codigo_nl: valor} por (empenho,UG)
+        # e somamos só NLs distintas.
+        liq_nl = defaultdict(dict)     # (numero_empenho, ug) -> {codigo_nl: valor}
         data_liq = {}                  # (numero_empenho, ug) -> maior data
-        n_nls = n_canceladas = 0
+        n_nls = n_canceladas = n_dup = 0
 
         for exe in exercicios:
             for ug in ugs:
@@ -111,15 +120,22 @@ class Command(BaseCommand):
                     ne = (nl.get("codigoEmpenhoVinculado") or "").strip()
                     if not ne:
                         continue
-                    valor = _dec(nl.get("valor"))
+                    cod = (str(nl.get("codigo") or "")).strip() or f"__idx{n_nls}_{n_dup}"
+                    slot = liq_nl[(ne, ug)]
+                    if cod in slot:          # mesma NL já contada (restos a pagar)
+                        n_dup += 1
+                        continue
+                    slot[cod] = _dec(nl.get("valor"))
                     n_nls += 1
-                    liq[(ne, ug)] += valor
                     d = _data(nl.get("dataContabilizacao") or nl.get("dataEmissao"))
                     if d and ((ne, ug) not in data_liq or d > data_liq[(ne, ug)]):
                         data_liq[(ne, ug)] = d
 
+        liq = {k: sum(v.values()) for k, v in liq_nl.items()}
+
         self.stdout.write(self.style.SUCCESS(
-            f"\n{n_nls} NL(s) válidas agregadas ({n_canceladas} canceladas ignoradas); "
+            f"\n{n_nls} NL(s) únicas agregadas ({n_canceladas} canceladas + "
+            f"{n_dup} duplicadas entre exercícios ignoradas); "
             f"{len(liq)} par(es) empenho+UG liquidados no SIAFE."
         ))
 
