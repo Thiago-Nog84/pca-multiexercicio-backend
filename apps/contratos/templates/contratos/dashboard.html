@@ -314,14 +314,18 @@
     </div>
     <!-- cartões de ação sugerida (clicáveis) -->
     <div class="row g-2 mb-3" id="acao-cards">
-      <div class="col-6 col-md-3"><div class="p-2 rounded text-center acao-card" role="button" data-acao="sem_empenho" style="background:#fff1f2;border:1px solid #fecdd3;">
-        <div class="fw-bold text-danger" id="a-sem_empenho">0</div><div class="small text-danger" style="font-size:.72rem;"><i class="bi bi-cash-stack me-1"></i>Sem empenho</div></div></div>
-      <div class="col-6 col-md-3"><div class="p-2 rounded text-center acao-card" role="button" data-acao="vencendo" style="background:#fffbeb;border:1px solid #fde68a;">
-        <div class="fw-bold text-warning" id="a-vencendo">0</div><div class="small text-warning" style="font-size:.72rem;"><i class="bi bi-alarm me-1"></i>Vencendo ≤90d</div></div></div>
-      <div class="col-6 col-md-3"><div class="p-2 rounded text-center acao-card" role="button" data-acao="expirada" style="background:#f5f3ff;border:1px solid #ddd6fe;">
-        <div class="fw-bold" style="color:#7c3aed;" id="a-expirada">0</div><div class="small" style="color:#7c3aed;font-size:.72rem;"><i class="bi bi-calendar-x me-1"></i>Vigência expirada</div></div></div>
-      <div class="col-6 col-md-3"><div class="p-2 rounded text-center acao-card" role="button" data-acao="aditivo_limite" style="background:#eff6ff;border:1px solid #bfdbfe;">
-        <div class="fw-bold text-primary" id="a-aditivo_limite">0</div><div class="small text-primary" style="font-size:.72rem;"><i class="bi bi-file-earmark-plus me-1"></i>Aditivo no limite</div></div></div>
+      <div class="col-6 col-md-2"><div class="p-2 rounded text-center acao-card h-100" role="button" data-acao="empenho_compl" style="background:#fef2f2;border:1px solid #fecaca;">
+        <div class="fw-bold" style="color:#dc2626;" id="a-empenho_compl">0</div><div class="small" style="color:#dc2626;font-size:.7rem;"><i class="bi bi-cash-stack me-1"></i>Empenho a esgotar</div></div></div>
+      <div class="col-6 col-md-2"><div class="p-2 rounded text-center acao-card h-100" role="button" data-acao="exaurindo" style="background:#fff7ed;border:1px solid #fed7aa;">
+        <div class="fw-bold" style="color:#b45309;" id="a-exaurindo">0</div><div class="small" style="color:#b45309;font-size:.7rem;"><i class="bi bi-battery-low me-1"></i>Contrato exaurindo</div></div></div>
+      <div class="col-6 col-md-2"><div class="p-2 rounded text-center acao-card h-100" role="button" data-acao="sem_empenho" style="background:#fff1f2;border:1px solid #fecdd3;">
+        <div class="fw-bold text-danger" id="a-sem_empenho">0</div><div class="small text-danger" style="font-size:.7rem;"><i class="bi bi-cash me-1"></i>Sem empenho</div></div></div>
+      <div class="col-6 col-md-2"><div class="p-2 rounded text-center acao-card h-100" role="button" data-acao="vencendo" style="background:#fffbeb;border:1px solid #fde68a;">
+        <div class="fw-bold text-warning" id="a-vencendo">0</div><div class="small text-warning" style="font-size:.7rem;"><i class="bi bi-alarm me-1"></i>Vencendo ≤90d</div></div></div>
+      <div class="col-6 col-md-2"><div class="p-2 rounded text-center acao-card h-100" role="button" data-acao="expirada" style="background:#f5f3ff;border:1px solid #ddd6fe;">
+        <div class="fw-bold" style="color:#7c3aed;" id="a-expirada">0</div><div class="small" style="color:#7c3aed;font-size:.7rem;"><i class="bi bi-calendar-x me-1"></i>Vigência expirada</div></div></div>
+      <div class="col-6 col-md-2"><div class="p-2 rounded text-center acao-card h-100" role="button" data-acao="aditivo_limite" style="background:#eff6ff;border:1px solid #bfdbfe;">
+        <div class="fw-bold text-primary" id="a-aditivo_limite">0</div><div class="small text-primary" style="font-size:.7rem;"><i class="bi bi-file-earmark-plus me-1"></i>Aditivo no limite</div></div></div>
     </div>
     <div class="row g-3">
       <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
@@ -355,7 +359,8 @@
           <th class="expl-sort" data-k="tipo" role="button" style="cursor:pointer;">Tipo</th>
           <th class="expl-sort text-end" data-k="valor" role="button" style="cursor:pointer;">Valor (R$)</th>
           <th class="expl-sort text-end" data-k="empenhado" role="button" style="cursor:pointer;">Empenhado</th>
-          <th class="text-end">% emp</th>
+          <th class="expl-sort text-end" data-k="liq" role="button" style="cursor:pointer;">Liquidado</th>
+          <th class="text-end" title="Liquidado ÷ Empenhado">% exec</th>
           <th class="expl-sort" data-k="fim" role="button" style="cursor:pointer;">Vigência</th>
           <th class="expl-sort" data-k="status" role="button" style="cursor:pointer;">Status</th>
           <th>Ação sugerida</th>
@@ -981,23 +986,28 @@
   const FAIXA_LAB = Object.fromEntries(FAIXAS.map(f => [f.k, f.label]));
   const faixaOf = d => { const dd = dias(d.fim); if (dd === null) return 'sem'; if (dd < 0) return 'vencido'; if (dd <= 30) return 'd30'; if (dd <= 90) return 'd90'; if (dd <= 180) return 'd180'; return 'd180p'; };
 
-  // % empenhado do valor atual (informativo — p/ multianuais empenho é a fatia do exercício)
+  // % empenhado do valor (informativo) e % executado do empenho (liquidado/empenhado)
   const pctEmp = d => d.valor > 0 ? Math.round(d.empenhado / d.valor * 100) : 0;
-  // ação sugerida (1 categoria por contrato, por prioridade)
+  const pctExec = d => d.empenhado > 0 ? Math.round(d.liq / d.empenhado * 100) : 0;
+  // ação sugerida (1 categoria por contrato, por prioridade) — agora com consumo real
   const ACAO = {
-    sem_empenho:    {label:'Sem empenho',       hint:'empenhar',                 cor:'#dc3545'},
-    vencendo:       {label:'Vencendo ≤90d',      hint:'aditivo / nova contratação', cor:'#d97706'},
-    expirada:       {label:'Vigência expirada',  hint:'encerrar / nova contratação', cor:'#7c3aed'},
-    aditivo_limite: {label:'Aditivo no limite',  hint:'atenção ao teto legal',    cor:'#2563eb'},
-    ok:             {label:'—',                  hint:'',                         cor:'#94a3b8'},
+    empenho_compl:  {label:'Empenho a esgotar', hint:'empenho complementar (executado ≥90% do empenhado)', cor:'#dc2626'},
+    exaurindo:      {label:'Contrato exaurindo', hint:'nova contratação (executado ≥90% do valor)',        cor:'#b45309'},
+    sem_empenho:    {label:'Sem empenho',        hint:'empenhar',                    cor:'#dc3545'},
+    vencendo:       {label:'Vencendo ≤90d',       hint:'aditivo / nova contratação',   cor:'#d97706'},
+    expirada:       {label:'Vigência expirada',   hint:'encerrar / nova contratação',  cor:'#7c3aed'},
+    aditivo_limite: {label:'Aditivo no limite',   hint:'atenção ao teto legal',       cor:'#2563eb'},
+    ok:             {label:'—',                   hint:'',                            cor:'#94a3b8'},
   };
-  const ACAO_KEYS = ['sem_empenho', 'vencendo', 'expirada', 'aditivo_limite'];
+  const ACAO_KEYS = ['empenho_compl', 'exaurindo', 'sem_empenho', 'vencendo', 'expirada', 'aditivo_limite'];
   const acaoDe = d => {
-    const dd = dias(d.fim);
-    if (d.status === 'vigente' && dd !== null && dd < 0) return 'expirada';
+    const dd = dias(d.fim), vig = d.status === 'vigente';
+    if (vig && dd !== null && dd < 0) return 'expirada';
+    if (vig && d.valor > 0 && d.liq / d.valor >= 0.90) return 'exaurindo';
+    if (vig && d.empenhado > 0 && d.liq / d.empenhado >= 0.90) return 'empenho_compl';
     if (d.vi > 0 && d.adv / d.vi >= (d.tipo === 'obra' ? 0.25 : 0.50)) return 'aditivo_limite';
-    if (d.status === 'vigente' && d.empenhado === 0) return 'sem_empenho';
-    if (d.status === 'vigente' && dd !== null && dd >= 0 && dd <= 90) return 'vencendo';
+    if (vig && d.empenhado === 0) return 'sem_empenho';
+    if (vig && dd !== null && dd >= 0 && dd <= 90) return 'vencendo';
     return 'ok';
   };
 
@@ -1108,22 +1118,23 @@
     const LIMIT = 200, shown = rows.slice(0, LIMIT);
     document.getElementById('tbl-body').innerHTML = shown.map(d => {
       const dd = dias(d.fim), venc = (dd !== null && dd >= 0 && dd <= 90);
-      const pe = pctEmp(d), a = acaoDe(d);
+      const px = pctExec(d), a = acaoDe(d);
       const acaoTd = a === 'ok'
         ? '<span class="text-muted">—</span>'
         : `<span class="badge" style="background:${ACAO[a].cor}1a;color:${ACAO[a].cor};" title="${esc(ACAO[a].hint)}">${esc(ACAO[a].label)}</span>`;
       return `<tr>
         <td><a href="${d.url}" class="fw-semibold text-decoration-none">${esc(d.numero)}</a></td>
         <td>${esc(d.orgao)}</td>
-        <td class="text-muted" style="max-width:300px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(d.objeto)} — ${esc(d.contratado)}">${esc(d.objeto)}<br><span style="font-size:.72rem;">${esc(d.contratado)}</span></td>
+        <td class="text-muted" style="max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(d.objeto)} — ${esc(d.contratado)}">${esc(d.objeto)}<br><span style="font-size:.72rem;">${esc(d.contratado)}</span></td>
         <td><span class="small">${esc(lab('tipo', d.tipo))}</span></td>
         <td class="text-end">${d.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
         <td class="text-end">${d.empenhado.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-        <td class="text-end ${pe === 0 ? 'text-danger' : 'text-muted'}">${pe}%</td>
+        <td class="text-end">${d.liq.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+        <td class="text-end ${px >= 90 ? 'text-danger fw-semibold' : 'text-muted'}">${d.empenhado > 0 ? px + '%' : '—'}</td>
         <td class="${venc ? 'text-danger fw-semibold' : ''}">${fmtData(d.fim)}</td>
         <td><span class="badge bg-${STB[d.status] || 'light'}-subtle text-${STB[d.status] || 'dark'}">${esc(lab('status', d.status))}</span></td>
         <td>${acaoTd}</td></tr>`;
-    }).join('') || '<tr><td colspan="10" class="text-center text-muted py-4">Nenhum contrato com os filtros atuais.</td></tr>';
+    }).join('') || '<tr><td colspan="11" class="text-center text-muted py-4">Nenhum contrato com os filtros atuais.</td></tr>';
     document.getElementById('tbl-footer').textContent = rows.length > LIMIT ? `Mostrando ${LIMIT} de ${rows.length} contratos — refine os filtros.` : `${rows.length} contrato(s).`;
   }
 

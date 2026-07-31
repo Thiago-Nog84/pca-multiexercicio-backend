@@ -221,6 +221,12 @@ class DashboardContratosView(View):
         # ── Dados por contrato para o explorador interativo (client-side) ──
         # Serializa cada contrato em tipos JSON simples; o template filtra,
         # agrega e desenha os gráficos no navegador, sem recarregar a página.
+        # Liquidado por contrato em query SEPARADA (evita multiplicação de JOIN
+        # ao misturar Sum sobre 'empenhos' com Count/Sum sobre 'aditivos').
+        liq_por_contrato = {
+            r["contrato"]: r["s"]
+            for r in Empenho.objects.values("contrato").annotate(s=Sum("valor_liquidado"))
+        }
         contratos_data = [
             {
                 "numero": c["numero_contrato"] or f"#{c['pk']}",
@@ -234,6 +240,7 @@ class DashboardContratosView(View):
                 "valor": float(c["valor_atual"] or 0),
                 "vi": float(c["valor_inicial"] or 0),
                 "empenhado": float(c["valor_empenhado"] or 0),
+                "liq": float(liq_por_contrato.get(c["pk"], 0) or 0),
                 "saldo": float(c["saldo_disponivel"] or 0),
                 "adv": float(c["aditivos_valor"] or 0),
                 "nad": c["n_aditivos"] or 0,
