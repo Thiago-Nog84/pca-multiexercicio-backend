@@ -43,11 +43,12 @@ def _derivar_url_pncp_contrato(numero_pncp):
     Deriva o link da página do contrato no PNCP a partir do `numero_pncp`
     cadastrado (formato ex: 10551559000163-2-000036/2026).
 
-    Padrão confirmado manualmente por Thiago em 2026-07-23 (URL real de
-    contrato, ex: https://pncp.gov.br/contratos/05805924000189/2026/42) —
-    SEM "/app/" antes de "contratos", diferente do padrão usado pras atas
-    (que é https://pncp.gov.br/app/atas/...). Corrigido: antes esta função
-    gerava "/app/contratos/..." (nunca confirmado, provavelmente errado).
+    Padrão CORRIGIDO em 2026-08-03: Thiago enviou um print real do PNCP (contrato
+    80/2025 FPDC, "Id contrato PNCP: 05805924000189-2-000082/2025") com a barra de
+    endereço visível: https://pncp.gov.br/app/contratos/05805924000189/2025/82 —
+    COM "/app/" antes de "contratos", mesma família das atas
+    (https://pncp.gov.br/app/atas/...). Isso reverte a "confirmação" anterior de
+    2026-07-23 (sem "/app/"), que era equivocada.
 
     Não é um PDF direto — é a página do contrato no site do PNCP.
     Retorna None se o formato não bater ou o campo estiver vazio.
@@ -60,7 +61,7 @@ def _derivar_url_pncp_contrato(numero_pncp):
             cnpj = parts[0]
             num_ano = parts[2].split("/")
             if len(num_ano) == 2:
-                return f"https://pncp.gov.br/contratos/{cnpj}/{num_ano[1]}/{int(num_ano[0])}"
+                return f"https://pncp.gov.br/app/contratos/{cnpj}/{num_ano[1]}/{int(num_ano[0])}"
     except (ValueError, IndexError):
         pass
     return None
@@ -178,11 +179,11 @@ def _resolver_instrumento_contrato(cp, url_pncp_pagina=None, url_ata_pncp=None, 
         return {
             "tipo": "ata_pncp",
             "url": url_ata_pncp,
-            "label": "Ver ata de origem no PNCP",
+            "label": "Ver Instrumento",
             "titulo": (
                 "Este contrato não tem página própria cadastrada no PNCP. Este "
-                "link abre a ata de registro de preços que o originou — não é "
-                "o contrato específico, mas ajuda a localizá-lo manualmente."
+                "link abre a ata de registro de preços que o originou — a partir "
+                "dela é possível localizar o contrato específico e seus aditivos."
             ),
         }
 
@@ -593,6 +594,7 @@ class ARPDetalheView(View):
             lista_contratos.append({
                 "pk": cp.pk,
                 "numero_contrato": cp.numero_contrato,
+                "unidade_sigla": cp.unidade_requisitante.sigla if cp.unidade_requisitante else None,
                 "contratado_nome": cp.contratado_razao_social,
                 "contratado_cnpj": cp.contratado_cnpj_cpf,
                 "uasg_contratante": cp.orgao.nome if cp.orgao else (cp.unidade_requisitante.nome if cp.unidade_requisitante else "MPPI"),
@@ -672,6 +674,7 @@ class ARPDetalheView(View):
             lista_contratos.append({
                 "pk": ca.pk,
                 "numero_contrato": ca.numero_contrato,
+                "unidade_sigla": None,
                 "contratado_nome": ca.contratado_nome,
                 "contratado_cnpj": ca.contratado_cnpj,
                 "uasg_contratante": ca.nome_uasg_contratante or ca.uasg_contratante,
@@ -1166,5 +1169,107 @@ class ContratacoesDecorrentesView(View):
             "subtitulo_exercicio": subtitulo_exercicio,
             "subtitulo_arp": subtitulo_arp,
             "subtitulo_item": subtitulo_item,
+        }
+        return render(request, self.template_name, context)
+
+
+@method_decorator(login_required, name="dispatch")
+class CaronasView(View):
+    """
+    Painel de Caronas (adesões a ARP), nas duas direções:
+
+    - RECEBIDAS: o MPPI aderiu à ARP de outro órgão (`ARPExterna`).
+      Decreto 11.462/2023, art. 10.
+    - CEDIDAS: outro órgão aderiu a uma ARP do MPPI (`AdesaoARP`).
+      Decreto 11.462/2023, art. 9º — limite de 50% por item por aderente.
+    """
+
+    template_name = "srp/caronas.html"
+
+    def get(self, request):
+        from django.urls import reverse
+
+        hoje = date.today()
+        d30 = hoje + timedelta(days=30)
+
+        # ── Caronas RECEBIDAS (ARPExterna) ─────────────────────────────
+        recebidas = []
+        for e in ARPExterna.objects.select_related("unidade_beneficiaria").order_by(
+            "data_fim_vigencia"
+        ):
+            dias = (e.data_fim_vigencia - hoje).days if e.data_fim_vigencia else None
+            if e.status != "ativa":
+                st = e.status
+            elif e.data_fim_vigencia and e.data_fim_vigencia < hoje:
+                st = "vencida"
+            else:
+                st = "ativa"
+            val_aut = float(e.valor_total_autorizado or 0)
+            val_util = float(e.valor_utilizado or 0)
+            qtd_aut = float(e.quantidade_autorizada or 0)
+            qtd_util = float(e.quantidade_utilizada or 0)
+            pct = round(val_util / val_aut * 100, 1) if val_aut else 0
+            orgao_indef = e.orgao_gerenciador_nome.strip().lower().startswith("a identificar")
+            recebidas.append({
+                "obj": e,
+                "dias": dias,
+                "status_efetivo": st,
+                "val_aut": val_aut,
+                "val_util": val_util,
+                "saldo_val": val_aut - val_util,
+                "qtd_aut": qtd_aut,
+                "qtd_util": qtd_util,
+                "pct": pct,
+                "sem_sei": not (e.numero_sei_adesao or "").strip(),
+                "orgao_indef": orgao_indef,
+                "vencendo": dias is not None and 0 <= dias <= 30,
+                "unidade": e.unidade_beneficiaria.sigla if e.unidade_beneficiaria else "",
+                "url_pncp": (
+                    f"https://pncp.gov.br/app/atas?q={e.numero_pncp_origem}"
+                    if e.numero_pncp_origem else ""
+                ),
+            })
+
+        rec_vigentes = [r for r in recebidas if r["status_efetivo"] == "ativa"]
+        rec_vencidas = [r for r in recebidas if r["status_efetivo"] == "vencida"]
+        kpi_recebidas = {
+            "total": len(recebidas),
+            "vigentes": len(rec_vigentes),
+            "vencidas": len(rec_vencidas),
+            "vencendo_30": sum(1 for r in recebidas if r["vencendo"]),
+            "val_autorizado": sum(r["val_aut"] for r in recebidas),
+            "val_utilizado": sum(r["val_util"] for r in recebidas),
+            "saldo": sum(r["saldo_val"] for r in recebidas),
+            "sem_sei": sum(1 for r in recebidas if r["sem_sei"]),
+            "orgao_indef": sum(1 for r in recebidas if r["orgao_indef"]),
+        }
+
+        # ── Caronas CEDIDAS (AdesaoARP) ────────────────────────────────
+        cedidas = []
+        for a in AdesaoARP.objects.select_related("arp", "item_arp").order_by(
+            "-data_solicitacao"
+        ):
+            cedidas.append({
+                "obj": a,
+                "arp_pk": a.arp.pk,
+                "arp_numero": a.arp.numero_arp,
+                "valor": float(a.valor_total or 0),
+                "sem_sei": not (a.numero_sei_autorizacao or "").strip(),
+            })
+        ced_aut = [c for c in cedidas if c["obj"].status == "autorizada"]
+        kpi_cedidas = {
+            "total": len(cedidas),
+            "autorizadas": len(ced_aut),
+            "pendentes": sum(1 for c in cedidas if c["obj"].status == "solicitada"),
+            "valor_total": sum(c["valor"] for c in ced_aut),
+            "orgaos_distintos": len({c["obj"].orgao_aderente_cnpj for c in ced_aut}),
+        }
+
+        context = {
+            "hoje": hoje,
+            "recebidas": recebidas,
+            "kpi_recebidas": kpi_recebidas,
+            "cedidas": cedidas,
+            "kpi_cedidas": kpi_cedidas,
         }
         return render(request, self.template_name, context)

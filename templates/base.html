@@ -6,6 +6,9 @@
   <title>{% block title %}PCA — MPPI{% endblock %}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     /* ── Variáveis de cor — MPPI Identidade Visual (Res. CPJ 08/2025) ── */
     :root {
@@ -52,6 +55,7 @@
       font-size: 0.9rem;
       margin: 0;
       overflow-x: hidden;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
     /* ── Topbar ───────────────────────────────────────────── */
@@ -225,9 +229,32 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 1.2rem;
     }
-    .kpi-card .kpi-value { font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
+    .kpi-card .kpi-value { font-size: 1.6rem; font-weight: 800; line-height: 1.1; }
     .kpi-card .kpi-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #64748b; }
-    .kpi-card .kpi-sub   { font-size: .75rem; color: #94a3b8; }
+    .kpi-card .kpi-sub   { font-size: .75rem; color: #6b7688; } /* P5: #94a3b8 tinha 2.56:1 (falha WCAG AA) — trocado para 4.59:1 */
+
+    /* ── Ícone de ajuda (tooltip explicativo) nos cards/gráficos ── */
+    .info-tip {
+      font-size: .72rem; color: #9ca3af; cursor: help; margin-left: .3rem;
+      vertical-align: middle; transition: color .15s;
+    }
+    .info-tip:hover, .info-tip:focus { color: #64748b; }
+    .tooltip .tooltip-inner {
+      background: #fff; color: #334155; text-align: left; font-weight: 400;
+      font-size: .78rem; line-height: 1.35; max-width: 240px; padding: .55rem .75rem;
+      border-radius: 8px; border: 1px solid #e5e7eb; box-shadow: 0 6px 20px rgba(15,23,42,.12);
+    }
+    .tooltip.bs-tooltip-top .tooltip-arrow::before,
+    .tooltip.bs-tooltip-auto[data-popper-placement^="top"] .tooltip-arrow::before { border-top-color: #fff; }
+    .tooltip.bs-tooltip-bottom .tooltip-arrow::before,
+    .tooltip.bs-tooltip-auto[data-popper-placement^="bottom"] .tooltip-arrow::before { border-bottom-color: #fff; }
+    .tooltip.bs-tooltip-start .tooltip-arrow::before,
+    .tooltip.bs-tooltip-auto[data-popper-placement^="left"] .tooltip-arrow::before { border-left-color: #fff; }
+    .tooltip.bs-tooltip-end .tooltip-arrow::before,
+    .tooltip.bs-tooltip-auto[data-popper-placement^="right"] .tooltip-arrow::before { border-right-color: #fff; }
+
+    /* ── Alternador de métrica nos gráficos (nº processos ↔ valores) ── */
+    .chart-metric-toggle .btn { font-size: .72rem; padding: .2rem .55rem; }
 
     /* ── Alert pills ──────────────────────────────────────── */
     .alert-pill {
@@ -269,7 +296,7 @@
     .card-header { font-size: .85rem; font-weight: 700; }
 
     /* ── Footer ───────────────────────────────────────────── */
-    footer { font-size: .76rem; color: #94a3b8; }
+    footer { font-size: .76rem; color: #6b7688; } /* P5: era #94a3b8 (2.56:1, falha WCAG AA) */
 
     /* ── Tabelas: bordas ao fundo, dados à frente ────────────
        (Storytelling com Dados, cap. 3 — Knaflic). Clareia a borda
@@ -283,6 +310,43 @@
       .sidebar { transform: translateX(-100%); transition: transform .2s ease; }
       body.sidebar-open .sidebar { transform: translateX(0); }
       .main-wrap { margin-left: 0 !important; }
+    }
+
+    /* ── Modo apresentação (telão/congresso) ─────────────────
+       Esconde a navegação e amplia os números-chave. Ativado pelo
+       botão de tela cheia no topbar; body.presentation-mode. */
+    body.presentation-mode .topbar,
+    body.presentation-mode .sidebar,
+    body.presentation-mode footer {
+      display: none !important;
+    }
+    body.presentation-mode .main-wrap {
+      margin-left: 0 !important;
+      margin-top: 0 !important;
+    }
+    body.presentation-mode .main-content {
+      padding: clamp(1.5rem, 4vw, 3.5rem) clamp(1.5rem, 6vw, 4.5rem);
+    }
+    body.presentation-mode .page-header h1 {
+      font-size: clamp(1.8rem, 3vw, 2.6rem) !important;
+    }
+    body.presentation-mode .page-header p {
+      font-size: clamp(.95rem, 1.4vw, 1.15rem) !important;
+    }
+    body.presentation-mode .kpi-value {
+      font-size: clamp(1.9rem, 3.2vw, 2.8rem) !important;
+    }
+    body.presentation-mode .kpi-label {
+      font-size: clamp(.75rem, 1vw, .9rem) !important;
+    }
+    body.presentation-mode .kpi-sub {
+      font-size: clamp(.8rem, 1.1vw, 1rem) !important;
+    }
+    body.presentation-mode .chart-subtitle {
+      font-size: clamp(.95rem, 1.4vw, 1.2rem) !important;
+    }
+    body.presentation-mode .card {
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
     }
   </style>
   {% block extra_style %}{% endblock %}
@@ -307,6 +371,36 @@
         </div>
       {% endfor %}
     {% endif %}
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-light py-0 dropdown-toggle" type="button"
+              id="visaoSelector" data-bs-toggle="dropdown" title="Escolher visão por perfil">
+        <i class="bi bi-eye me-1"></i><span id="visaoAtualLabel">Ver como…</span>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><h6 class="dropdown-header">Ver como…</h6></li>
+        <li>
+          <a class="dropdown-item" href="{% url 'pca:demandas' %}" data-visao="operacional" data-visao-nome="Operacional">
+            <i class="bi bi-person-workspace me-2 text-primary"></i>Operacional
+            <div class="small text-muted ms-4">minhas demandas e pendências</div>
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{% url 'srp:dashboard' %}" data-visao="coordenacao" data-visao-nome="Coordenação">
+            <i class="bi bi-diagram-3 me-2 text-success"></i>Coordenação
+            <div class="small text-muted ms-4">painel operacional da frente</div>
+          </a>
+        </li>
+        <li>
+          <a class="dropdown-item" href="{% url 'pca:dashboard' %}" data-visao="gestao" data-visao-nome="Gestão">
+            <i class="bi bi-graph-up-arrow me-2 text-danger"></i>Gestão
+            <div class="small text-muted ms-4">visão geral do PCA</div>
+          </a>
+        </li>
+      </ul>
+    </div>
+    <button class="topbar-toggle" id="presentationToggle" title="Modo apresentação (tela cheia)">
+      <i class="bi bi-arrows-fullscreen"></i>
+    </button>
     <a href="/admin/" class="btn btn-sm btn-outline-light py-0">
       <i class="bi bi-shield-lock me-1"></i>Admin
     </a>
@@ -330,10 +424,6 @@
       <i class="bi bi-list-task"></i>
       <span class="link-text">Demandas (DFDs)</span>
     </a>
-    <a href="{% url 'pca:cadastro_grupo' %}" class="sidebar-link {% block nav_cadastro_grupo %}{% endblock %}">
-      <i class="bi bi-collection"></i>
-      <span class="link-text">Nova demanda (grupo)</span>
-    </a>
     <a href="{% url 'pca:suspensas' %}" class="sidebar-link {% block nav_suspensas %}{% endblock %}">
       <i class="bi bi-pause-circle"></i>
       <span class="link-text">Demandas Suspensas</span>
@@ -341,10 +431,6 @@
     <a href="{% url 'pca:workflow' %}" class="sidebar-link {% block nav_workflow %}{% endblock %}">
       <i class="bi bi-signpost-split"></i>
       <span class="link-text">Fases do PCA</span>
-    </a>
-    <a href="{% url 'pca:duplicatas' %}" class="sidebar-link {% block nav_duplicatas %}{% endblock %}">
-      <i class="bi bi-intersect"></i>
-      <span class="link-text">Possíveis Duplicatas</span>
     </a>
     <a href="{% url 'pca:validar_demandas' 2027 %}" class="sidebar-link {% block nav_validar %}{% endblock %}">
       <i class="bi bi-clipboard2-check"></i>
@@ -370,6 +456,10 @@
     <a href="{% url 'srp:dashboard' %}" class="sidebar-link {% block nav_srp %}{% endblock %}">
       <i class="bi bi-card-list"></i>
       <span class="link-text">ARPs — Registro de Preços</span>
+    </a>
+    <a href="{% url 'srp:caronas' %}" class="sidebar-link {% block nav_caronas %}{% endblock %}">
+      <i class="bi bi-share"></i>
+      <span class="link-text">Caronas (Adesões)</span>
     </a>
 
     <div class="sidebar-divider"></div>
@@ -443,6 +533,133 @@
     body.classList.toggle('sidebar-collapsed');
     body.classList.toggle('sidebar-open'); // mobile
     localStorage.setItem('sidebarCollapsed', body.classList.contains('sidebar-collapsed') ? '1' : '0');
+  });
+})();
+
+// ── Modo apresentação (P2) ────────────────────────────────
+(function () {
+  const body = document.body;
+  const btn = document.getElementById('presentationToggle');
+  const icon = btn.querySelector('i');
+
+  function setIcon(ativo) {
+    icon.className = ativo ? 'bi bi-fullscreen-exit' : 'bi bi-arrows-fullscreen';
+    btn.title = ativo ? 'Sair do modo apresentação' : 'Modo apresentação (tela cheia)';
+  }
+
+  function entrar() {
+    body.classList.add('presentation-mode');
+    setIcon(true);
+    const el = document.documentElement;
+    if (el.requestFullscreen) { el.requestFullscreen().catch(function () {}); }
+  }
+
+  function sair() {
+    body.classList.remove('presentation-mode');
+    setIcon(false);
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(function () {});
+    }
+  }
+
+  btn.addEventListener('click', function () {
+    if (body.classList.contains('presentation-mode')) { sair(); } else { entrar(); }
+  });
+
+  // Sai do modo apresentação se o usuário fechar a tela cheia pelo Esc/navegador
+  document.addEventListener('fullscreenchange', function () {
+    if (!document.fullscreenElement && body.classList.contains('presentation-mode')) {
+      body.classList.remove('presentation-mode');
+      setIcon(false);
+    }
+  });
+})();
+
+// ── Números animados nos KPI cards (P4) ─────────────────────
+// Uso: <div class="kpi-value" data-countup="1234567.89" data-countup-decimals="2"
+//           data-countup-prefix="R$ ">R$ 1.234.567,89</div>
+// O texto original (renderizado pelo Django) fica como conteúdo do elemento — é o
+// fallback caso o JS não rode. Ao carregar, a animação sobrescreve com o mesmo formato.
+(function () {
+  function formatBR(value, decimals) {
+    var negative = value < 0;
+    value = Math.abs(value);
+    var fixed = value.toFixed(decimals);
+    var parts = fixed.split('.');
+    var intPart = parts[0];
+    var groups = [];
+    while (intPart.length > 3) {
+      groups.unshift(intPart.slice(-3));
+      intPart = intPart.slice(0, -3);
+    }
+    groups.unshift(intPart);
+    var result = groups.join('.');
+    if (decimals > 0) { result += ',' + parts[1]; }
+    return (negative ? '-' : '') + result;
+  }
+
+  function animateCountUp(el) {
+    var target = parseFloat(el.getAttribute('data-countup'));
+    if (isNaN(target)) { return; }
+    var decimals = parseInt(el.getAttribute('data-countup-decimals') || '0', 10);
+    var prefix = el.getAttribute('data-countup-prefix') || '';
+    var suffix = el.getAttribute('data-countup-suffix') || '';
+    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (reduceMotion) {
+      el.textContent = prefix + formatBR(target, decimals) + suffix;
+      return;
+    }
+
+    var duration = 900;
+    var start = null;
+    function step(ts) {
+      if (!start) { start = ts; }
+      var progress = Math.min((ts - start) / duration, 1);
+      var eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+      el.textContent = prefix + formatBR(target * eased, decimals) + suffix;
+      if (progress < 1) { requestAnimationFrame(step); }
+    }
+    requestAnimationFrame(step);
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-countup]').forEach(animateCountUp);
+  });
+})();
+
+// ── Tooltips explicativos (ícone "i" nos cards/gráficos) ────
+// Uso: <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip"
+//         data-bs-placement="bottom" title="Explicação do dado."></i>
+// window.initTooltips(root) pode ser chamado de novo por telas que injetam
+// elementos dinamicamente (ex: cards renderizados via JS após um fetch).
+window.initTooltips = function (root) {
+  (root || document).querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+    if (bootstrap.Tooltip.getInstance(el)) { return; }
+    new bootstrap.Tooltip(el);
+  });
+};
+document.addEventListener('DOMContentLoaded', function () { window.initTooltips(); });
+
+// ── Seletor de visão por perfil (P6) ────────────────────────
+// Não é um controle de acesso — é atalho de navegação + preferência lembrada,
+// para o usuário voltar rápido à visão (operacional/coordenação/gestão) que
+// costuma usar. Ver docs/melhorias_visuais_congresso.md.
+(function () {
+  const label = document.getElementById('visaoAtualLabel');
+  const links = document.querySelectorAll('[data-visao]');
+  if (!label || !links.length) { return; }
+
+  const salva = localStorage.getItem('visaoPreferida');
+  if (salva) {
+    const match = document.querySelector('[data-visao="' + salva + '"]');
+    if (match) { label.textContent = match.getAttribute('data-visao-nome'); }
+  }
+
+  links.forEach(function (a) {
+    a.addEventListener('click', function () {
+      localStorage.setItem('visaoPreferida', a.getAttribute('data-visao'));
+    });
   });
 })();
 </script>

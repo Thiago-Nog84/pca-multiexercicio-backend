@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Caronas (Adesões) — MPPI{% endblock %}
+{% block nav_caronas %}active{% endblock %}
+
+{% block extra_head %}
+<style>
+  .vig-vencida  { color:#6c757d; font-style:italic; }
+  .vig-critica  { color:#dc3545; font-weight:700; }
+  .vig-atencao  { color:#fd7e14; font-weight:600; }
+  .vig-ok       { color:#198754; }
+  .kpi-mini { border:1px solid #e2e8f0; border-radius:10px; background:#fff; }
+  .flag-badge { font-size:.66rem; padding:2px 7px; border-radius:20px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div>
+    <h1 class="mb-0"><i class="bi bi-share text-primary me-2"></i>Caronas — Adesões a ARP</h1>
+    <p class="text-muted small mb-0">
+      Recebidas (MPPI adere a ARP de outro órgão) e cedidas (outro órgão adere a ARP do MPPI)
+      &nbsp;·&nbsp; Decreto 11.462/2023, arts. 9º e 10 &nbsp;·&nbsp; {{ hoje|date:"d/m/Y" }}
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/admin/srp/arpexterna/add/" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>Nova carona recebida
+    </a>
+    <a href="/admin/srp/adesaoarp/add/" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>Nova carona cedida
+    </a>
+  </div>
+</div>
+
+<!-- Abas -->
+<ul class="nav nav-tabs mb-3" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-receb" type="button">
+      <i class="bi bi-box-arrow-in-down me-1"></i>Recebidas
+      <span class="badge bg-secondary ms-1">{{ kpi_recebidas.total }}</span>
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-ced" type="button">
+      <i class="bi bi-box-arrow-up me-1"></i>Cedidas
+      <span class="badge bg-secondary ms-1">{{ kpi_cedidas.total }}</span>
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content">
+  <!-- ═══════════ RECEBIDAS ═══════════ -->
+  <div class="tab-pane fade show active" id="tab-receb" role="tabpanel">
+    <div class="text-muted small mb-3">
+      Adesões do MPPI a atas de registro de preços gerenciadas por outros órgãos
+      (carona recebida — Decreto 11.462/2023, art. 10).
+    </div>
+
+    <!-- KPIs -->
+    <div class="row g-2 mb-3">
+      <div class="col-6 col-md">
+        <div class="kpi-mini p-2 text-center h-100">
+          <div class="fs-5 fw-bold text-primary">{{ kpi_recebidas.total }}</div>
+          <div class="small text-muted">Adesões</div>
+        </div>
+      </div>
+      <div class="col-6 col-md">
+        <div class="kpi-mini p-2 text-center h-100">
+          <div class="fs-5 fw-bold text-success">{{ kpi_recebidas.vigentes }}</div>
+          <div class="small text-muted">Vigentes</div>
+        </div>
+      </div>
+      <div class="col-6 col-md">
+        <div class="kpi-mini p-2 text-center h-100">
+          <div class="fs-5 fw-bold text-secondary">{{ kpi_recebidas.vencidas }}</div>
+          <div class="small text-muted">Vencidas</div>
+        </div>
+      </div>
+      <div class="col-6 col-md">
+        <div class="kpi-mini p-2 text-center h-100">
+          <div class="fw-bold text-success" style="font-size:.95rem;">R$&nbsp;{{ kpi_recebidas.val_autorizado|floatformat:"0g" }}</div>
+          <div class="small text-muted">Autorizado</div>
+        </div>
+      </div>
+      <div class="col-6 col-md">
+        <div class="kpi-mini p-2 text-center h-100">
+          <div class="fw-bold text-warning" style="font-size:.95rem;">R$&nbsp;{{ kpi_recebidas.val_utilizado|floatformat:"0g" }}</div>
+          <div class="small text-muted">Utilizado</div>
+        </div>
+      </div>
+      <div class="col-6 col-md">
+        <div class="kpi-mini p-2 text-center h-100">
+          <div class="fw-bold text-info" style="font-size:.95rem;">R$&nbsp;{{ kpi_recebidas.saldo|floatformat:"0g" }}</div>
+          <div class="small text-muted">Saldo</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alertas de qualidade / gestão -->
+    {% if kpi_recebidas.vencidas or kpi_recebidas.sem_sei or kpi_recebidas.orgao_indef %}
+    <div class="alert alert-warning py-2 small border-0 shadow-sm mb-3" style="border-left:4px solid #f59e0b!important;">
+      <i class="bi bi-exclamation-triangle-fill me-1"></i>
+      <strong>Pendências:</strong>
+      {% if kpi_recebidas.vencidas %}{{ kpi_recebidas.vencidas }} com vigência vencida ainda marcada "ativa"{% endif %}
+      {% if kpi_recebidas.sem_sei %}{% if kpi_recebidas.vencidas %} · {% endif %}{{ kpi_recebidas.sem_sei }} sem nº SEI de adesão{% endif %}
+      {% if kpi_recebidas.orgao_indef %}{% if kpi_recebidas.vencidas or kpi_recebidas.sem_sei %} · {% endif %}{{ kpi_recebidas.orgao_indef }} com órgão gerenciador "a identificar"{% endif %}.
+    </div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size:.82rem;">
+          <thead class="table-light">
+            <tr>
+              <th>ARP / Órgão gerenciador</th>
+              <th>Objeto / Fornecedor</th>
+              <th class="text-center">Unidade</th>
+              <th class="text-end">Autorizado</th>
+              <th class="text-end">Utilizado</th>
+              <th style="width:130px;">Consumo</th>
+              <th>Vigência</th>
+              <th class="text-center">SEI</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in recebidas %}
+            <tr>
+              <td>
+                <span class="fw-semibold">{{ r.obj.numero_arp_origem }}</span>
+                {% if r.orgao_indef %}<span class="flag-badge bg-warning text-dark ms-1" title="Órgão gerenciador não identificado">a identificar</span>{% endif %}
+                <br><span class="text-muted" style="font-size:.72rem;">{{ r.obj.orgao_gerenciador_nome|truncatechars:36 }}</span>
+                {% if r.url_pncp %}<a href="{{ r.url_pncp }}" target="_blank" class="ms-1" title="Ver no PNCP"><i class="bi bi-box-arrow-up-right" style="font-size:.7rem;"></i></a>{% endif %}
+              </td>
+              <td style="max-width:260px;">
+                <span class="d-inline-block text-truncate" style="max-width:260px;" title="{{ r.obj.objeto }}">{{ r.obj.objeto|truncatechars:60 }}</span>
+                <br><span class="text-muted" style="font-size:.72rem;">{{ r.obj.fornecedor_razao_social|truncatechars:34 }}</span>
+              </td>
+              <td class="text-center">
+                {% if r.unidade %}<span class="badge bg-light text-dark border">{{ r.unidade }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
+              <td class="text-end text-nowrap">R$&nbsp;{{ r.val_aut|floatformat:"2g" }}</td>
+              <td class="text-end text-nowrap">R$&nbsp;{{ r.val_util|floatformat:"2g" }}</td>
+              <td>
+                <div class="d-flex align-items-center gap-1">
+                  <div class="progress flex-grow-1" style="height:6px;">
+                    <div class="progress-bar {% if r.pct >= 90 %}bg-danger{% elif r.pct >= 60 %}bg-warning{% else %}bg-success{% endif %}"
+                         style="width:{% if r.pct > 100 %}100{% else %}{{ r.pct }}{% endif %}%;"></div>
+                  </div>
+                  <small class="text-muted">{{ r.pct }}%</small>
+                </div>
+              </td>
+              <td class="text-nowrap">
+                {% if r.status_efetivo == "vencida" %}
+                  <span class="vig-vencida">{{ r.obj.data_fim_vigencia|date:"d/m/Y" }}</span>
+                  <span class="flag-badge bg-secondary ms-1">vencida</span>
+                {% elif r.vencendo %}
+                  <span class="vig-critica">{{ r.obj.data_fim_vigencia|date:"d/m/Y" }}</span>
+                  <span class="flag-badge bg-danger ms-1">{{ r.dias }}d</span>
+                {% else %}
+                  <span class="vig-ok">{{ r.obj.data_fim_vigencia|date:"d/m/Y" }}</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                {% if r.sem_sei %}
+                  <span class="flag-badge bg-warning text-dark" title="Sem processo SEI de adesão">falta</span>
+                {% else %}
+                  <span title="{{ r.obj.numero_sei_adesao }}"><i class="bi bi-check-circle-fill text-success"></i></span>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" class="text-center text-muted py-4">Nenhuma carona recebida cadastrada.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ CEDIDAS ═══════════ -->
+  <div class="tab-pane fade" id="tab-ced" role="tabpanel">
+    <div class="text-muted small mb-3">
+      Adesões de outros órgãos a atas de registro de preços gerenciadas pelo MPPI
+      (carona cedida — Decreto 11.462/2023, art. 9º, limite de 50% por item por aderente).
+    </div>
+
+    {% if kpi_cedidas.total %}
+    <div class="row g-2 mb-3">
+      <div class="col-6 col-md"><div class="kpi-mini p-2 text-center h-100">
+        <div class="fs-5 fw-bold text-primary">{{ kpi_cedidas.total }}</div><div class="small text-muted">Adesões</div></div></div>
+      <div class="col-6 col-md"><div class="kpi-mini p-2 text-center h-100">
+        <div class="fs-5 fw-bold text-success">{{ kpi_cedidas.autorizadas }}</div><div class="small text-muted">Autorizadas</div></div></div>
+      <div class="col-6 col-md"><div class="kpi-mini p-2 text-center h-100">
+        <div class="fs-5 fw-bold text-warning">{{ kpi_cedidas.pendentes }}</div><div class="small text-muted">Solicitadas</div></div></div>
+      <div class="col-6 col-md"><div class="kpi-mini p-2 text-center h-100">
+        <div class="fw-bold text-success" style="font-size:.95rem;">R$&nbsp;{{ kpi_cedidas.valor_total|floatformat:"0g" }}</div><div class="small text-muted">Valor cedido</div></div></div>
+      <div class="col-6 col-md"><div class="kpi-mini p-2 text-center h-100">
+        <div class="fs-5 fw-bold text-info">{{ kpi_cedidas.orgaos_distintos }}</div><div class="small text-muted">Órgãos aderentes</div></div></div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" style="font-size:.82rem;">
+          <thead class="table-light">
+            <tr>
+              <th>Órgão aderente</th>
+              <th>ARP do MPPI</th>
+              <th>Item</th>
+              <th class="text-end">Qtd</th>
+              <th class="text-end">Valor</th>
+              <th class="text-center">Status</th>
+              <th class="text-center">SEI</th>
+              <th class="text-center">Solicitação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in cedidas %}
+            <tr>
+              <td class="fw-semibold">{{ c.obj.orgao_aderente_nome|truncatechars:34 }}</td>
+              <td><a href="{% url 'srp:arp_detalhe' c.arp_pk %}" class="text-decoration-none">{{ c.arp_numero }}</a></td>
+              <td class="text-muted">{{ c.obj.item_arp.descricao|truncatechars:34 }}</td>
+              <td class="text-end">{{ c.obj.quantidade_solicitada|floatformat:"-2" }}</td>
+              <td class="text-end text-nowrap">R$&nbsp;{{ c.valor|floatformat:"2g" }}</td>
+              <td class="text-center">
+                <span class="badge rounded-pill
+                  {% if c.obj.status == 'autorizada' %}bg-success{% elif c.obj.status == 'solicitada' %}bg-warning text-dark{% elif c.obj.status == 'recusada' %}bg-danger{% else %}bg-secondary{% endif %}"
+                  style="font-size:.65rem;">{{ c.obj.get_status_display }}</span>
+              </td>
+              <td class="text-center">
+                {% if c.sem_sei %}<span class="flag-badge bg-warning text-dark">falta</span>
+                {% else %}<i class="bi bi-check-circle-fill text-success" title="{{ c.obj.numero_sei_autorizacao }}"></i>{% endif %}
+              </td>
+              <td class="text-center text-nowrap">{{ c.obj.data_solicitacao|date:"d/m/Y" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center text-muted py-5">
+        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+        <p class="mb-1">Nenhuma carona cedida registrada.</p>
+        <p class="small mb-3" style="max-width:520px;margin:0 auto;">
+          Quando outro órgão aderir a uma ARP gerenciada pelo MPPI, registre a adesão para
+          controlar o limite de 50% por item (Decreto 11.462/2023, art. 9º) e a exposição ao TCU
+          (Acórdão TCU 1507/2024).
+        </p>
+        <a href="/admin/srp/adesaoarp/add/" class="btn btn-sm btn-primary">
+          <i class="bi bi-plus-lg me-1"></i>Registrar primeira adesão
+        </a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
