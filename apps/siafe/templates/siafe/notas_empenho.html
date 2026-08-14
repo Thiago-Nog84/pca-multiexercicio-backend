@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load humanize %}
+{% load core_extras %}
 
 {% block title %}NEs {{ codigo_ug }} — {{ exercicio }} | MPPI{% endblock %}
 
@@ -43,7 +44,7 @@
     <div class="col-sm-4">
       <div class="card border-0 shadow-sm text-center py-3">
         <div class="fw-bold text-warning" style="font-size:1.3rem;">
-          R$&nbsp;{{ total_empenhado|floatformat:"2g" }}
+          R$&nbsp;{{ total_empenhado|brl }}
         </div>
         <div class="text-muted small">Total Empenhado</div>
       </div>
@@ -51,7 +52,7 @@
     <div class="col-sm-4">
       <div class="card border-0 shadow-sm text-center py-3">
         <div class="fw-bold text-danger" style="font-size:1.3rem;">
-          R$&nbsp;{{ total_anulado|floatformat:"2g" }}
+          R$&nbsp;{{ total_anulado|brl }}
         </div>
         <div class="text-muted small">Total Anulado</div>
       </div>
@@ -59,7 +60,7 @@
     <div class="col-sm-4">
       <div class="card border-0 shadow-sm text-center py-3">
         <div class="fw-bold text-success" style="font-size:1.3rem;">
-          R$&nbsp;{{ total_liquido|floatformat:"2g" }}
+          R$&nbsp;{{ total_liquido|brl }}
         </div>
         <div class="text-muted small">Saldo Líquido</div>
       </div>
@@ -122,7 +123,7 @@
             </td>
             <td class="text-end text-nowrap {% if ne.tipoAlteracaoNE == 'ANULACAO' %}text-danger{% endif %}">
               {% if ne.tipoAlteracaoNE == "ANULACAO" %}-{% endif %}
-              R$&nbsp;{{ ne.valor_decimal|floatformat:"2g" }}
+              R$&nbsp;{{ ne.valor_decimal|brl }}
             </td>
           </tr>
           {% empty %}

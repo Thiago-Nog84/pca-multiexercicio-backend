@@ -1,5 +1,6 @@
 {% extends "srp/base_srp.html" %}
 {% load humanize %}
+{% load core_extras %}
 
 {% block title %}ARP {{ arp.numero_arp }} — MPPI{% endblock %}
 
@@ -40,34 +41,6 @@
           <span class="badge badge-cancelada fs-6">Cancelada</span>
         {% else %}
           <span class="badge badge-encerrada fs-6">Encerrada</span>
-        {% endif %}
-
-        {% if arp.link_documento_mppi %}
-          <a href="{{ arp.link_documento_mppi }}"
-             target="_blank"
-             rel="noopener noreferrer"
-             class="btn btn-sm btn-outline-light ms-2"
-             title="Abrir texto integral da ARP em nova aba">
-            <i class="bi bi-file-earmark-pdf me-1"></i>Ver texto da ARP
-          </a>
-        {% elif arp.link_documento_pncp_direto %}
-          {# Sem documento MPPI cadastrado — abre o PDF real da ata direto do PNCP #}
-          <a href="{% url 'srp:ata_pdf' arp.pk %}"
-             target="_blank"
-             rel="noopener noreferrer"
-             class="btn btn-sm btn-outline-light ms-2"
-             title="Abrir o PDF da ata (documento oficial do PNCP)">
-            <i class="bi bi-file-earmark-pdf me-1"></i>Ver texto da ARP
-          </a>
-        {% elif arp.link_ata_pncp %}
-          {# Último recurso: página do app PNCP (SPA, não é o documento em si) #}
-          <a href="{{ arp.link_ata_pncp }}"
-             target="_blank"
-             rel="noopener noreferrer"
-             class="btn btn-sm btn-outline-light ms-2"
-             title="Abrir a ata no Portal Nacional de Contratações Públicas">
-            <i class="bi bi-box-arrow-up-right me-1"></i>Ver ata no PNCP
-          </a>
         {% endif %}
 
         <form method="post" action="{% url 'srp:arp_sincronizar_pncp' arp.pk %}" class="d-inline ms-2">
@@ -168,6 +141,34 @@
               </a>
             </td>
           </tr>
+          {% elif arp.link_documento_pncp_direto %}
+          <tr>
+            <th class="text-muted fw-normal">Documento</th>
+            <td>
+              <a href="{% url 'srp:ata_pdf' arp.pk %}"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 class="text-primary text-decoration-none small"
+                 title="Abrir o PDF da ata (documento oficial do PNCP)">
+                <i class="bi bi-file-earmark-pdf me-1"></i>Texto integral da ARP
+                <i class="bi bi-box-arrow-up-right ms-1" style="font-size:.7rem;"></i>
+              </a>
+            </td>
+          </tr>
+          {% elif arp.link_ata_pncp %}
+          <tr>
+            <th class="text-muted fw-normal">Documento</th>
+            <td>
+              <a href="{{ arp.link_ata_pncp }}"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 class="text-primary text-decoration-none small"
+                 title="Não é o documento direto — abre a página da ata no Portal Nacional de Contratações Públicas">
+                <i class="bi bi-file-earmark-pdf me-1"></i>Texto integral da ARP
+                <i class="bi bi-box-arrow-up-right ms-1" style="font-size:.7rem;"></i>
+              </a>
+            </td>
+          </tr>
           {% endif %}
         </table>
       </div>
@@ -176,21 +177,22 @@
     <!-- Totais da ARP -->
     <div class="row g-3 mt-1 border-top pt-3">
       <div class="col-6 col-md-3 text-center">
-        <div class="fs-5 fw-bold" style="color:var(--mppi-azul);">{{ total_itens }}</div>
+        <div class="fs-5 fw-bold" style="color:var(--mppi-azul);" data-countup="{{ total_itens }}">{{ total_itens }}</div>
         <div class="text-muted small">Itens registrados</div>
       </div>
       <div class="col-6 col-md-3 text-center">
-        <div class="fs-5 fw-bold text-success">
-          R$ {{ valor_total_arp|floatformat:"2g" }}
+        <div class="fs-5 fw-bold text-success"
+             data-countup="{{ valor_total_arp }}" data-countup-decimals="2" data-countup-prefix="R$ ">
+          R$ {{ valor_total_arp|brl }}
         </div>
         <div class="text-muted small">Valor total da ARP</div>
       </div>
       <div class="col-6 col-md-3 text-center">
-        <div class="fs-5 fw-bold">{{ qtd_total_registrada|floatformat:0 }}</div>
+        <div class="fs-5 fw-bold">{{ qtd_total_registrada|qtd_br }}</div>
         <div class="text-muted small">Qtd. total registrada</div>
       </div>
       <div class="col-6 col-md-3 text-center">
-        <div class="fs-5 fw-bold text-danger">{{ qtd_total_contratada|floatformat:0 }}</div>
+        <div class="fs-5 fw-bold text-danger">{{ qtd_total_contratada|qtd_br }}</div>
         <div class="text-muted small">Qtd. total contratada</div>
       </div>
     </div>
@@ -253,32 +255,22 @@
               {% endif %}
             </td>
             <td class="text-center text-muted">{{ item.unidade_fornecimento }}</td>
-            <td class="text-end fw-medium">{{ item.quantidade_registrada|floatformat:2 }}</td>
+            <td class="text-end fw-medium">{{ item.quantidade_registrada|qtd_br }}</td>
             <td class="text-end text-danger fw-semibold">
-              {{ item.quantidade_contratada|floatformat:2 }}
-              {% if d.pedidos %}
-                <div class="mt-1">
-                  {% for p in d.pedidos %}
-                    <span class="badge bg-light text-dark border d-block mb-1" style="font-size:0.75rem;" title="Pedido/Contrato para {{ p.unidade_requisitante.sigla|default:'MPPI' }}">
-                      <i class="bi bi-file-earmark-check text-primary me-1"></i>{{ p.numero_pedido }}
-                      {% if p.unidade_requisitante %} ({{ p.unidade_requisitante.sigla }}){% endif %}
-                    </span>
-                  {% endfor %}
-                </div>
-              {% endif %}
+              {{ item.quantidade_contratada|qtd_br }}
             </td>
             <td class="text-end" style="color:#856404; font-weight:600;">
-              {{ d.comprometida_pca|floatformat:2 }}
+              {{ d.comprometida_pca|qtd_br }}
             </td>
             <td class="text-end">
               {% if d.disponivel_eventual > 0 %}
-                <span class="saldo-eventual">{{ d.disponivel_eventual|floatformat:2 }}</span>
+                <span class="saldo-eventual">{{ d.disponivel_eventual|qtd_br }}</span>
               {% else %}
-                <span class="saldo-zero">{{ d.disponivel_eventual|floatformat:2 }}</span>
+                <span class="saldo-zero">{{ d.disponivel_eventual|qtd_br }}</span>
               {% endif %}
             </td>
-            <td class="text-end">R$ {{ item.valor_unitario|floatformat:"2g" }}</td>
-            <td class="text-end fw-semibold">R$ {{ d.valor_total|floatformat:"2g" }}</td>
+            <td class="text-end">R$ {{ item.valor_unitario|brl }}</td>
+            <td class="text-end fw-semibold">R$ {{ d.valor_total|brl }}</td>
             <td class="text-center">
               {% if item.banco_referencia %}
                 <span class="badge bg-light text-dark border" title="{{ item.get_banco_referencia_display }}: {{ item.codigo_referencia_banco }}">
@@ -333,7 +325,7 @@
                         <td>{{ v.item_pca.dfd.unidade.sigla }}</td>
                         <td>{{ v.item_pca.descricao|truncatechars:50 }}</td>
                         <td class="text-end fw-bold" style="color:#856404;">
-                          {{ v.quantidade_comprometida|floatformat:2 }}
+                          {{ v.quantidade_comprometida|qtd_br }}
                         </td>
                         <td class="text-muted small">{{ v.observacoes|default:"—" }}</td>
                         <td class="small">{{ v.criado_por.username|default:"—" }}</td>
@@ -397,7 +389,7 @@
           <tr>
             <td class="ps-3 fw-semibold">
               <div class="d-flex align-items-center justify-content-between flex-wrap gap-1">
-                <span>{{ contrato.numero_contrato }}</span>
+                <span>{{ contrato.numero_contrato }}{% if contrato.unidade_sigla %} <span class="text-muted fw-normal" title="Unidade requisitante responsável">({{ contrato.unidade_sigla }})</span>{% endif %}</span>
                 <div class="d-flex gap-1">
                   {% if contrato.url_instrumento_pdf %}
                   <a href="{% url 'contratos:instrumento_pdf' contrato.pk %}" target="_blank" class="btn btn-sm btn-primary" style="font-size: 0.75rem;" title="Visualizar PDF do Documento de Instrumento">
@@ -451,7 +443,7 @@
                 </span>
               {% else %}—{% endif %}
             </td>
-            <td class="text-end fw-semibold">R$ {{ contrato.valor_total|floatformat:"2g" }}</td>
+            <td class="text-end fw-semibold">R$ {{ contrato.valor_total|brl }}</td>
             <td class="text-center">
               {% if contrato.itens_count > 0 %}
               <button class="btn btn-sm btn-outline-secondary"
@@ -509,11 +501,11 @@
                             {{ item_c.percentual_do_item|floatformat:1 }}% do valor do item
                           </span>
                           {% else %}
-                          {{ item_c.quantidade_contratada|floatformat:2 }}
+                          {{ item_c.quantidade_contratada|qtd_br }}
                           {% endif %}
                         </td>
-                        <td class="text-end">R$ {{ item_c.valor_unitario|floatformat:"2g" }}</td>
-                        <td class="text-end fw-semibold">R$ {{ item_c.valor_total|floatformat:"2g" }}</td>
+                        <td class="text-end">R$ {{ item_c.valor_unitario|brl }}</td>
+                        <td class="text-end fw-semibold">R$ {{ item_c.valor_total|brl }}</td>
                       </tr>
                       {% endfor %}
                     </tbody>
@@ -529,7 +521,7 @@
         <tfoot class="table-light">
           <tr>
             <td colspan="5" class="ps-3 fw-semibold text-end">Total contratado:</td>
-            <td class="text-end fw-bold" style="color:var(--mppi-azul);">R$ {{ total_valor_contratos|floatformat:"2g" }}</td>
+            <td class="text-end fw-bold" style="color:var(--mppi-azul);">R$ {{ total_valor_contratos|brl }}</td>
             <td colspan="2"></td>
           </tr>
         </tfoot>
@@ -563,4 +555,3 @@
   });
 </script>
 {% endblock %}
-                         

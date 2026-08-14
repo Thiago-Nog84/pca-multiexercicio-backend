@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load humanize %}
+{% load core_extras %}
 
 {% block title %}PCA — Orçamento Planejado{% endblock %}
 {% block nav_pca %}active{% endblock %}
@@ -49,8 +50,9 @@
   <div class="col-6 col-md-3">
     <div class="card kpi-card h-100 p-3">
       <div class="kpi-label">Teto Total Aprovado</div>
-      <div class="kpi-value mt-1" style="font-size:1.05rem;">
-        R$ {{ totais.aprovado|floatformat:"2g" }}
+      <div class="kpi-value mt-1" style="font-size:1.05rem;"
+           data-countup="{{ totais.aprovado }}" data-countup-decimals="2" data-countup-prefix="R$ ">
+        R$ {{ totais.aprovado|brl }}
       </div>
       <div class="kpi-sub">Soma PGJ + FMMP + FEPDC</div>
     </div>
@@ -58,8 +60,9 @@
   <div class="col-6 col-md-3">
     <div class="card kpi-card h-100 p-3">
       <div class="kpi-label">Valor Comprometido</div>
-      <div class="kpi-value mt-1" style="font-size:1.05rem; color:var(--mppi-vermelho);">
-        R$ {{ totais.comprometido|floatformat:"2g" }}
+      <div class="kpi-value mt-1" style="font-size:1.05rem; color:var(--mppi-vermelho);"
+           data-countup="{{ totais.comprometido }}" data-countup-decimals="2" data-countup-prefix="R$ ">
+        R$ {{ totais.comprometido|brl }}
       </div>
       <div class="kpi-sub">Itens ativos no PCA</div>
     </div>
@@ -68,8 +71,9 @@
     <div class="card kpi-card h-100 p-3">
       <div class="kpi-label">Saldo Disponível</div>
       <div class="kpi-value mt-1" style="font-size:1.05rem;
-        {% if totais.saldo < 0 %}color:#dc2626;{% else %}color:#16a34a;{% endif %}">
-        R$ {{ totais.saldo|floatformat:"2g" }}
+        {% if totais.saldo < 0 %}color:#dc2626;{% else %}color:#16a34a;{% endif %}"
+        data-countup="{{ totais.saldo }}" data-countup-decimals="2" data-countup-prefix="R$ ">
+        R$ {{ totais.saldo|brl }}
       </div>
       <div class="kpi-sub">{{ totais.pct }}% do teto comprometido</div>
       <div class="progress prog-bar-sm mt-2">
@@ -81,7 +85,7 @@
   <div class="col-6 col-md-3">
     <div class="card kpi-card h-100 p-3">
       <div class="kpi-label">Setores cadastrados</div>
-      <div class="kpi-value mt-1">{{ orcamentos|length }}</div>
+      <div class="kpi-value mt-1" data-countup="{{ orcamentos|length }}">{{ orcamentos|length }}</div>
       <div class="kpi-sub">
         {% if setores_sem_orc %}
           <span class="text-danger">{{ setores_sem_orc|length }} sem teto definido</span>
@@ -125,23 +129,23 @@
             <div class="text-muted" style="font-size:.72rem; font-weight:400;">{{ orc.unidade.nome|truncatechars:35 }}</div>
           </td>
           <td class="text-end font-monospace" style="font-size:.8rem;">
-            R$ {{ orc.valor_pgj|floatformat:"2g" }}
+            R$ {{ orc.valor_pgj|brl }}
           </td>
           <td class="text-end font-monospace" style="font-size:.8rem;">
-            R$ {{ orc.valor_fmmp|floatformat:"2g" }}
+            R$ {{ orc.valor_fmmp|brl }}
           </td>
           <td class="text-end font-monospace" style="font-size:.8rem;">
-            R$ {{ orc.valor_fepdc|floatformat:"2g" }}
+            R$ {{ orc.valor_fepdc|brl }}
           </td>
           <td class="text-end fw-bold font-monospace" style="font-size:.85rem;">
-            R$ {{ orc.valor_total|floatformat:"2g" }}
+            R$ {{ orc.valor_total|brl }}
           </td>
           <td class="text-end font-monospace" style="font-size:.85rem; color:var(--mppi-vermelho);">
-            R$ {{ row.comprometido|floatformat:"2g" }}
+            R$ {{ row.comprometido|brl }}
           </td>
           <td class="text-end font-monospace fw-bold" style="font-size:.85rem;
             {% if row.saldo < 0 %}color:#dc2626;{% else %}color:#16a34a;{% endif %}">
-            R$ {{ row.saldo|floatformat:"2g" }}
+            R$ {{ row.saldo|brl }}
           </td>
           <td class="text-center align-middle" style="min-width:110px;">
             <div class="d-flex align-items-center gap-1">
@@ -182,11 +186,11 @@
         <tr>
           <td>TOTAL</td>
           <td colspan="3"></td>
-          <td class="text-end font-monospace">R$ {{ totais.aprovado|floatformat:"2g" }}</td>
-          <td class="text-end font-monospace" style="color:var(--mppi-vermelho);">R$ {{ totais.comprometido|floatformat:"2g" }}</td>
+          <td class="text-end font-monospace">R$ {{ totais.aprovado|brl }}</td>
+          <td class="text-end font-monospace" style="color:var(--mppi-vermelho);">R$ {{ totais.comprometido|brl }}</td>
           <td class="text-end font-monospace
             {% if totais.saldo < 0 %}text-danger{% else %}text-success{% endif %}">
-            R$ {{ totais.saldo|floatformat:"2g" }}
+            R$ {{ totais.saldo|brl }}
           </td>
           <td class="text-center">{{ totais.pct }}%</td>
           <td colspan="2"></td>

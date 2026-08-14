@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load humanize %}
+{% load core_extras %}
 
 {% block title %}Validar Demandas PCA {{ exercicio }}{% endblock %}
 
@@ -35,7 +36,7 @@
             <i class="bi bi-hourglass-split text-warning fs-5"></i>
             <span class="text-muted small">Pendentes</span>
           </div>
-          <div class="fs-3 fw-bold text-warning">{{ qtd_pendentes }}</div>
+          <div class="fs-3 fw-bold text-warning" data-countup="{{ qtd_pendentes }}">{{ qtd_pendentes }}</div>
         </div>
       </div>
     </div>
@@ -46,7 +47,7 @@
             <i class="bi bi-check-circle text-success fs-5"></i>
             <span class="text-muted small">Confirmados</span>
           </div>
-          <div class="fs-3 fw-bold text-success">{{ ja_confirmados }}</div>
+          <div class="fs-3 fw-bold text-success" data-countup="{{ ja_confirmados }}">{{ ja_confirmados }}</div>
         </div>
       </div>
     </div>
@@ -57,7 +58,7 @@
             <i class="bi bi-file-earmark-check fs-5 text-primary"></i>
             <span class="text-muted small">Vinculados a ARP</span>
           </div>
-          <div class="fs-3 fw-bold text-primary">{{ qtd_vinculados_arp }}</div>
+          <div class="fs-3 fw-bold text-primary" data-countup="{{ qtd_vinculados_arp }}">{{ qtd_vinculados_arp }}</div>
         </div>
       </div>
     </div>
@@ -234,8 +235,8 @@
               {% endfor %}
             </td>
             <td class="text-end">{{ item.quantidade_estimada|floatformat:2 }}</td>
-            <td class="text-end">R$ {{ item.valor_unitario_estimado|floatformat:2|intcomma }}</td>
-            <td class="text-end fw-semibold">R$ {{ item.valor_total_estimado|floatformat:2|intcomma }}</td>
+            <td class="text-end">R$ {{ item.valor_unitario_estimado|brl }}</td>
+            <td class="text-end fw-semibold">R$ {{ item.valor_total_estimado|brl }}</td>
             <td class="text-center">
               <div class="d-flex flex-wrap gap-1 justify-content-center">
                 {# Confirmar #}

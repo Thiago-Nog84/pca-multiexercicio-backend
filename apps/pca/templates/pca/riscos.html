@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block nav_riscos %}active{% endblock %}
 {% load humanize %}
+{% load core_extras %}
 
 {% block title %}PCA — Riscos e Pendencias{% endblock %}
 {% block nav_pca %}active{% endblock %}
@@ -41,7 +42,7 @@
       <div class="d-flex align-items-start justify-content-between">
         <div>
           <div class="kpi-label">Demandas Atrasadas</div>
-          <div class="kpi-value mt-1" style="color:#dc2626; font-size:2.2rem;">{{ qtd_atrasados }}</div>
+          <div class="kpi-value mt-1" style="color:#dc2626; font-size:2.2rem;" data-countup="{{ qtd_atrasados }}">{{ qtd_atrasados }}</div>
           <div class="kpi-sub">Prazo de conclusao vencido</div>
         </div>
         <div class="kpi-icon" style="background:#fee2e2;">
@@ -55,7 +56,7 @@
       <div class="d-flex align-items-start justify-content-between">
         <div>
           <div class="kpi-label">Atencao — Proximo 120 dias</div>
-          <div class="kpi-value mt-1" style="color:#d97706; font-size:2.2rem;">{{ qtd_atencao }}</div>
+          <div class="kpi-value mt-1" style="color:#d97706; font-size:2.2rem;" data-countup="{{ qtd_atencao }}">{{ qtd_atencao }}</div>
           <div class="kpi-sub">Vence ate {{ hoje|date:"d/m/Y"|add:"" }}</div>
         </div>
         <div class="kpi-icon" style="background:#fef3c7;">
@@ -69,8 +70,9 @@
       <div class="d-flex align-items-start justify-content-between">
         <div>
           <div class="kpi-label">Valor Retido (atrasados)</div>
-          <div class="kpi-value mt-1" style="font-size:1.05rem; color:#7c3aed;">
-            R$ {{ valor_retido|floatformat:"2g" }}
+          <div class="kpi-value mt-1" style="font-size:1.05rem; color:#7c3aed;"
+               data-countup="{{ valor_retido }}" data-countup-decimals="2" data-countup-prefix="R$ ">
+            R$ {{ valor_retido|brl }}
           </div>
           <div class="kpi-sub">Soma estimada dos itens vencidos</div>
         </div>
@@ -152,7 +154,7 @@
               {{ item.get_unidade_orcamentaria_display }}
             </td>
             <td class="text-end font-monospace" style="font-size:.82rem;">
-              R$ {{ item.valor_total_estimado|floatformat:"2g" }}
+              R$ {{ item.valor_total_estimado|brl }}
             </td>
             <td class="text-center font-monospace" style="font-size:.8rem;">
               {{ item.data_pretendida_conclusao|date:"d/m/Y" }}
@@ -221,7 +223,7 @@
               {{ item.get_unidade_orcamentaria_display }}
             </td>
             <td class="text-end font-monospace" style="font-size:.82rem;">
-              R$ {{ item.valor_total_estimado|floatformat:"2g" }}
+              R$ {{ item.valor_total_estimado|brl }}
             </td>
             <td class="text-center font-monospace" style="font-size:.8rem;">
               {{ item.data_pretendida_conclusao|date:"d/m/Y" }}

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load humanize %}
+{% load core_extras %}
 
 {% block title %}Licitação e Contratações Diretas — MPPI{% endblock %}
 {% block nav_licitacao %}active{% endblock %}
@@ -45,7 +46,7 @@
           <i class="bi bi-folder2-open"></i>
         </div>
         <div>
-          <div class="fs-4 fw-bold" style="color:#0d6efd;">{{ total_processos }}</div>
+          <div class="fs-4 fw-bold" style="color:#0d6efd;" data-countup="{{ total_processos }}">{{ total_processos }}</div>
           <div class="text-muted small">Total de Processos</div>
         </div>
       </div>
@@ -63,7 +64,7 @@
           <i class="bi bi-lightning-charge"></i>
         </div>
         <div>
-          <div class="fs-4 fw-bold" style="color:#856404;">{{ dispensas }}</div>
+          <div class="fs-4 fw-bold" style="color:#856404;" data-countup="{{ dispensas }}">{{ dispensas }}</div>
           <div class="text-muted small">Dispensas de Licitação</div>
         </div>
       </div>
@@ -78,7 +79,7 @@
           <i class="bi bi-shield-check"></i>
         </div>
         <div>
-          <div class="fs-4 fw-bold" style="color:#383d41;">{{ inexigibilidades }}</div>
+          <div class="fs-4 fw-bold" style="color:#383d41;" data-countup="{{ inexigibilidades }}">{{ inexigibilidades }}</div>
           <div class="text-muted small">Inexigibilidades</div>
         </div>
       </div>
@@ -93,11 +94,11 @@
           <i class="bi bi-cash-stack"></i>
         </div>
         <div>
-          <div class="fs-5 fw-bold" style="color:#198754;">R$ {{ total_homologado|floatformat:2|intcomma }}</div>
+          <div class="fs-5 fw-bold" style="color:#198754;" data-countup="{{ total_homologado }}" data-countup-decimals="2" data-countup-prefix="R$ ">R$ {{ total_homologado|brl }}</div>
           <div class="text-muted small">Volume Total Homologado</div>
         </div>
       </div>
-      <div class="text-muted" style="font-size: 0.75rem;">Estimado: R$ {{ total_estimado|floatformat:2|intcomma }}</div>
+      <div class="text-muted" style="font-size: 0.75rem;">Estimado: R$ {{ total_estimado|brl }}</div>
     </div>
   </div>
 </div>
@@ -147,7 +148,7 @@
           </td>
           <td><span class="badge bg-light text-dark border">{{ proc.ano }}</span></td>
           <td class="text-end fw-semibold">
-            R$ {{ proc.valor_homologado|floatformat:2|intcomma }}
+            R$ {{ proc.valor_homologado|brl }}
           </td>
           <td class="text-center pe-3">
             <div class="d-flex justify-content-center gap-1">

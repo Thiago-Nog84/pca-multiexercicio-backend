@@ -75,6 +75,11 @@ class DashboardPCAView(View):
         # ---------- alertas de prazo ----------
         hoje = datetime.date.today()
         ativos = itens.exclude(status__in=["concluido", "suspenso"])
+
+        # ---------- cards macro do topo (demandas/valor ATIVOS, exclui concluído/suspenso) ----------
+        total_ativas = ativos.count()
+        valor_pca_ativo = ativos.aggregate(total=Sum("valor_total_estimado"))["total"] or 0
+
         atrasados   = ativos.filter(data_pretendida_conclusao__lt=hoje).count()
         vencendo_30 = ativos.filter(
             data_pretendida_conclusao__gte=hoje,
@@ -139,7 +144,9 @@ class DashboardPCAView(View):
             "itens_data": itens_data,
             "total_dfds": dfds.count(),
             "total_itens": total_itens,
+            "total_ativas": total_ativas,
             "valor_total": valor_total,
+            "valor_pca_ativo": valor_pca_ativo,
             "valor_empenhado": valor_empenhado,
             "valor_disponivel": (valor_total or 0) - (valor_empenhado or 0),
             "pct_executado": pct_executado,
@@ -267,10 +274,16 @@ class ItemPCADetalheView(View):
 
     def get(self, request, pk):
         item = get_object_or_404(
-            ItemPCA.objects.select_related("dfd", "dfd__pca", "dfd__unidade", "item_pai"),
+            ItemPCA.objects
+            .select_related("dfd", "dfd__pca", "dfd__unidade", "item_pai", "contrato_vigente")
+            .prefetch_related("vinculos_arp__item_arp__arp"),
             pk=pk,
         )
-        return render(request, self.template_name, {"item": item})
+        context = {
+            "item": item,
+            "vinculo_arp": item.vinculos_arp.select_related("item_arp__arp").first(),
+        }
+        return render(request, self.template_name, context)
 
 
 # --- Catalogo (AJAX) --------------------------------------------------------

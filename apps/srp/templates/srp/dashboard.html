@@ -1,5 +1,6 @@
 {% extends "srp/base_srp.html" %}
 {% load humanize %}
+{% load core_extras %}
 
 {% block title %}Dashboard SRP — MPPI{% endblock %}
 
@@ -43,8 +44,11 @@
       <div class="stat-icon mb-2" style="background:#e8f0fe; width:36px; height:36px;">
         <i class="bi bi-file-earmark-text" style="color:#0d6efd;"></i>
       </div>
-      <div class="fs-3 fw-bold" style="color:#0d6efd;">{{ total_arps }}</div>
-      <div class="text-muted small">Total ARPs</div>
+      <div class="fs-3 fw-bold" style="color:#0d6efd;" data-countup="{{ total_arps }}">{{ total_arps }}</div>
+      <div class="text-muted small">Total ARPs
+        <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+           title="Quantidade total de Atas de Registro de Preços importadas no sistema."></i>
+      </div>
     </div>
   </div>
   <div class="col-6 col-md-2">
@@ -52,8 +56,11 @@
       <div class="stat-icon mb-2" style="background:#d1f0e0; width:36px; height:36px;">
         <i class="bi bi-check-circle" style="color:#198754;"></i>
       </div>
-      <div class="fs-3 fw-bold" style="color:#198754;">{{ arps_vigentes }}</div>
-      <div class="text-muted small">Vigentes</div>
+      <div class="fs-3 fw-bold" style="color:#198754;" data-countup="{{ arps_vigentes }}">{{ arps_vigentes }}</div>
+      <div class="text-muted small">Vigentes
+        <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+           title="Atas que estão dentro do prazo de vigência hoje."></i>
+      </div>
     </div>
   </div>
   <div class="col-6 col-md-2">
@@ -61,8 +68,11 @@
       <div class="stat-icon mb-2" style="background:#fde8e8; width:36px; height:36px;">
         <i class="bi bi-exclamation-triangle" style="color:#dc3545;"></i>
       </div>
-      <div class="fs-3 fw-bold" style="color:#dc3545;">{{ arps_criticas_lista|length }}</div>
-      <div class="text-muted small">Vencendo em 30d</div>
+      <div class="fs-3 fw-bold" style="color:#dc3545;" data-countup="{{ arps_criticas_lista|length }}">{{ arps_criticas_lista|length }}</div>
+      <div class="text-muted small">Vencendo em 30d
+        <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+           title="Atas com vigência expirando nos próximos 30 dias — atenção para providenciar renovação ou nova licitação."></i>
+      </div>
     </div>
   </div>
   <div class="col-6 col-md-2">
@@ -70,8 +80,11 @@
       <div class="stat-icon mb-2" style="background:#fff3cd; width:36px; height:36px;">
         <i class="bi bi-list-ul" style="color:#856404;"></i>
       </div>
-      <div class="fs-3 fw-bold" style="color:#856404;">{{ total_itens }}</div>
-      <div class="text-muted small">Itens</div>
+      <div class="fs-3 fw-bold" style="color:#856404;" data-countup="{{ total_itens }}">{{ total_itens }}</div>
+      <div class="text-muted small">Itens
+        <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+           title="Quantidade total de itens cadastrados em todas as ARPs."></i>
+      </div>
     </div>
   </div>
   <div class="col-6 col-md-2">
@@ -79,10 +92,14 @@
       <div class="stat-icon mb-2" style="background:#f9e5e7; width:36px; height:36px;">
         <i class="bi bi-currency-dollar" style="color:var(--mppi-vermelho);"></i>
       </div>
-      <div class="fw-bold" style="color:var(--mppi-vermelho); font-size:1rem;">
-        R$&nbsp;{{ valor_total|floatformat:"2g" }}
+      <div class="fw-bold" style="color:var(--mppi-vermelho); font-size:1rem;"
+           data-countup="{{ valor_total }}" data-countup-decimals="2" data-countup-prefix="R$ ">
+        R$&nbsp;{{ valor_total|brl }}
       </div>
-      <div class="text-muted small">Valor registrado</div>
+      <div class="text-muted small">Valor registrado
+        <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+           title="Soma do valor total registrado em todas as ARPs."></i>
+      </div>
     </div>
   </div>
   <div class="col-6 col-md-2">
@@ -90,10 +107,14 @@
       <div class="stat-icon mb-2" style="background:#d1f0e0; width:36px; height:36px;">
         <i class="bi bi-wallet2" style="color:#198754;"></i>
       </div>
-      <div class="fw-bold val-disponivel" style="font-size:1rem;">
-        R$&nbsp;{{ valor_disponivel_total|floatformat:"2g" }}
+      <div class="fw-bold val-disponivel" style="font-size:1rem;"
+           data-countup="{{ valor_disponivel_total }}" data-countup-decimals="2" data-countup-prefix="R$ ">
+        R$&nbsp;{{ valor_disponivel_total|brl }}
       </div>
-      <div class="text-muted small">Saldo disponível</div>
+      <div class="text-muted small">Saldo disponível
+        <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+           title="Soma do saldo ainda não consumido nas ARPs vigentes."></i>
+      </div>
     </div>
   </div>
 </div>
@@ -108,13 +129,15 @@
       <div class="d-flex align-items-center mb-2">
         <i class="bi bi-file-earmark-ruled me-2" style="color:#0d6efd;"></i>
         <span class="fw-bold small">1 · ARPs originadas</span>
+        <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+           title="Atas de Registro de Preços gerenciadas pelo próprio MPPI."></i>
       </div>
       <div class="text-muted" style="font-size:.75rem;">Atas gerenciadas pelo MPPI</div>
       <div class="mt-2">
         <span class="fs-4 fw-bold" style="color:#0d6efd;">{{ arps_vigentes }}</span>
         <span class="text-muted small">vigentes de {{ total_arps }}</span>
       </div>
-      <div class="small text-muted">R$&nbsp;{{ valor_total|floatformat:"2g" }} registrados</div>
+      <div class="small text-muted">R$&nbsp;{{ valor_total|brl }} registrados</div>
       <a href="#lista-arps" class="stretched-link"></a>
     </div>
   </div>
@@ -125,6 +148,8 @@
       <div class="d-flex align-items-center mb-2">
         <i class="bi bi-cart-check me-2" style="color:#198754;"></i>
         <span class="fw-bold small">2 · Contratações decorrentes</span>
+        <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+           title="Pedidos e contratos formalizados a partir das ARPs próprias do MPPI."></i>
       </div>
       <div class="text-muted" style="font-size:.75rem;">Pedidos/contratos das ARPs próprias</div>
       <div class="mt-2">
@@ -132,7 +157,7 @@
         <span class="text-muted small">em {{ dim_contratacoes.arps_distintas }} ARP{{ dim_contratacoes.arps_distintas|pluralize }}</span>
       </div>
       <div class="small text-muted">
-        R$&nbsp;{{ dim_contratacoes.valor_total|floatformat:"2g" }}
+        R$&nbsp;{{ dim_contratacoes.valor_total|brl }}
         {% if dim_contratacoes.contratos_api %}· {{ dim_contratacoes.contratos_api }} via API{% endif %}
       </div>
       <a href="{% url 'srp:contratacoes_decorrentes' %}" class="stretched-link"></a>
@@ -145,6 +170,8 @@
       <div class="d-flex align-items-center mb-2">
         <i class="bi bi-box-arrow-up-right me-2" style="color:#fd7e14;"></i>
         <span class="fw-bold small">3 · Caronas cedidas</span>
+        <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+           title="Outros órgãos que aderiram (pegaram carona) em ARPs gerenciadas pelo MPPI."></i>
       </div>
       <div class="text-muted" style="font-size:.75rem;">Outros órgãos aderindo a ARPs do MPPI</div>
       <div class="mt-2">
@@ -156,7 +183,7 @@
       </div>
       <div class="small text-muted">
         {% if dim_caronas_cedidas.total %}
-          R$&nbsp;{{ dim_caronas_cedidas.valor_total|floatformat:"2g" }} · {{ dim_caronas_cedidas.orgaos_distintos }} órgão{{ dim_caronas_cedidas.orgaos_distintos|pluralize }}
+          R$&nbsp;{{ dim_caronas_cedidas.valor_total|brl }} · {{ dim_caronas_cedidas.orgaos_distintos }} órgão{{ dim_caronas_cedidas.orgaos_distintos|pluralize }}
         {% else %}
           Nenhuma adesão registrada
         {% endif %}
@@ -171,6 +198,8 @@
       <div class="d-flex align-items-center mb-2">
         <i class="bi bi-box-arrow-in-down-left me-2" style="color:#6f42c1;"></i>
         <span class="fw-bold small">4 · Caronas recebidas</span>
+        <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+           title="ARPs de outros órgãos das quais o MPPI aderiu como carona."></i>
       </div>
       <div class="text-muted" style="font-size:.75rem;">MPPI aderindo a ARPs de outros órgãos</div>
       <div class="mt-2">
@@ -181,8 +210,8 @@
         {% endif %}
       </div>
       <div class="small text-muted">
-        R$&nbsp;{{ dim_caronas_recebidas.valor_utilizado|floatformat:"2g" }} usados de
-        R$&nbsp;{{ dim_caronas_recebidas.valor_autorizado|floatformat:"2g" }}
+        R$&nbsp;{{ dim_caronas_recebidas.valor_utilizado|brl }} usados de
+        R$&nbsp;{{ dim_caronas_recebidas.valor_autorizado|brl }}
       </div>
       <a href="/admin/srp/arpexterna/" class="stretched-link"></a>
     </div>
@@ -195,7 +224,16 @@
   <!-- Gráfico de rosca: status -->
   <div class="col-12 col-md-3">
     <div class="card chart-card p-3 h-100">
-      <div class="section-title{% if subtitulo_status %} tem-subtitulo{% endif %}">ARPs por Status</div>
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-1">
+        <div class="section-title{% if subtitulo_status %} tem-subtitulo{% endif %} mb-0">ARPs por Status
+          <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+             title="Atas agrupadas pela situação atual (vigente, suspensa, encerrada, cancelada). Clique numa barra para filtrar a tabela."></i>
+        </div>
+      </div>
+      <div class="btn-group btn-group-sm chart-metric-toggle mb-2" role="group">
+        <button type="button" class="btn btn-outline-secondary active" data-metric="qtd">Número de processos</button>
+        <button type="button" class="btn btn-outline-secondary" data-metric="valor">Valores estimados</button>
+      </div>
       {% if subtitulo_status %}<div class="chart-subtitle">{{ subtitulo_status }}</div>{% endif %}
       <canvas id="chartStatus" height="200"></canvas>
     </div>
@@ -204,7 +242,10 @@
   <!-- Gráfico de barras: valor por ano -->
   <div class="col-12 col-md-5">
     <div class="card chart-card p-3 h-100">
-      <div class="section-title{% if subtitulo_ano %} tem-subtitulo{% endif %}">Valor Registrado por Ano</div>
+      <div class="section-title{% if subtitulo_ano %} tem-subtitulo{% endif %}">Valor Registrado por Ano
+        <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+           title="Valor registrado (barras) e número de ARPs (linha) por ano de início de vigência."></i>
+      </div>
       {% if subtitulo_ano %}<div class="chart-subtitle">{{ subtitulo_ano }}</div>{% endif %}
       <canvas id="chartAno" height="200"></canvas>
     </div>
@@ -213,7 +254,10 @@
   <!-- Top 10 ARPs por valor -->
   <div class="col-12 col-md-4">
     <div class="card chart-card p-3 h-100">
-      <div class="section-title{% if subtitulo_top %} tem-subtitulo{% endif %}">Top 10 ARPs por Valor</div>
+      <div class="section-title{% if subtitulo_top %} tem-subtitulo{% endif %}">Top 10 ARPs por Valor
+        <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+           title="As 10 Atas de Registro de Preços com maior valor registrado, entre as linhas atualmente visíveis na tabela."></i>
+      </div>
       {% if subtitulo_top %}<div class="chart-subtitle">{{ subtitulo_top }}</div>{% endif %}
       <canvas id="chartTop" height="200"></canvas>
     </div>
@@ -227,7 +271,10 @@
   <!-- Unidades -->
   <div class="col-12 col-md-6">
     <div class="card chart-card p-3 h-100">
-      <div class="section-title{% if subtitulo_unidades %} tem-subtitulo{% endif %}">ARPs por Unidade Requisitante</div>
+      <div class="section-title{% if subtitulo_unidades %} tem-subtitulo{% endif %}">ARPs por Unidade Requisitante
+        <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+           title="Quantidade de ARPs vinculadas a cada unidade requisitante."></i>
+      </div>
       {% if subtitulo_unidades %}<div class="chart-subtitle">{{ subtitulo_unidades }}</div>{% endif %}
       {% if unidades_com_arps %}
       <div class="d-flex flex-wrap gap-2">
@@ -445,7 +492,7 @@
               {% endif %}
             </td>
             <td class="text-end fw-semibold text-nowrap small">
-              R$&nbsp;{{ entrada.valor_total|floatformat:"2g" }}
+              R$&nbsp;{{ entrada.valor_total|brl }}
             </td>
             <td style="min-width:90px;">
               <div class="d-flex justify-content-between small mb-1">
@@ -519,12 +566,15 @@
   const dlMi   = Object.assign({ anchor:'end', align:'end', formatter:v=>'R$ '+(v/1e6).toFixed(1)+'M' }, dlBase);
   const semEixo = { display:false };
   const soCat = { grid:{display:false}, border:{display:false} };
+  const fmtPct = p => p.toFixed(1).replace('.', ',') + '%';
 
   // ── Gráfico Status (barras horizontais — barra > rosca, cap. 2) ─────────────
   // Aqui a cor CODIFICA o dado (verde=vigente, cinza=encerrada…), uso legítimo
   // segundo cap. 4-5. Por isso mantemos as cores por status.
   // Gráficos recalculados a partir das linhas VISÍVEIS da tabela — reativos
   // aos filtros (busca/status/ano/vencimento) e ao drill-down por clique.
+  let metricStatus = 'qtd';
+  const brlMi = v => v >= 1e6 ? 'R$ ' + (v/1e6).toFixed(1) + 'M' : v >= 1e3 ? 'R$ ' + (v/1e3).toFixed(0) + 'k' : 'R$ ' + v.toFixed(0);
   const chStatus = new Chart(document.getElementById('chartStatus'), {
     type: 'bar',
     data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderRadius: 4 }] },
@@ -533,8 +583,14 @@
       layout: { padding: { right: 30 } },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => ctx.parsed.x + ' ARP' + (ctx.parsed.x === 1 ? '' : 's') } },
-        datalabels: dlNum
+        tooltip: { callbacks: { label: ctx =>
+          metricStatus === 'valor' ? brlMi(ctx.parsed.x) : ctx.parsed.x + ' ARP' + (ctx.parsed.x === 1 ? '' : 's')
+        } },
+        datalabels: Object.assign({}, dlNum, { formatter: (v, ctx) => {
+          const val = metricStatus === 'valor' ? brlMi(v) : v;
+          const pct = chStatus._pcts ? chStatus._pcts[ctx.dataIndex] : null;
+          return pct == null ? val : val + ' (' + fmtPct(pct) + ')';
+        } })
       },
       scales: { x: semEixo, y: soCat },
       onClick(e, els) {
@@ -585,8 +641,14 @@
       layout: { padding: { right: 54 } },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => 'R$ ' + ctx.raw.toLocaleString('pt-BR', {minimumFractionDigits:2}) + ' — ' + (chTop._objetos[ctx.dataIndex] || '') } },
-        datalabels: dlMi
+        tooltip: { callbacks: { label: ctx =>
+          'R$ ' + ctx.raw.toLocaleString('pt-BR', {minimumFractionDigits:2}) + ' — ' + (chTop._objetos[ctx.dataIndex] || '')
+        } },
+        datalabels: Object.assign({}, dlMi, { formatter: (v, ctx) => {
+          const pct = chTop._pcts ? chTop._pcts[ctx.dataIndex] : null;
+          const val = 'R$ ' + (v/1e6).toFixed(1) + 'M';
+          return pct == null ? val : val + ' (' + fmtPct(pct) + ')';
+        } })
       },
       scales: { x: semEixo, y: soCat },
       onClick(e, els) {
@@ -601,13 +663,16 @@
   function atualizarGraficos() {
     const rows = [...document.getElementById('tbody-arps').querySelectorAll('tr:not(.separador-ano)')]
       .filter(tr => tr.style.display !== 'none');
-    // status (contagem)
-    const cs = {};
-    rows.forEach(r => { const s = r.dataset.status || '—'; cs[s] = (cs[s] || 0) + 1; });
+    // status (contagem ou valor, conforme metricStatus)
+    const cs = {}, csValor = {};
+    rows.forEach(r => { const s = r.dataset.status || '—'; cs[s] = (cs[s] || 0) + 1; csValor[s] = (csValor[s] || 0) + (parseFloat(r.dataset.valor) || 0); });
     const sKeys = ['vigente', 'suspensa', 'encerrada', 'cancelada'].filter(s => cs[s]);
+    const sVals = sKeys.map(s => metricStatus === 'valor' ? csValor[s] : cs[s]);
+    const sTotal = sVals.reduce((a, b) => a + b, 0);
     chStatus._keys = sKeys;
+    chStatus._pcts = sTotal ? sVals.map(v => (v / sTotal) * 100) : sVals.map(() => 0);
     chStatus.data.labels = sKeys.map(s => s.charAt(0).toUpperCase() + s.slice(1));
-    chStatus.data.datasets[0].data = sKeys.map(s => cs[s]);
+    chStatus.data.datasets[0].data = sVals;
     chStatus.data.datasets[0].backgroundColor = sKeys.map(s => STATUS_COR[s] || '#94a3b8');
     chStatus.update();
     // ano (valor + contagem)
@@ -622,18 +687,31 @@
     // top 10 por valor
     const top = rows.map(r => ({ num: (r.dataset.numero || '').toUpperCase(), obj: r.dataset.objeto || '', pk: r.dataset.pk, val: parseFloat(r.dataset.valor) || 0 }))
       .sort((a, b) => b.val - a.val).slice(0, 10);
+    const topTotal = top.reduce((s, t) => s + t.val, 0);
     chTop._objetos = top.map(t => t.obj);
     chTop._pks = top.map(t => t.pk);
+    chTop._pcts = topTotal ? top.map(t => (t.val / topTotal) * 100) : top.map(() => 0);
     chTop.data.labels = top.map(t => t.num);
     chTop.data.datasets[0].data = top.map(t => t.val);
     chTop.update();
   }
+
+  // botão "Número de processos" / "Valores estimados" do gráfico de status
+  document.querySelectorAll('.chart-metric-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      metricStatus = btn.dataset.metric;
+      btn.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+      atualizarGraficos();
+    });
+  });
 
   // ── Gráfico Unidades ────────────────────────────────────────────────────────
   const cuEl = document.getElementById('chartUnidades');
   if (cuEl) {
     const unLabels = [{% for u in unidades_com_arps %}"{{ u.sigla }}"{% if not forloop.last %},{% endif %}{% endfor %}];
     const unData   = [{% for u in unidades_com_arps %}{{ u.total }}{% if not forloop.last %},{% endif %}{% endfor %}];
+    const unTotal  = unData.reduce((a, b) => a + b, 0);
+    const unPcts   = unTotal ? unData.map(v => (v / unTotal) * 100) : unData.map(() => 0);
     new Chart(cuEl, {
       type: 'bar',
       data: {
@@ -642,7 +720,11 @@
       },
       options: {
         layout: { padding: { top: 18 } },
-        plugins: { legend: { display:false }, datalabels: dlNumTopo },
+        plugins: {
+          legend: { display:false },
+          tooltip: { callbacks: { label: ctx => ctx.parsed.y + ' ARP' + (ctx.parsed.y === 1 ? '' : 's') } },
+          datalabels: Object.assign({}, dlNumTopo, { formatter: (v, ctx) => v + ' (' + fmtPct(unPcts[ctx.dataIndex]) + ')' })
+        },
         scales: { y: semEixo, x: soCat },
         onClick(e, els) {
           if (els.length) {

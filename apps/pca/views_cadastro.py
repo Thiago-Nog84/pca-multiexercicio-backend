@@ -300,6 +300,137 @@ class CadastroGrupoDemandaView(View):
 
 
 @method_decorator(login_required, name="dispatch")
+class VincularItemPCAView(View):
+    """
+    GET  /pca/item/<pk>/vincular/  -> tela de vínculo retroativo
+    POST /pca/item/<pk>/vincular/  -> atualiza tipo/modalidade e o vínculo (ARP ou contrato)
+
+    Complementa o CadastroGrupoDemandaView: aquele cria demandas NOVAS já
+    vinculadas no ato do cadastro; esta tela serve para pegar um ItemPCA que
+    JÁ EXISTE (ex.: os importados em lote para o PCA 2027, sem vínculo) e
+    decidir/atualizar, depois da aprovação, se ele será atendido por ARP
+    própria, por um contrato já vigente, ou se é mesmo uma necessidade de
+    nova contratação (caso em que nenhum vínculo é aplicável — a demanda
+    segue para o fluxo de licitação normalmente).
+
+    Reaproveita EXATAMENTE as mesmas buscas e regras de saldo do cadastro em
+    grupo (ItensARPDisponiveisJSON / ContratosVigentesDisponiveisJSON,
+    VinculoPCAItemARP.clean(), checagem de saldo_disponivel do Contrato) —
+    só que fazendo UPDATE num item existente em vez de criar um novo.
+    """
+
+    template_name = "pca/vincular_item.html"
+
+    def get(self, request, pk):
+        item = get_object_or_404(
+            ItemPCA.objects
+            .select_related("dfd", "dfd__pca", "dfd__unidade", "contrato_vigente")
+            .prefetch_related("vinculos_arp__item_arp__arp"),
+            pk=pk,
+        )
+        context = {
+            "item": item,
+            "vinculo_arp_atual": item.vinculos_arp.select_related("item_arp__arp").first(),
+            "tipo_demanda_choices": ItemPCA.TIPO_DEMANDA,
+            "modalidade_choices": ItemPCA.MODALIDADE,
+            "item_data": {
+                "quantidade_estimada": float(item.quantidade_estimada),
+                "valor_total_estimado": float(item.valor_total_estimado),
+            },
+        }
+        return render(request, self.template_name, context)
+
+    def post(self, request, pk):
+        from apps.contratos.models import Contrato
+        from apps.srp.models import ItemARP, VinculoPCAItemARP
+
+        item = get_object_or_404(ItemPCA, pk=pk)
+
+        tipo_demanda = request.POST.get("tipo_demanda") or item.tipo_demanda
+        modalidade = request.POST.get("modalidade") or item.modalidade
+        item_arp_id = request.POST.get("item_arp_id") or None
+        contrato_id = request.POST.get("contrato_id") or None
+        remover_vinculo_arp = request.POST.get("remover_vinculo_arp") == "1"
+        remover_contrato = request.POST.get("remover_contrato") == "1"
+
+        try:
+            with transaction.atomic():
+                item.tipo_demanda = tipo_demanda
+                item.modalidade = modalidade
+
+                # ---------- ARP própria ----------
+                if remover_vinculo_arp:
+                    item.vinculos_arp.all().delete()
+                    item.is_srp = False
+                elif item_arp_id:
+                    try:
+                        item_arp = ItemARP.objects.select_related("arp").get(pk=item_arp_id)
+                    except ItemARP.DoesNotExist:
+                        raise ValidationError(
+                            "A ARP selecionada não foi encontrada (pode ter sido alterada). "
+                            "Refaça a busca de ARP."
+                        )
+                    item.is_srp = True
+                    # Copia o numero_lote do ItemARP p/ coerencia (mesma regra do cadastro em grupo).
+                    item.numero_lote_pca = item_arp.numero_lote
+                    # Um item só deve ter 1 vínculo de ARP ativo — substitui o anterior, se houver.
+                    item.vinculos_arp.all().delete()
+
+                # ---------- Contrato vigente ----------
+                if remover_contrato:
+                    item.contrato_vigente = None
+                elif contrato_id:
+                    try:
+                        contrato = Contrato.objects.get(pk=contrato_id)
+                    except Contrato.DoesNotExist:
+                        raise ValidationError(
+                            "O contrato selecionado não foi encontrado (pode ter sido alterado). "
+                            "Refaça a busca."
+                        )
+                    hoje = datetime.date.today()
+                    if contrato.status != "vigente" or contrato.data_fim_vigencia < hoje:
+                        raise ValidationError(
+                            f"O contrato {contrato.numero_contrato} não está mais vigente."
+                        )
+                    if item.valor_total_estimado > contrato.saldo_disponivel:
+                        raise ValidationError(
+                            f"Valor estimado (R$ {item.valor_total_estimado}) excede o saldo "
+                            f"disponível do contrato {contrato.numero_contrato} "
+                            f"(R$ {contrato.saldo_disponivel})."
+                        )
+                    item.contrato_vigente = contrato
+                    if not item.data_vencimento_contrato_anterior:
+                        item.data_vencimento_contrato_anterior = contrato.data_fim_vigencia
+
+                item.full_clean(exclude=["codigo_pca"])
+                item.save()
+
+                # Só cria o vínculo de ARP depois do item.save() — o clean() do
+                # vínculo lê item_pca.numero_lote_pca, que precisa refletir o
+                # valor já atualizado (o objeto Python já está atualizado em
+                # memória, mas salvamos o item primeiro por clareza/consistência).
+                if item_arp_id and not remover_vinculo_arp:
+                    vinculo = VinculoPCAItemARP(
+                        item_pca=item,
+                        item_arp=item_arp,
+                        quantidade_comprometida=_decimal(
+                            request.POST.get("quantidade_comprometida"),
+                            default=str(item.quantidade_estimada),
+                        ),
+                        criado_por=request.user if request.user.is_authenticated else None,
+                    )
+                    vinculo.save()  # VinculoPCAItemARP.save() já chama full_clean()
+
+        except ValidationError as e:
+            detalhe = "; ".join(e.messages) if hasattr(e, "messages") else str(e)
+            messages.error(request, f"Não foi possível salvar o vínculo: {detalhe}")
+            return redirect("pca:vincular_item", pk=pk)
+
+        messages.success(request, f"Vínculo de {item.codigo_pca} atualizado com sucesso.")
+        return redirect("pca:item_detalhe", pk=pk)
+
+
+@method_decorator(login_required, name="dispatch")
 class ItensARPDisponiveisJSON(View):
     """
     GET /pca/api/arp-itens-disponiveis.json?q=<descricao ou codigo CATMAT/CATSER>

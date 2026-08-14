@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load humanize %}
+{% load core_extras %}
 
 {% block title %}PCA — Renovação Multiexercício{% endblock %}
 {% block nav_pca %}active{% endblock %}
@@ -189,7 +190,7 @@
                 {{ item.get_modalidade_display|truncatechars:25 }}
               </td>
               <td class="text-end fw-bold" style="font-size:.85rem;">
-                R$ {{ item.valor_total_estimado|floatformat:"2g" }}
+                R$ {{ item.valor_total_estimado|brl }}
               </td>
             </tr>
             {% endfor %}

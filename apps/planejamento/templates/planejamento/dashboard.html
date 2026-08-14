@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load humanize %}
+{% load core_extras %}
 
 {% block title %}Planejamento — ETPs e TRs{% endblock %}
 {% block nav_planejamento %}active{% endblock %}
@@ -16,8 +17,11 @@
     <div class="card kpi-card h-100 p-3">
       <div class="d-flex align-items-start justify-content-between">
         <div>
-          <div class="kpi-label">Total de ETPs</div>
-          <div class="kpi-value mt-1">{{ total_etps }}</div>
+          <div class="kpi-label">Total de ETPs
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Quantidade total de Estudos Técnicos Preliminares cadastrados."></i>
+          </div>
+          <div class="kpi-value mt-1" data-countup="{{ total_etps }}">{{ total_etps }}</div>
           <div class="kpi-sub">{{ etps_aprovados }} aprovado{{ etps_aprovados|pluralize:"s" }}</div>
         </div>
         <div class="kpi-icon" style="background:#e8f0fb;">
@@ -30,8 +34,11 @@
     <div class="card kpi-card h-100 p-3">
       <div class="d-flex align-items-start justify-content-between">
         <div>
-          <div class="kpi-label">Termos de Referência</div>
-          <div class="kpi-value mt-1">{{ total_trs }}</div>
+          <div class="kpi-label">Termos de Referência
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Quantidade de Termos de Referência vinculados a ETPs aprovados."></i>
+          </div>
+          <div class="kpi-value mt-1" data-countup="{{ total_trs }}">{{ total_trs }}</div>
           <div class="kpi-sub">Associados a ETPs aprovados</div>
         </div>
         <div class="kpi-icon" style="background:#fef9c3;">
@@ -44,8 +51,11 @@
     <div class="card kpi-card h-100 p-3">
       <div class="d-flex align-items-start justify-content-between">
         <div>
-          <div class="kpi-label">Em Rascunho</div>
-          <div class="kpi-value mt-1">{{ etps_rascunho }}</div>
+          <div class="kpi-label">Em Rascunho
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="ETPs ainda não enviados para revisão/aprovação."></i>
+          </div>
+          <div class="kpi-value mt-1" data-countup="{{ etps_rascunho }}">{{ etps_rascunho }}</div>
           <div class="kpi-sub">Aguardando revisão</div>
         </div>
         <div class="kpi-icon" style="background:#f3f4f6;">
@@ -76,7 +86,7 @@
       <div class="card-body p-0">
         <table class="table table-sm mb-0">
           <thead class="table-light">
-            <tr><th>Status</th><th class="text-end">Qtd</th></tr>
+            <tr><th>Status</th><th class="text-end">Qtd</th><th class="text-end">%</th></tr>
           </thead>
           <tbody>
             {% for s in etps_por_status %}
@@ -91,9 +101,10 @@
                 </span>
               </td>
               <td class="text-end fw-bold">{{ s.qtd }}</td>
+              <td class="text-end text-muted">{% if total_etps %}{% widthratio s.qtd total_etps 100 %}%{% else %}—{% endif %}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="2" class="text-muted text-center py-3">Sem ETPs cadastrados</td></tr>
+            <tr><td colspan="3" class="text-muted text-center py-3">Sem ETPs cadastrados</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -142,7 +153,7 @@
                   </span>
                 </td>
                 <td class="text-end" style="font-size:.8rem;">
-                  {% if etp.estimativa_custo %}R$ {{ etp.estimativa_custo|floatformat:"2g" }}{% else %}—{% endif %}
+                  {% if etp.estimativa_custo %}R$ {{ etp.estimativa_custo|brl }}{% else %}—{% endif %}
                 </td>
               </tr>
               {% empty %}

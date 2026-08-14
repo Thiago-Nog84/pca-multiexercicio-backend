@@ -17,9 +17,9 @@ from .views_cadastro import (
     DescricaoAutocompleteJSON,
     ItensARPDisponiveisJSON,
     ValidarCodigoCatalogoJSON,
+    VincularItemPCAView,
 )
 from .views_analise import AnalisarItemPCAView, AnalisarLoteItensPCAView
-from .views_duplicatas import DuplicatasPCAView
 from .views_relatorio import ExportarDemandasPDFView
 from .views_suspensas import DemandasSuspensasView
 from .views_template import (
@@ -78,9 +78,9 @@ urlpatterns = [
         name="descricao_autocomplete_json",
     ),
     path("suspensas/", DemandasSuspensasView.as_view(), name="suspensas"),
-    path("duplicatas/", DuplicatasPCAView.as_view(), name="duplicatas"),
     path("workflow/", WorkflowPCAView.as_view(), name="workflow"),
     path("item/<int:pk>/", ItemPCADetalheView.as_view(), name="item_detalhe"),
+    path("item/<int:pk>/vincular/", VincularItemPCAView.as_view(), name="vincular_item"),
     path("renovacao/", RenovacaoExercicioView.as_view(), name="renovacao"),
     path("orcamento/", OrcamentoView.as_view(), name="orcamento"),
     path("prazos/", ControlePrazosView.as_view(), name="prazos"),

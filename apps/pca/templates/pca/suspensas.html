@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load core_extras %}
 {% block nav_suspensas %}active{% endblock %}
 {% block title %}Demandas Suspensas — PCA {{ pca.exercicio }}{% endblock %}
 
@@ -40,7 +41,7 @@
     gap: .75rem;
     align-items: flex-end;
   }
-  .filtro-label { font-size: .65rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em; display: block; margin-bottom: 3px; }
+  .filtro-label { font-size: .65rem; font-weight: 600; color: #6b7688; /* P5: era #94a3b8, 2.56:1 falha WCAG AA */ text-transform: uppercase; letter-spacing: .04em; display: block; margin-bottom: 3px; }
   .filtro-input {
     height: 34px; font-size: .8rem;
     border: 1px solid #e2e8f0; border-radius: 6px;
@@ -95,7 +96,7 @@
           <i class="bi bi-pause-circle-fill"></i>
         </div>
         <div>
-          <div class="kpi-num">{{ qtd_total }}</div>
+          <div class="kpi-num" data-countup="{{ qtd_total }}">{{ qtd_total }}</div>
           <div class="kpi-lbl">Itens Suspensos</div>
         </div>
       </div>
@@ -106,7 +107,7 @@
           <i class="bi bi-scissors"></i>
         </div>
         <div>
-          <div class="kpi-num" style="font-size:1.1rem">R$ {{ valor_retido|floatformat:0 }}</div>
+          <div class="kpi-num" style="font-size:1.1rem" data-countup="{{ valor_retido }}" data-countup-decimals="0" data-countup-prefix="R$ ">R$ {{ valor_retido|brl:0 }}</div>
           <div class="kpi-lbl">Valor Total Retido</div>
         </div>
       </div>
@@ -117,7 +118,7 @@
           <i class="bi bi-x-circle"></i>
         </div>
         <div>
-          <div class="kpi-num">{{ qtd_total_tipo }}</div>
+          <div class="kpi-num" data-countup="{{ qtd_total_tipo }}">{{ qtd_total_tipo }}</div>
           <div class="kpi-lbl">Sobrestamento Total</div>
         </div>
       </div>
@@ -128,7 +129,7 @@
           <i class="bi bi-dash-circle"></i>
         </div>
         <div>
-          <div class="kpi-num">{{ qtd_parcial_tipo }}</div>
+          <div class="kpi-num" data-countup="{{ qtd_parcial_tipo }}">{{ qtd_parcial_tipo }}</div>
           <div class="kpi-lbl">Sobrestamento Parcial</div>
         </div>
       </div>
@@ -211,11 +212,11 @@
                     <span class="badge-nd">—</span>
                   {% endif %}
                 </td>
-                <td class="valor-cell">R$ {{ item.valor_total_estimado|floatformat:2 }}</td>
+                <td class="valor-cell">R$ {{ item.valor_total_estimado|brl }}</td>
                 <td class="cod">{% if item.item_pai %}{{ item.item_pai.codigo_pca }}{% else %}—{% endif %}</td>
               </tr>
             {% empty %}
-              <tr><td colspan="7" style="text-align:center;padding:32px;color:#94a3b8">
+              <tr><td colspan="7" style="text-align:center;padding:32px;color:#6b7688">
                 <i class="bi bi-check-circle fs-4 d-block mb-1"></i>
                 Nenhuma demanda suspensa encontrada.
               </td></tr>
@@ -226,7 +227,7 @@
         {% if itens %}
         <div style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:8px 14px;font-size:.75rem;color:#64748b;display:flex;justify-content:space-between">
           <span>{{ qtd_total }} item(ns) suspenso(s)</span>
-          <span>Valor retido total: <strong>R$ {{ valor_retido|floatformat:2 }}</strong></span>
+          <span>Valor retido total: <strong>R$ {{ valor_retido|brl }}</strong></span>
         </div>
         {% endif %}
       </div>
@@ -240,7 +241,7 @@
         <div class="mb-3">
           <div class="d-flex justify-content-between mb-1" style="font-size:.75rem">
             <span class="fw-semibold">{{ s.dfd__unidade__sigla }}</span>
-            <span class="text-muted">{{ s.qtd }} it. &middot; R$ {{ s.valor|floatformat:0 }}</span>
+            <span class="text-muted">{{ s.qtd }} it. &middot; R$ {{ s.valor|brl:0 }}</span>
           </div>
           {% if valor_retido > 0 %}
           <div class="setor-bar-wrap">

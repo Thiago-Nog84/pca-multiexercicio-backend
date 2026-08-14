@@ -1,5 +1,6 @@
 {% extends "srp/base_srp.html" %}
 {% load humanize %}
+{% load core_extras %}
 
 {% block title %}Contratações Decorrentes — SRP MPPI{% endblock %}
 
@@ -57,27 +58,28 @@
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
     <div class="card stat-card p-3 h-100">
-      <div class="fs-4 fw-bold" style="color:#198754;">{{ total }}</div>
+      <div class="fs-4 fw-bold" style="color:#198754;" data-countup="{{ total }}">{{ total }}</div>
       <div class="text-muted small">Contratações {% if f_arp or f_status or f_exercicio or f_unidade or busca %}(filtradas){% endif %}</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="card stat-card p-3 h-100">
-      <div class="fw-bold" style="color:var(--mppi-vermelho); font-size:1.05rem;">
-        R$&nbsp;{{ valor_total|floatformat:"2g" }}
+      <div class="fw-bold" style="color:var(--mppi-vermelho); font-size:1.05rem;"
+           data-countup="{{ valor_total }}" data-countup-decimals="2" data-countup-prefix="R$ ">
+        R$&nbsp;{{ valor_total|brl }}
       </div>
       <div class="text-muted small">Valor total</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="card stat-card p-3 h-100">
-      <div class="fs-4 fw-bold text-primary">{{ por_status.em_execucao|default:0 }}</div>
+      <div class="fs-4 fw-bold text-primary" data-countup="{{ por_status.em_execucao|default:0 }}">{{ por_status.em_execucao|default:0 }}</div>
       <div class="text-muted small">Em execução</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="card stat-card p-3 h-100">
-      <div class="fs-4 fw-bold text-secondary">{{ por_status.concluido|default:0 }}</div>
+      <div class="fs-4 fw-bold text-secondary" data-countup="{{ por_status.concluido|default:0 }}">{{ por_status.concluido|default:0 }}</div>
       <div class="text-muted small">Concluídas</div>
     </div>
   </div>
@@ -260,8 +262,8 @@
               {% endif %}
             </td>
             <td>{{ c.unidade_requisitante.sigla|default:"—" }}</td>
-            <td class="text-end">{{ c.quantidade|floatformat:"0g" }}</td>
-            <td class="text-end fw-bold">R$ {{ c.valor_total|floatformat:"2g" }}</td>
+            <td class="text-end">{{ c.quantidade|qtd_br }}</td>
+            <td class="text-end fw-bold">R$ {{ c.valor_total|brl }}</td>
             <td class="text-center">{{ c.exercicio|default:"—" }}</td>
             <td class="text-nowrap">{{ c.data_emissao|date:"d/m/Y" }}</td>
             <td class="text-center">

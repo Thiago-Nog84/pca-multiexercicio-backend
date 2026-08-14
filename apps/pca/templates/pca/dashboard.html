@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load humanize %}
+{% load core_extras %}
 
 {% block title %}PCA — Visão Geral{% endblock %}
 {% block nav_pca %}active{% endblock %}
@@ -117,14 +118,17 @@
 </div>
 {% endif %}
 
-<!-- KPIs PRINCIPAIS -->
+<!-- KPIs PRINCIPAIS — visão macro (ativas), sem centavos, formato consistente entre os 4 -->
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
     <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
       <div class="d-flex align-items-start justify-content-between">
         <div>
-          <div class="kpi-label">Total de Demandas</div>
-          <div class="kpi-value mt-1">{{ total_itens|intcomma }}</div>
+          <div class="kpi-label">Total de Demandas (Ativas)
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Quantidade ativa no PCA (exclui um total de {{ suspensos }} processo{{ suspensos|pluralize:"s" }} suspenso{{ suspensos|pluralize:"s" }})."></i>
+          </div>
+          <div class="kpi-value mt-1" data-countup="{{ total_ativas }}">{{ total_ativas|intcomma }}</div>
           <div class="kpi-sub">{{ total_dfds }} DFD{{ total_dfds|pluralize:"s" }}</div>
         </div>
         <div class="kpi-icon" style="background:#e8f0fb;">
@@ -137,9 +141,12 @@
     <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
       <div class="d-flex align-items-start justify-content-between">
         <div>
-          <div class="kpi-label">Valor PCA Estimado</div>
-          <div class="kpi-value mt-1" style="font-size:1rem;">R$&nbsp;{{ valor_total|floatformat:"2g" }}</div>
-          <div class="kpi-sub text-muted">total das demandas</div>
+          <div class="kpi-label">Valor PCA Ativo
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Soma dos valores estimados para as demandas ativas (exclui processos concluídos e suspensos)."></i>
+          </div>
+          <div class="kpi-value mt-1" data-countup="{{ valor_pca_ativo }}" data-countup-prefix="R$ ">R$&nbsp;{{ valor_pca_ativo|brl:0 }}</div>
+          <div class="kpi-sub text-muted">demandas ativas, sem concluídas/suspensas</div>
         </div>
         <div class="kpi-icon" style="background:#dcfce7;">
           <i class="bi bi-cash-coin text-success"></i>
@@ -151,8 +158,11 @@
     <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
       <div class="d-flex align-items-start justify-content-between">
         <div>
-          <div class="kpi-label">Valor Empenhado</div>
-          <div class="kpi-value mt-1" style="font-size:1rem;">R$&nbsp;{{ valor_empenhado|floatformat:"2g" }}</div>
+          <div class="kpi-label">Valor Executado
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Soma dos valores que já foram empenhados e estão em execução."></i>
+          </div>
+          <div class="kpi-value mt-1" data-countup="{{ valor_empenhado }}" data-countup-prefix="R$ ">R$&nbsp;{{ valor_empenhado|brl:0 }}</div>
           <div class="kpi-sub">{{ pct_executado }}% do estimado</div>
         </div>
         <div class="kpi-icon" style="background:#fef9c3;">
@@ -168,8 +178,11 @@
     <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
       <div class="d-flex align-items-start justify-content-between">
         <div>
-          <div class="kpi-label">Concluídas</div>
-          <div class="kpi-value mt-1">{{ concluidos }}</div>
+          <div class="kpi-label">Demandas Concluídas
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Quantidade de processos de contratação que já foram totalmente finalizados."></i>
+          </div>
+          <div class="kpi-value mt-1" data-countup="{{ concluidos }}">{{ concluidos }}</div>
           <div class="kpi-sub">{{ em_andamento }} em andamento · {{ suspensos }} suspenso{{ suspensos|pluralize:"s" }}</div>
         </div>
         <div class="kpi-icon" style="background:#dcfce7;">
@@ -229,20 +242,81 @@
       <div class="col-4"><div class="p-2 rounded text-center" style="background:#fef9c3;border:1px solid #fde68a;">
         <div class="fw-bold text-warning" style="font-size:1rem;" id="k-emp">R$ 0</div><div class="small text-muted">empenhado</div></div></div>
     </div>
-    <!-- gráficos interativos (clique numa barra p/ filtrar) -->
+    <!-- gráficos interativos (clique numa barra p/ filtrar) — ordenados do mais macro (poucas
+         categorias, visão estratégica) ao mais granular (muitas categorias, visão operacional) -->
     <div class="row g-3">
       <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
-        <div class="small fw-semibold text-muted mb-1">Por categoria <span class="fw-normal">· valor (R$)</span></div>
-        <div style="position:relative;height:190px;"><canvas id="ch-categoria"></canvas></div></div></div>
-      <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
-        <div class="small fw-semibold text-muted mb-1">Por unidade orçamentária <span class="fw-normal">· valor (R$)</span></div>
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
+          <div class="small fw-semibold text-muted">Por unidade orçamentária
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Demandas agrupadas pela fonte orçamentária (PGJ, FMMP ou FEPDC)."></i>
+          </div>
+          <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
+            <button type="button" class="btn btn-outline-secondary active" data-dim="uo" data-metric="valor">Valores estimados</button>
+            <button type="button" class="btn btn-outline-secondary" data-dim="uo" data-metric="qtd">Número de processos</button>
+          </div>
+        </div>
         <div style="position:relative;height:190px;"><canvas id="ch-uo"></canvas></div></div></div>
       <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
-        <div class="small fw-semibold text-muted mb-1">Por modalidade <span class="fw-normal">· nº de demandas</span></div>
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
+          <div class="small fw-semibold text-muted">Distribuição por Tipo de Contratação
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Demandas agrupadas pela natureza da contratação (nova, renovação, aditivo, repactuação ou apostilamento)."></i>
+          </div>
+          <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
+            <button type="button" class="btn btn-outline-secondary" data-dim="tipo" data-metric="valor">Valores estimados</button>
+            <button type="button" class="btn btn-outline-secondary active" data-dim="tipo" data-metric="qtd">Número de processos</button>
+          </div>
+        </div>
+        <div style="position:relative;height:190px;"><canvas id="ch-tipo"></canvas></div></div></div>
+      <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
+          <div class="small fw-semibold text-muted">Por status
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Demandas agrupadas pela fase atual do processo de contratação."></i>
+          </div>
+          <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
+            <button type="button" class="btn btn-outline-secondary" data-dim="status" data-metric="valor">Valores estimados</button>
+            <button type="button" class="btn btn-outline-secondary active" data-dim="status" data-metric="qtd">Número de processos</button>
+          </div>
+        </div>
+        <div style="position:relative;height:190px;"><canvas id="ch-status"></canvas></div></div></div>
+      <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
+          <div class="small fw-semibold text-muted">Por modalidade
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Demandas agrupadas pela modalidade de contratação prevista (pregão, dispensa, ARP etc.)."></i>
+          </div>
+          <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
+            <button type="button" class="btn btn-outline-secondary" data-dim="modalidade" data-metric="valor">Valores estimados</button>
+            <button type="button" class="btn btn-outline-secondary active" data-dim="modalidade" data-metric="qtd">Número de processos</button>
+          </div>
+        </div>
         <div style="position:relative;height:190px;"><canvas id="ch-modalidade"></canvas></div></div></div>
       <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
-        <div class="small fw-semibold text-muted mb-1">Por status <span class="fw-normal">· nº de demandas</span></div>
-        <div style="position:relative;height:190px;"><canvas id="ch-status"></canvas></div></div></div>
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
+          <div class="small fw-semibold text-muted">Por categoria
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Demandas agrupadas pela categoria do item (material, serviço, obra etc.). Clique numa barra para filtrar."></i>
+          </div>
+          <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
+            <button type="button" class="btn btn-outline-secondary active" data-dim="categoria" data-metric="valor">Valores estimados</button>
+            <button type="button" class="btn btn-outline-secondary" data-dim="categoria" data-metric="qtd">Número de processos</button>
+          </div>
+        </div>
+        <div style="position:relative;height:190px;"><canvas id="ch-categoria"></canvas></div></div></div>
+      <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
+          <div class="small fw-semibold text-muted">Distribuição por Setor
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Demandas agrupadas pela unidade requisitante (setor) responsável pelo processo."></i>
+          </div>
+          <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
+            <button type="button" class="btn btn-outline-secondary" data-dim="unidade" data-metric="valor">Valores estimados</button>
+            <button type="button" class="btn btn-outline-secondary active" data-dim="unidade" data-metric="qtd">Número de processos</button>
+          </div>
+        </div>
+        <div style="position:relative;height:190px;"><canvas id="ch-setor"></canvas></div></div></div>
     </div>
   </div>
 </div>
@@ -394,7 +468,7 @@
           </div>
           <div class="col-6">
             <div class="p-2 rounded" style="background:#f0fdf4;border:1px solid #bbf7d0;">
-              <div class="fw-bold text-success" style="font-size:.9rem;">R$&nbsp;{{ valor_srp|floatformat:"0g" }}</div>
+              <div class="fw-bold text-success" style="font-size:.9rem;">R$&nbsp;{{ valor_srp|brl:0 }}</div>
               <div class="small text-muted">Valor SRP</div>
             </div>
           </div>
@@ -418,21 +492,21 @@
         <div class="mb-3">
           <div class="d-flex justify-content-between small mb-1">
             <span class="text-muted">Valor estimado</span>
-            <span class="fw-semibold">R$&nbsp;{{ valor_total|floatformat:"2g" }}</span>
+            <span class="fw-semibold">R$&nbsp;{{ valor_total|brl }}</span>
           </div>
           <div class="progress" style="height:8px;"><div class="progress-bar bg-light border" style="width:100%"></div></div>
         </div>
         <div class="mb-3">
           <div class="d-flex justify-content-between small mb-1">
             <span class="text-success">Empenhado ({{ pct_executado }}%)</span>
-            <span class="fw-semibold text-success">R$&nbsp;{{ valor_empenhado|floatformat:"2g" }}</span>
+            <span class="fw-semibold text-success">R$&nbsp;{{ valor_empenhado|brl }}</span>
           </div>
           <div class="progress" style="height:8px;"><div class="progress-bar bg-success" style="width:{{ pct_executado }}%"></div></div>
         </div>
         <div>
           <div class="d-flex justify-content-between small mb-1">
             <span class="text-muted">Disponível</span>
-            <span class="fw-semibold text-muted">R$&nbsp;{{ valor_disponivel|floatformat:"2g" }}</span>
+            <span class="fw-semibold text-muted">R$&nbsp;{{ valor_disponivel|brl }}</span>
           </div>
           <div class="progress" style="height:8px;">
             <div class="progress-bar bg-secondary" style="width:{% if valor_total %}{% widthratio valor_disponivel valor_total 100 %}{% else %}0{% endif %}%"></div>
@@ -533,25 +607,28 @@
 {% block extra_js %}
 {% if pca %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script>
 (function () {
   const el = document.getElementById('pca-itens-data');
   if (!el || typeof Chart === 'undefined') return;
+  if (window.ChartDataLabels) Chart.register(window.ChartDataLabels);
   const DADOS = JSON.parse(el.textContent);
 
   // rótulos (espelham as choices do model ItemPCA)
   const L = {
-    categoria: {material:'Material de Consumo', material_permanente:'Material Permanente', servico:'Serviço', servico_engenharia:'Serv. Engenharia', servico_terceirizado:'Serv. Terceirizado', obras:'Obras', solucao_ti:'Solução de TIC', software:'Software', treinamento:'Treinamento', publicidade:'Publicidade'},
+    categoria: {material:'Mat. Consumo', material_permanente:'Mat. Permanente', servico:'Serviço', servico_engenharia:'Serviço de Engenharia', servico_terceirizado:'Terceirização de Mão de Obra', obras:'Obra', solucao_ti:'Serviço de TI', software:'Software', treinamento:'Treinamento', publicidade:'Publicidade'},
     modalidade: {pregao_eletronico:'Pregão Eletrônico', concorrencia:'Concorrência', concurso:'Concurso', dispensa:'Dispensa', inexigibilidade:'Inexigibilidade', arp_propria:'ARP Própria', arp_carona:'ARP Carona'},
     status: {nao_iniciado:'Não Iniciado', pendente_validacao:'Pend. Validação', iniciado:'Iniciado', em_diligencia:'Em Diligência', em_andamento:'Em Andamento', concluido:'Concluído', suspenso:'Suspenso'},
-    uo: {pgj:'PGJ', fmmp:'FMMP', fepdc:'FEPDC'}
+    uo: {pgj:'PGJ', fmmp:'FMMP', fepdc:'FEPDC'},
+    tipo: {nova:'Nova Contratação', renovacao:'Renovação', aditivo:'Aditivo Quantitativo', repactuacao:'Repactuação', apostilamento:'Apostilamento', indeterminado:'Indeterminado'}
   };
   const lab = (dim, v) => (L[dim] && L[dim][v]) || v || '—';
   const brl = v => v.toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0});
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const RED = '#9B2335', RED_SOFT = 'rgba(155,35,53,.28)';
 
-  const F = {q:'', unidade:'', categoria:'', modalidade:'', status:'', uo:'', srp:false};
+  const F = {q:'', unidade:'', categoria:'', modalidade:'', status:'', uo:'', tipo:'', srp:false};
   let sortK = 'valor', sortDir = -1;
 
   function filtered() {
@@ -562,6 +639,7 @@
       if (F.modalidade && d.modalidade !== F.modalidade) return false;
       if (F.status && d.status !== F.status) return false;
       if (F.uo && d.uo !== F.uo) return false;
+      if (F.tipo && d.tipo !== F.tipo) return false;
       if (F.srp && !d.srp) return false;
       if (q && !(d.desc.toLowerCase().includes(q) || d.codigo.toLowerCase().includes(q))) return false;
       return true;
@@ -590,26 +668,53 @@
   document.getElementById('f-q').addEventListener('input', e => { F.q = e.target.value; render(); });
   document.getElementById('f-srp').addEventListener('change', e => { F.srp = e.target.checked; render(); });
   document.getElementById('expl-limpar').addEventListener('click', () => {
-    Object.assign(F, {q:'', unidade:'', categoria:'', modalidade:'', status:'', uo:'', srp:false});
+    Object.assign(F, {q:'', unidade:'', categoria:'', modalidade:'', status:'', uo:'', tipo:'', srp:false});
     ['f-unidade','f-categoria','f-modalidade','f-status','f-uo'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('f-q').value = '';
     document.getElementById('f-srp').checked = false;
     render();
   });
 
-  // gráficos
+  // gráficos — cada dimensão tem uma métrica alternável (valor R$ ↔ nº de processos)
   const charts = {};
-  function mkChart(id, dim, metric) {
+  const METRIC = {categoria: 'valor', uo: 'valor', modalidade: 'qtd', status: 'qtd', unidade: 'qtd', tipo: 'qtd'};
+  const fmtQtd = v => v + ' demanda' + (v === 1 ? '' : 's');
+
+  const fmtPct = p => p.toFixed(1).replace('.', ',') + '%';
+
+  function mkChart(id, dim, vertical) {
+    const valueAxis = {
+      beginAtZero: true,
+      ticks: {callback: v => METRIC[dim] === 'valor' ? (v >= 1e6 ? (v/1e6)+'M' : v >= 1e3 ? (v/1e3)+'k' : v) : v}
+    };
+    const catAxis = vertical
+      ? {ticks: {autoSkip: false, font: {size: 9}, maxRotation: 45, minRotation: 45}}
+      : {ticks: {autoSkip: false, font: {size: 11}}};
     charts[id] = new Chart(document.getElementById(id), {
       type: 'bar',
-      data: {labels: [], datasets: [{data: [], backgroundColor: RED, borderRadius: 3, maxBarThickness: 22}]},
+      data: {labels: [], datasets: [{data: [], backgroundColor: RED, borderRadius: 3, maxBarThickness: vertical ? 26 : 22}]},
       options: {
-        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-        plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => metric === 'valor' ? brl(c.parsed.x) : c.parsed.x + ' demanda(s)'}}},
-        scales: {
-          x: {beginAtZero: true, ticks: {callback: v => metric === 'valor' ? (v >= 1e6 ? (v/1e6)+'M' : v >= 1e3 ? (v/1e3)+'k' : v) : v}},
-          y: {ticks: {autoSkip: false, font: {size: 11}}}
+        indexAxis: vertical ? 'x' : 'y', responsive: true, maintainAspectRatio: false,
+        layout: {padding: vertical ? {top: 20} : {right: 40}},
+        plugins: {
+          legend: {display: false},
+          tooltip: {callbacks: {label: c => {
+            const raw = vertical ? c.parsed.y : c.parsed.x;
+            return METRIC[dim] === 'valor' ? brl(raw) : fmtQtd(raw);
+          }}},
+          datalabels: {
+            anchor: 'end', align: vertical ? 'top' : 'end', clamp: true, clip: false,
+            color: '#334155', font: {size: 10, weight: '600'},
+            formatter: (v, ctx) => {
+              const pcts = charts[id]._pcts;
+              const pct = pcts ? pcts[ctx.dataIndex] : null;
+              return pct == null ? '' : fmtPct(pct);
+            }
+          }
         },
+        scales: vertical
+          ? {y: valueAxis, x: catAxis}
+          : {x: valueAxis, y: catAxis},
         onClick: (e, els) => {
           if (!els.length) return;
           const key = charts[id]._keys[els[0].index];
@@ -620,15 +725,30 @@
       }
     });
   }
-  mkChart('ch-categoria', 'categoria', 'valor');
-  mkChart('ch-uo', 'uo', 'valor');
-  mkChart('ch-modalidade', 'modalidade', 'qtd');
-  mkChart('ch-status', 'status', 'qtd');
+  mkChart('ch-categoria', 'categoria');
+  mkChart('ch-uo', 'uo');
+  mkChart('ch-modalidade', 'modalidade');
+  mkChart('ch-status', 'status');
+  mkChart('ch-tipo', 'tipo');
+  mkChart('ch-setor', 'unidade', true);
 
-  function updChart(id, dim, metric, arr) {
+  // botões "Valores estimados" / "Número de processos" — alternam a métrica de cada gráfico
+  document.querySelectorAll('.chart-metric-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const dim = btn.dataset.dim;
+      METRIC[dim] = btn.dataset.metric;
+      btn.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+      render();
+    });
+  });
+
+  function updChart(id, dim, arr) {
+    const metric = METRIC[dim];
     const rows = agg(arr, dim, metric).slice(0, 10);
+    const total = rows.reduce((s, r) => s + r.v, 0);
     const ch = charts[id];
     ch._keys = rows.map(r => r.k);
+    ch._pcts = total ? rows.map(r => (r.v / total) * 100) : rows.map(() => 0);
     ch.data.labels = rows.map(r => r.label);
     ch.data.datasets[0].data = rows.map(r => r.v);
     ch.data.datasets[0].backgroundColor = rows.map(r => (F[dim] && F[dim] !== r.k) ? RED_SOFT : RED);
@@ -656,7 +776,7 @@
   }
 
   function updChips() {
-    const map = {unidade:'Unidade', categoria:'Categoria', modalidade:'Modalidade', status:'Status', uo:'UO'};
+    const map = {unidade:'Unidade', categoria:'Categoria', modalidade:'Modalidade', status:'Status', uo:'UO', tipo:'Tipo de Contratação'};
     const chips = [];
     Object.keys(map).forEach(dim => { if (F[dim]) chips.push(`<span class="badge rounded-pill text-bg-light border" role="button" data-clr="${dim}">${esc(map[dim])}: ${esc(lab(dim, F[dim]))} <i class="bi bi-x"></i></span>`); });
     if (F.srp) chips.push('<span class="badge rounded-pill text-bg-light border" role="button" data-clr="srp">Só SRP <i class="bi bi-x"></i></span>');
@@ -678,10 +798,12 @@
     document.getElementById('k-qtd').textContent = arr.length.toLocaleString('pt-BR');
     document.getElementById('k-valor').textContent = brl(arr.reduce((s, d) => s + d.valor, 0));
     document.getElementById('k-emp').textContent = brl(arr.reduce((s, d) => s + d.empenhado, 0));
-    updChart('ch-categoria', 'categoria', 'valor', arr);
-    updChart('ch-uo', 'uo', 'valor', arr);
-    updChart('ch-modalidade', 'modalidade', 'qtd', arr);
-    updChart('ch-status', 'status', 'qtd', arr);
+    updChart('ch-categoria', 'categoria', arr);
+    updChart('ch-uo', 'uo', arr);
+    updChart('ch-modalidade', 'modalidade', arr);
+    updChart('ch-status', 'status', arr);
+    updChart('ch-tipo', 'tipo', arr);
+    updChart('ch-setor', 'unidade', arr);
     updChips();
     updTable(arr);
     document.getElementById('tbl-resumo').textContent = '· ' + arr.length + ' de ' + DADOS.length;

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load humanize %}
+{% load core_extras %}
 
 {% block title %}PCA — Demandas{% endblock %}
 {% block nav_demandas %}active{% endblock %}
@@ -99,7 +100,7 @@
   <div class="col-6 col-md-3">
     <a href="?{% if pca %}pca_id={{ pca.pk }}&{% endif %}aprovacao=pendente" class="text-decoration-none">
       <div class="card p-2 h-100 border-start border-3 border-secondary">
-        <div class="fs-5 fw-bold">{{ resumo_aprovacao.pendente|default:0 }}</div>
+        <div class="fs-5 fw-bold" data-countup="{{ resumo_aprovacao.pendente|default:0 }}">{{ resumo_aprovacao.pendente|default:0 }}</div>
         <div class="text-muted small">Pendentes de análise</div>
       </div>
     </a>
@@ -107,7 +108,7 @@
   <div class="col-6 col-md-3">
     <a href="?{% if pca %}pca_id={{ pca.pk }}&{% endif %}aprovacao=aprovada_integral" class="text-decoration-none">
       <div class="card p-2 h-100 border-start border-3 border-success">
-        <div class="fs-5 fw-bold text-success">{{ resumo_aprovacao.aprovada_integral|default:0 }}</div>
+        <div class="fs-5 fw-bold text-success" data-countup="{{ resumo_aprovacao.aprovada_integral|default:0 }}">{{ resumo_aprovacao.aprovada_integral|default:0 }}</div>
         <div class="text-muted small">Aprovadas integralmente</div>
       </div>
     </a>
@@ -115,7 +116,7 @@
   <div class="col-6 col-md-3">
     <a href="?{% if pca %}pca_id={{ pca.pk }}&{% endif %}aprovacao=aprovada_parcial" class="text-decoration-none">
       <div class="card p-2 h-100 border-start border-3 border-warning">
-        <div class="fs-5 fw-bold text-warning">{{ resumo_aprovacao.aprovada_parcial|default:0 }}</div>
+        <div class="fs-5 fw-bold text-warning" data-countup="{{ resumo_aprovacao.aprovada_parcial|default:0 }}">{{ resumo_aprovacao.aprovada_parcial|default:0 }}</div>
         <div class="text-muted small">Aprovadas parcialmente</div>
       </div>
     </a>
@@ -123,7 +124,7 @@
   <div class="col-6 col-md-3">
     <a href="?{% if pca %}pca_id={{ pca.pk }}&{% endif %}aprovacao=nao_aprovada" class="text-decoration-none">
       <div class="card p-2 h-100 border-start border-3 border-danger">
-        <div class="fs-5 fw-bold text-danger">{{ resumo_aprovacao.nao_aprovada|default:0 }}</div>
+        <div class="fs-5 fw-bold text-danger" data-countup="{{ resumo_aprovacao.nao_aprovada|default:0 }}">{{ resumo_aprovacao.nao_aprovada|default:0 }}</div>
         <div class="text-muted small">Não aprovadas</div>
       </div>
     </a>
@@ -205,8 +206,8 @@
               <td class="text-center" style="font-size:.78rem;">
                 {{ item.get_modalidade_display|truncatechars:30 }}
               </td>
-              <td class="text-end">{{ item.quantidade_estimada|floatformat:"0g" }}</td>
-              <td class="text-end fw-bold">R$ {{ item.valor_total_estimado|floatformat:"2g" }}</td>
+              <td class="text-end">{{ item.quantidade_estimada|qtd_br }}</td>
+              <td class="text-end fw-bold">R$ {{ item.valor_total_estimado|brl }}</td>
               <td class="text-center">
                 <span class="badge rounded-pill
                   {% if item.status == 'concluido' %}bg-success
@@ -238,9 +239,9 @@
                 {% if item.houve_corte %}
                 <div class="text-muted" style="font-size:.65rem;" title="Quantidade/valor reduzidos na análise">
                   <i class="bi bi-scissors"></i>
-                  de {{ item.quantidade_solicitada|floatformat:"0g" }} &rarr; {{ item.quantidade_estimada|floatformat:"0g" }}
+                  de {{ item.quantidade_solicitada|qtd_br }} &rarr; {{ item.quantidade_estimada|qtd_br }}
                   {% if item.valor_cortado > 0 %}
-                    · &minus;R$ {{ item.valor_cortado|floatformat:"2g" }}
+                    · &minus;R$ {{ item.valor_cortado|brl }}
                   {% endif %}
                 </div>
                 {% endif %}
@@ -248,6 +249,9 @@
               <td style="min-width:120px;">
                 <a href="{% url 'pca:item_detalhe' item.pk %}" class="btn btn-ghost btn-sm p-1" title="Ver detalhe">
                   <i class="bi bi-eye text-secondary"></i>
+                </a>
+                <a href="{% url 'pca:vincular_item' item.pk %}" class="btn btn-ghost btn-sm p-1" title="Vincular ARP/Contrato">
+                  <i class="bi bi-link-45deg text-primary"></i>
                 </a>
                 {% if pode_analisar %}
                   {% if item.status_aprovacao == 'pendente' %}
@@ -302,12 +306,12 @@
           <p class="mb-2" style="white-space:pre-wrap;">{{ item.motivo_analise }}</p>
           {% if item.houve_corte %}
           <div class="alert alert-warning py-2 small mb-2">
-            Pedido original: {{ item.quantidade_solicitada|floatformat:"0g" }} un. ×
-            R$ {{ item.valor_unitario_solicitado|floatformat:"2g" }}
-            = R$ {{ item.valor_total_solicitado|floatformat:"2g" }}<br>
-            Aprovado: {{ item.quantidade_estimada|floatformat:"0g" }} un. ×
-            R$ {{ item.valor_unitario_estimado|floatformat:"2g" }}
-            = R$ {{ item.valor_total_estimado|floatformat:"2g" }}
+            Pedido original: {{ item.quantidade_solicitada|qtd_br }} un. ×
+            R$ {{ item.valor_unitario_solicitado|brl }}
+            = R$ {{ item.valor_total_solicitado|brl }}<br>
+            Aprovado: {{ item.quantidade_estimada|qtd_br }} un. ×
+            R$ {{ item.valor_unitario_estimado|brl }}
+            = R$ {{ item.valor_total_estimado|brl }}
           </div>
           {% endif %}
           <p class="text-muted mb-0" style="font-size:.75rem;">
@@ -335,10 +339,10 @@
           <div class="modal-body">
             <p class="small text-muted">{{ item.descricao|truncatechars:120 }}</p>
             <p class="small mb-3">
-              Pedido pela unidade: <strong>{{ item.quantidade_estimada|floatformat:"0g" }}</strong>
+              Pedido pela unidade: <strong>{{ item.quantidade_estimada|qtd_br }}</strong>
               {{ item.unidade_fornecimento }} ×
-              R$ {{ item.valor_unitario_estimado|floatformat:"2g" }}
-              = R$ {{ item.valor_total_estimado|floatformat:"2g" }}
+              R$ {{ item.valor_unitario_estimado|brl }}
+              = R$ {{ item.valor_total_estimado|brl }}
             </p>
             <div class="row g-2 mb-3">
               <div class="col-6">

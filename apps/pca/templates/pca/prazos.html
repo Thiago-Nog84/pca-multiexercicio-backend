@@ -39,28 +39,28 @@
   <div class="col-6 col-md-3">
     <div class="card kpi-card h-100 p-3">
       <div class="kpi-label">Vencidos</div>
-      <div class="kpi-value mt-1" style="color:#dc2626;">{{ contadores.vencido }}</div>
+      <div class="kpi-value mt-1" style="color:#dc2626;" data-countup="{{ contadores.vencido }}">{{ contadores.vencido }}</div>
       <div class="kpi-sub">Prazo ja passou</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="card kpi-card h-100 p-3">
       <div class="kpi-label">Proximo ao vencimento</div>
-      <div class="kpi-value mt-1" style="color:#d97706;">{{ contadores.proximo }}</div>
+      <div class="kpi-value mt-1" style="color:#d97706;" data-countup="{{ contadores.proximo }}">{{ contadores.proximo }}</div>
       <div class="kpi-sub">Ate 30 dias</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="card kpi-card h-100 p-3">
       <div class="kpi-label">No prazo</div>
-      <div class="kpi-value mt-1" style="color:#16a34a;">{{ contadores.no_prazo }}</div>
+      <div class="kpi-value mt-1" style="color:#16a34a;" data-countup="{{ contadores.no_prazo }}">{{ contadores.no_prazo }}</div>
       <div class="kpi-sub">Mais de 30 dias</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="card kpi-card h-100 p-3">
       <div class="kpi-label">Concluidos</div>
-      <div class="kpi-value mt-1" style="color:#64748b;">{{ contadores.concluido }}</div>
+      <div class="kpi-value mt-1" style="color:#64748b;" data-countup="{{ contadores.concluido }}">{{ contadores.concluido }}</div>
       <div class="kpi-sub">Finalizados</div>
     </div>
   </div>

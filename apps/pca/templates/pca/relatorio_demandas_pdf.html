@@ -1,4 +1,6 @@
-{% load humanize %}<!DOCTYPE html>
+{% load core_extras %}
+{% load humanize %}
+<!DOCTYPE html>
 <html lang="pt-br">
 <head>
   <meta charset="utf-8">
@@ -75,7 +77,7 @@
     <td class="rot" width="12%">Total de itens:</td>
     <td class="val" width="20%">{{ total_itens }}</td>
     <td class="rot" width="12%">Valor estimado:</td>
-    <td class="val">R$ {{ total_geral|floatformat:"2g" }}</td>
+    <td class="val">R$ {{ total_geral|brl }}</td>
   </tr>
   {% if filtros_ativos %}
   <tr>
@@ -122,9 +124,9 @@
         </td>
         <td>{{ item.dfd.numero_dfd|default:"—" }}</td>
         <td>{{ item.get_categoria_display }}</td>
-        <td class="num">{{ item.quantidade_estimada|floatformat:"0g" }}</td>
-        <td class="num">R$ {{ item.valor_unitario_estimado|floatformat:"2g" }}</td>
-        <td class="num">R$ {{ item.valor_total_estimado|floatformat:"2g" }}</td>
+        <td class="num">{{ item.quantidade_estimada|qtd_br }}</td>
+        <td class="num">R$ {{ item.valor_unitario_estimado|brl }}</td>
+        <td class="num">R$ {{ item.valor_total_estimado|brl }}</td>
         <td class="cen">
           {% if item.status_aprovacao == 'aprovada_integral' %}
             <span class="badge b-ok">Aprovada</span>
@@ -132,7 +134,7 @@
             <span class="badge b-parc">Parcial</span>
             {% if item.houve_corte %}
             <br><span class="corte">
-              {{ item.quantidade_solicitada|floatformat:"0g" }}&rarr;{{ item.quantidade_estimada|floatformat:"0g" }}
+              {{ item.quantidade_solicitada|qtd_br }}&rarr;{{ item.quantidade_estimada|qtd_br }}
             </span>
             {% endif %}
           {% elif item.status_aprovacao == 'nao_aprovada' %}
@@ -145,7 +147,7 @@
       {% endfor %}
       <tr class="subtotal">
         <td colspan="6" class="num">Subtotal {{ grupo.sigla }}</td>
-        <td class="num">R$ {{ grupo.total|floatformat:"2g" }}</td>
+        <td class="num">R$ {{ grupo.total|brl }}</td>
         <td></td>
       </tr>
     </tbody>
@@ -155,7 +157,7 @@
 {% if grupos %}
 <p class="total-geral">
   TOTAL GERAL ({{ total_itens }} {% if total_itens == 1 %}item{% else %}itens{% endif %}):
-  R$ {{ total_geral|floatformat:"2g" }}
+  R$ {{ total_geral|brl }}
 </p>
 {% endif %}
 

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load humanize %}
+{% load core_extras %}
 
 {% block title %}Contratos — MPPI{% endblock %}
 {% block nav_contratos %}active{% endblock %}
@@ -68,8 +69,11 @@
     <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
       <div class="d-flex align-items-start justify-content-between">
         <div>
-          <div class="kpi-label">Contratos Locais</div>
-          <div class="kpi-value mt-1">{{ total_local }}</div>
+          <div class="kpi-label">Contratos Locais
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Quantidade de contratos cadastrados diretamente no sistema local (não inclui os importados do Comprasnet)."></i>
+          </div>
+          <div class="kpi-value mt-1" data-countup="{{ total_local }}">{{ total_local }}</div>
           <div class="kpi-sub">{{ vigentes_local }} vigente{{ vigentes_local|pluralize:"s" }}</div>
         </div>
         <div class="kpi-icon" style="background:#e8f0fb;">
@@ -82,9 +86,12 @@
     <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
       <div class="d-flex align-items-start justify-content-between">
         <div>
-          <div class="kpi-label">Valor Vigente (local)</div>
-          <div class="kpi-value mt-1" style="font-size:.95rem;">R$&nbsp;{{ valor_local|floatformat:"2g" }}</div>
-          <div class="kpi-sub">Saldo: R$&nbsp;{{ saldo_disponivel|floatformat:"0g" }}</div>
+          <div class="kpi-label">Valor Vigente (local)
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Soma do valor atual dos contratos locais vigentes."></i>
+          </div>
+          <div class="kpi-value mt-1" style="font-size:.95rem;" data-countup="{{ valor_local }}" data-countup-decimals="2" data-countup-prefix="R$ ">R$&nbsp;{{ valor_local|brl }}</div>
+          <div class="kpi-sub">Saldo: R$&nbsp;{{ saldo_disponivel|brl:0 }}</div>
         </div>
         <div class="kpi-icon" style="background:#dcfce7;">
           <i class="bi bi-cash-coin text-success"></i>
@@ -96,8 +103,11 @@
     <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
       <div class="d-flex align-items-start justify-content-between">
         <div>
-          <div class="kpi-label">Comprasnet (importado)</div>
-          <div class="kpi-value mt-1">{{ total_comprasnet }}</div>
+          <div class="kpi-label">Comprasnet (importado)
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Quantidade de contratos trazidos automaticamente do Comprasnet via sincronização (UASG 926092)."></i>
+          </div>
+          <div class="kpi-value mt-1" data-countup="{{ total_comprasnet }}">{{ total_comprasnet }}</div>
           <div class="kpi-sub">{{ ativos_comprasnet }} ativos · {{ inativos_comprasnet }} inativos</div>
         </div>
         <div class="kpi-icon" style="background:#f0f9ff;">
@@ -115,8 +125,11 @@
     <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
       <div class="d-flex align-items-start justify-content-between">
         <div>
-          <div class="kpi-label">Contratos de ARP</div>
-          <div class="kpi-value mt-1">{{ total_contratos_arp }}</div>
+          <div class="kpi-label">Contratos de ARP
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Contratações decorrentes de Ata de Registro de Preços, próprias ou por adesão (carona)."></i>
+          </div>
+          <div class="kpi-value mt-1" data-countup="{{ total_contratos_arp }}">{{ total_contratos_arp }}</div>
           <div class="kpi-sub">{{ proprios_arp }} próprios · {{ caronas_cedidas }} carona{{ caronas_cedidas|pluralize:"s" }}</div>
         </div>
         <div class="kpi-icon" style="background:#fdf4ff;">
@@ -138,6 +151,8 @@
         <div>
           <div class="kpi-label">
             <i class="bi bi-send me-1"></i>Prazo Transparência (CNMP)
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Dias restantes para o envio mensal de dados de contratos à Plataforma de Transparência do CNMP (até o dia 10)."></i>
           </div>
           <div class="kpi-value mt-1
                {% if dias_ate_transparencia <= 3 %}text-danger
@@ -179,6 +194,8 @@
         <div>
           <div class="kpi-label">
             <i class="bi bi-receipt me-1"></i>Ajustes de Empenho Pendentes
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Contratos vigentes que ainda não têm nenhum empenho vinculado no sistema."></i>
           </div>
           <div class="kpi-value mt-1
                {% if contratos_sem_empenho > 0 %}text-warning{% else %}text-success{% endif %}">
@@ -328,16 +345,46 @@
     </div>
     <div class="row g-3">
       <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
-        <div class="small fw-semibold text-muted mb-1">Distribuição por Status <span class="fw-normal">· Quantidade de contratos</span></div>
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
+          <div class="small fw-semibold text-muted">Distribuição por Status
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Contratos agrupados pela situação atual (vigente, suspenso, rescindido, encerrado)."></i>
+          </div>
+          <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
+            <button type="button" class="btn btn-outline-secondary" data-dim="status" data-metric="valor">Valores estimados</button>
+            <button type="button" class="btn btn-outline-secondary active" data-dim="status" data-metric="qtd">Número de processos</button>
+          </div>
+        </div>
         <div style="position:relative;height:190px;"><canvas id="ch-status"></canvas></div></div></div>
       <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
-        <div class="small fw-semibold text-muted mb-1">Distribuição por Natureza do Objeto <span class="fw-normal">· Volume contratado (R$)</span></div>
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
+          <div class="small fw-semibold text-muted">Distribuição por Natureza do Objeto
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Contratos agrupados pela natureza do objeto contratado (serviço contínuo, fornecimento, obra etc.)."></i>
+          </div>
+          <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
+            <button type="button" class="btn btn-outline-secondary active" data-dim="tipo" data-metric="valor">Valores estimados</button>
+            <button type="button" class="btn btn-outline-secondary" data-dim="tipo" data-metric="qtd">Número de processos</button>
+          </div>
+        </div>
         <div style="position:relative;height:190px;"><canvas id="ch-tipo"></canvas></div></div></div>
       <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
-        <div class="small fw-semibold text-muted mb-1">Alocação por Órgão <span class="fw-normal">· Volume contratado (R$)</span></div>
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
+          <div class="small fw-semibold text-muted">Alocação por Órgão
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Contratos agrupados pelo órgão/fonte orçamentária responsável."></i>
+          </div>
+          <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
+            <button type="button" class="btn btn-outline-secondary active" data-dim="orgao" data-metric="valor">Valores estimados</button>
+            <button type="button" class="btn btn-outline-secondary" data-dim="orgao" data-metric="qtd">Número de processos</button>
+          </div>
+        </div>
         <div style="position:relative;height:190px;"><canvas id="ch-orgao"></canvas></div></div></div>
       <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
-        <div class="small fw-semibold text-muted mb-1">Horizonte de Vigência <span class="fw-normal">· Quantidade de contratos</span></div>
+        <div class="small fw-semibold text-muted mb-1">Horizonte de Vigência
+          <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+             title="Contratos agrupados pelo tempo restante até o fim da vigência."></i>
+          <span class="fw-normal">· Quantidade de contratos</span></div>
         <div style="position:relative;height:190px;"><canvas id="ch-vigencia"></canvas></div></div></div>
     </div>
   </div>
@@ -455,7 +502,7 @@
           <span class="badge bg-primary rounded-pill" style="font-size:.7rem;">{{ t.qtd }}</span>
         </div>
         {% if t.valor %}
-        <div class="text-end text-muted mb-2" style="font-size:.65rem;">R$&nbsp;{{ t.valor|floatformat:"0g" }}</div>
+        <div class="text-end text-muted mb-2" style="font-size:.65rem;">R$&nbsp;{{ t.valor|brl:0 }}</div>
         {% endif %}
         {% if vigentes_local %}
         <div class="progress mb-2" style="height:3px;">
@@ -492,7 +539,7 @@
             <tr>
               <td class="font-monospace fw-bold text-primary" style="font-size:.78rem;">{{ c.numero_contrato }}</td>
               <td style="font-size:.75rem;">{{ c.contratado_razao_social|truncatechars:28 }}</td>
-              <td class="text-end text-muted" style="font-size:.75rem;">R$&nbsp;{{ c.valor_atual|floatformat:"0g" }}</td>
+              <td class="text-end text-muted" style="font-size:.75rem;">R$&nbsp;{{ c.valor_atual|brl:0 }}</td>
               <td class="text-center" style="font-size:.75rem;">{{ c.data_fim_vigencia|date:"d/m/Y" }}</td>
               <td class="text-center">
                 <span class="badge rounded-pill
@@ -557,7 +604,7 @@
       </div>
       <div class="col-6 col-md-3">
         <div class="rounded p-2 text-center" style="background:#f0fdf4;border:1px solid #bbf7d0;">
-          <div class="fw-bold text-success" style="font-size:.9rem;">R$&nbsp;{{ valor_comprasnet|floatformat:"0g" }}</div>
+          <div class="fw-bold text-success" style="font-size:.9rem;">R$&nbsp;{{ valor_comprasnet|brl:0 }}</div>
           <div class="small text-muted">Valor global (ativos)</div>
         </div>
       </div>
@@ -595,7 +642,7 @@
             <td class="font-monospace fw-semibold" style="font-size:.78rem;">{{ c.numero }}</td>
             <td style="font-size:.75rem;">{{ c.fornecedor_nome|truncatechars:24 }}</td>
             <td style="font-size:.7rem;" class="text-muted">{{ c.modalidade|truncatechars:20 }}</td>
-            <td class="text-end text-muted" style="font-size:.75rem;">R$&nbsp;{{ c.valor_global|floatformat:"0g" }}</td>
+            <td class="text-end text-muted" style="font-size:.75rem;">R$&nbsp;{{ c.valor_global|brl:0 }}</td>
             <td class="text-center" style="font-size:.75rem;">{{ c.vigencia_fim|date:"d/m/Y" }}</td>
             <td class="text-center">
               {% with d=c.vigencia_fim|timeuntil %}
@@ -652,7 +699,7 @@
             <tr>
               <td class="font-monospace fw-semibold" style="font-size:.75rem;">{{ c.numero_contrato }}</td>
               <td style="font-size:.72rem;">{{ c.contratado_nome|truncatechars:20 }}</td>
-              <td class="text-end text-muted" style="font-size:.72rem;">R$&nbsp;{{ c.valor_total|floatformat:"0g" }}</td>
+              <td class="text-end text-muted" style="font-size:.72rem;">R$&nbsp;{{ c.valor_total|brl:0 }}</td>
               <td class="text-center">
                 {% if c.data_fim_vigencia %}
                 <span class="badge {% if not c.esta_vigente %}bg-secondary{% else %}bg-success{% endif %}"
@@ -704,7 +751,7 @@
             <tr>
               <td class="font-monospace fw-semibold" style="font-size:.75rem;">{{ c.numero_contrato }}</td>
               <td style="font-size:.72rem;">{{ c.nome_uasg_contratante|truncatechars:22|default:c.uasg_contratante }}</td>
-              <td class="text-end text-muted" style="font-size:.72rem;">R$&nbsp;{{ c.valor_total|floatformat:"0g" }}</td>
+              <td class="text-end text-muted" style="font-size:.72rem;">R$&nbsp;{{ c.valor_total|brl:0 }}</td>
               <td class="text-center">
                 <a href="{% url 'srp:arp_detalhe' c.arp.pk %}" class="badge bg-info text-decoration-none"
                    style="font-size:.6rem;">{{ c.arp.numero_arp }}</a>
@@ -774,7 +821,7 @@
           <div class="col-sm-4">
             <div class="bg-light rounded p-3 text-center">
               <div class="text-warning fw-bold" style="font-size:1.4rem;">
-                R$&nbsp;{{ valor_empenhado|floatformat:"2g" }}
+                R$&nbsp;{{ valor_empenhado|brl }}
               </div>
               <div class="text-muted small">Total Empenhado (SIAFE)</div>
             </div>
@@ -825,8 +872,8 @@
                   {{ c.numero_contrato }}
                 </td>
                 <td class="text-truncate" style="max-width:180px;">{{ c.contratado_razao_social }}</td>
-                <td class="text-end text-nowrap">R$&nbsp;{{ c.valor_atual|floatformat:"2g" }}</td>
-                <td class="text-end text-nowrap fw-semibold">R$&nbsp;{{ c.valor_empenhado|floatformat:"2g" }}</td>
+                <td class="text-end text-nowrap">R$&nbsp;{{ c.valor_atual|brl }}</td>
+                <td class="text-end text-nowrap fw-semibold">R$&nbsp;{{ c.valor_empenhado|brl }}</td>
                 <td>
                   {% widthratio c.valor_empenhado c.valor_atual 100 as exec_pct %}
                   <div class="d-flex align-items-center gap-1">
@@ -986,10 +1033,12 @@
 <!-- Explorador interativo de contratos (Chart.js) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script>
 (function () {
   const el = document.getElementById('contratos-data');
   if (!el || typeof Chart === 'undefined') return;
+  if (window.ChartDataLabels) Chart.register(window.ChartDataLabels);
   const DADOS = JSON.parse(el.textContent);
   const BY_PK = Object.fromEntries(DADOS.map(d => [d.pk, d]));
 
@@ -1105,40 +1154,69 @@
   });
 
   const charts = {};
-  function mkChart(id, dim, metric) {
+  const METRIC = {status: 'qtd', tipo: 'valor', orgao: 'valor'};
+  const fmtPct = p => p.toFixed(1).replace('.', ',') + '%';
+  function mkChart(id, dim) {
     charts[id] = new Chart(document.getElementById(id), {
       type: 'bar',
       data: {labels: [], datasets: [{data: [], backgroundColor: RED, borderRadius: 3, maxBarThickness: 22}]},
       options: {
         indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-        plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => metric === 'valor' ? brl(c.parsed.x) : c.parsed.x + ' contrato(s)'}}},
-        scales: {x: {beginAtZero: true, ticks: {callback: v => metric === 'valor' ? (v >= 1e6 ? (v/1e6)+'M' : v >= 1e3 ? (v/1e3)+'k' : v) : v}}, y: {ticks: {autoSkip: false, font: {size: 11}}}},
+        layout: {padding: {right: 40}},
+        plugins: {
+          legend: {display: false},
+          tooltip: {callbacks: {label: c => METRIC[dim] === 'valor' ? brl(c.parsed.x) : c.parsed.x + ' contrato(s)'}},
+          datalabels: {
+            anchor: 'end', align: 'end', clamp: true, clip: false,
+            color: '#334155', font: {size: 10, weight: '600'},
+            formatter: (v, ctx) => {
+              const pcts = charts[id]._pcts;
+              const pct = pcts ? pcts[ctx.dataIndex] : null;
+              return pct == null ? '' : fmtPct(pct);
+            }
+          }
+        },
+        scales: {x: {beginAtZero: true, ticks: {callback: v => METRIC[dim] === 'valor' ? (v >= 1e6 ? (v/1e6)+'M' : v >= 1e3 ? (v/1e3)+'k' : v) : v}}, y: {ticks: {autoSkip: false, font: {size: 11}}}},
         onClick: (e, els) => { if (!els.length) return; const key = charts[id]._keys[els[0].index]; F[dim] = (F[dim] === key ? '' : key); const sel = document.getElementById('f-' + dim); if (sel) sel.value = F[dim]; render(); }
       }
     });
   }
-  mkChart('ch-status', 'status', 'qtd');
-  mkChart('ch-tipo', 'tipo', 'valor');
-  mkChart('ch-orgao', 'orgao', 'valor');
-  mkChart('ch-vigencia', 'faixa', 'qtd');
+  mkChart('ch-status', 'status');
+  mkChart('ch-tipo', 'tipo');
+  mkChart('ch-orgao', 'orgao');
+  mkChart('ch-vigencia', 'faixa');
 
-  function updChart(id, dim, metric, arr) {
+  // botões "Valores estimados" / "Número de processos" — alternam a métrica de cada gráfico
+  document.querySelectorAll('.chart-metric-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      METRIC[btn.dataset.dim] = btn.dataset.metric;
+      btn.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+      render();
+    });
+  });
+
+  function updChart(id, dim, arr) {
+    const metric = METRIC[dim];
     const rows = agg(arr, dim, metric).slice(0, 10);
+    const total = rows.reduce((s, r) => s + r.v, 0);
     const ch = charts[id];
     ch._keys = rows.map(r => r.k);
+    ch._pcts = total ? rows.map(r => (r.v / total) * 100) : rows.map(() => 0);
     ch.data.labels = rows.map(r => r.label);
     ch.data.datasets[0].data = rows.map(r => r.v);
     ch.data.datasets[0].backgroundColor = rows.map(r => (F[dim] && F[dim] !== r.k) ? RED_SOFT : RED);
     ch.update();
   }
 
-  // gráfico de vigência: ordem natural das faixas (não por valor)
+  // gráfico de vigência: ordem natural das faixas (não por valor), só contagem
   function updVigencia(arr) {
     const counts = {};
     arr.forEach(d => { const k = faixaOf(d); counts[k] = (counts[k] || 0) + 1; });
     const rows = FAIXAS.filter(f => counts[f.k]);
+    const total = rows.reduce((s, f) => s + counts[f.k], 0);
     const ch = charts['ch-vigencia'];
     ch._keys = rows.map(f => f.k);
+    ch._pcts = total ? rows.map(f => (counts[f.k] / total) * 100) : rows.map(() => 0);
     ch.data.labels = rows.map(f => f.label);
     ch.data.datasets[0].data = rows.map(f => counts[f.k]);
     ch.data.datasets[0].backgroundColor = rows.map(f => (F.faixa && F.faixa !== f.k) ? RED_SOFT : RED);
@@ -1216,9 +1294,9 @@
       const card = document.querySelector('.acao-card[data-acao="' + k + '"]');
       if (card) card.style.outline = (F.acao === k ? '2px solid ' + ACAO[k].cor : '');
     });
-    updChart('ch-status', 'status', 'qtd', arr);
-    updChart('ch-tipo', 'tipo', 'valor', arr);
-    updChart('ch-orgao', 'orgao', 'valor', arr);
+    updChart('ch-status', 'status', arr);
+    updChart('ch-tipo', 'tipo', arr);
+    updChart('ch-orgao', 'orgao', arr);
     updVigencia(arr);
     updChips();
     updTable(arr);
