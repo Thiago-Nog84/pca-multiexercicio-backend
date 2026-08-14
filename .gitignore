@@ -61,3 +61,10 @@ fracao_*.txt
 itens_[0-9]*.txt
 map_[0-9]*.txt
 sugestoes_*.txt
+
+# Scripts de consulta ad-hoc criados durante investigações (scratch_*.py na raiz).
+# São descartáveis — se uma consulta virar rotina, ela vira management command.
+scratch_*.py
+# Scripts de teste manual temporários (_teste_*.py) e suas saídas
+_teste_*.py
+_saida_*.txt

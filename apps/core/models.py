@@ -99,3 +99,119 @@ class Perfil(models.Model):
 
     def __str__(self):
         return f"{self.usuario} — {self.perfil}"
+
+
+class Notificacao(models.Model):
+    """
+    Aviso in-app publicado para os usuários do sistema.
+
+    Pode ser geral (unidade_destino vazia) ou dirigido a uma unidade
+    requisitante específica. A "exclusão" é lógica (ativa=False), para
+    preservar o histórico de leitura em NotificacaoLida.
+    """
+
+    TIPOS = [
+        ("info", "Informativo"),
+        ("alerta", "Alerta"),
+        ("prazo", "Prazo"),
+        ("sucesso", "Sucesso"),
+    ]
+
+    # Classe de contexto do Bootstrap por tipo — usada nos templates.
+    CSS_POR_TIPO = {
+        "info": "primary",
+        "alerta": "warning",
+        "prazo": "danger",
+        "sucesso": "success",
+    }
+
+    ICONE_POR_TIPO = {
+        "info": "bi-info-circle",
+        "alerta": "bi-exclamation-triangle",
+        "prazo": "bi-alarm",
+        "sucesso": "bi-check-circle",
+    }
+
+    titulo = models.CharField(max_length=120)
+    mensagem = models.TextField(max_length=500)
+    tipo = models.CharField(max_length=15, choices=TIPOS, default="info")
+    unidade_destino = models.ForeignKey(
+        UnidadeRequisitante,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="notificacoes",
+        help_text="Deixe em branco para enviar a todos os usuários.",
+    )
+    url_destino = models.CharField(
+        max_length=300,
+        blank=True,
+        help_text="Link opcional para a tela relacionada (ex: /contratos/vencimentos/).",
+    )
+    autor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="notificacoes_criadas",
+    )
+    ativa = models.BooleanField(default=True)
+    criada_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Notificação"
+        verbose_name_plural = "Notificações"
+        ordering = ("-criada_em",)
+        indexes = [models.Index(fields=["ativa", "-criada_em"])]
+
+    def __str__(self):
+        return self.titulo
+
+    @property
+    def css_contexto(self):
+        return self.CSS_POR_TIPO.get(self.tipo, "secondary")
+
+    @property
+    def icone(self):
+        return self.ICONE_POR_TIPO.get(self.tipo, "bi-bell")
+
+    @classmethod
+    def visiveis_para(cls, user):
+        """
+        Notificações ativas que o usuário deve ver: as gerais mais as
+        dirigidas a qualquer unidade em que ele tenha Perfil ativo.
+        """
+        if not user.is_authenticated:
+            return cls.objects.none()
+
+        unidades = Perfil.objects.filter(usuario=user, ativo=True).values_list(
+            "unidade_id", flat=True
+        )
+        unidades = [u for u in unidades if u is not None]
+
+        qs = cls.objects.filter(ativa=True)
+        if user.is_superuser:
+            return qs
+        return qs.filter(
+            models.Q(unidade_destino__isnull=True) | models.Q(unidade_destino_id__in=unidades)
+        )
+
+
+class NotificacaoLida(models.Model):
+    """Marca de leitura de uma notificação por um usuário."""
+
+    notificacao = models.ForeignKey(
+        Notificacao, on_delete=models.CASCADE, related_name="leituras"
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="notificacoes_lidas"
+    )
+    lida_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("notificacao", "usuario")
+        verbose_name = "Leitura de Notificação"
+        verbose_name_plural = "Leituras de Notificações"
+
+    def __str__(self):
+        return f"{self.usuario} leu {self.notificacao_id}"

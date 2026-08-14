@@ -143,6 +143,7 @@ class ItemPCA(models.Model):
         ("pregao_eletronico", "Pregão Eletrônico"),
         ("concorrencia", "Concorrência"),
         ("concurso", "Concurso"),
+        ("credenciamento", "Credenciamento (art. 79 NLLC)"),
         ("dispensa", "Contratação Direta — Dispensa (art. 75 NLLC)"),
         ("inexigibilidade", "Contratação Direta — Inexigibilidade (art. 74 NLLC)"),
         ("arp_propria", "ARP Própria (MPPI como gerenciador)"),

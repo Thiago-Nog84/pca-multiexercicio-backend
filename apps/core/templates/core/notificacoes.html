@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Notificações — PCA MPPI{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-start mb-4">
+  <div>
+    <h1><i class="bi bi-bell me-2"></i>Notificações</h1>
+    <p>Avisos publicados para você e para as suas unidades.</p>
+  </div>
+  {% if itens %}
+    {% if filtro == "nao_lidas" %}
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="acao" value="marcar_todas">
+        <input type="hidden" name="filtro" value="{{ filtro }}">
+        <button type="submit" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-check2-all me-1"></i>Marcar todas como lidas
+        </button>
+      </form>
+    {% endif %}
+  {% endif %}
+</div>
+
+<ul class="nav nav-pills mb-3">
+  <li class="nav-item">
+    <a class="nav-link {% if filtro == 'nao_lidas' %}active{% endif %}"
+       href="?filtro=nao_lidas">Não lidas</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if filtro == 'todas' %}active{% endif %}"
+       href="?filtro=todas">Todas</a>
+  </li>
+</ul>
+
+{% if itens %}
+  <div class="card">
+    <div class="list-group list-group-flush">
+      {% for item in itens %}
+        <div class="list-group-item py-3 {% if not item.lida %}bg-light{% endif %}">
+          <div class="d-flex gap-3">
+            <div class="text-{{ item.obj.css_contexto }} pt-1">
+              <i class="bi {{ item.obj.icone }} fs-5"></i>
+            </div>
+            <div class="flex-grow-1">
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <h6 class="mb-1 fw-semibold">
+                  {{ item.obj.titulo }}
+                  {% if not item.lida %}
+                    <span class="badge bg-{{ item.obj.css_contexto }} ms-1">nova</span>
+                  {% endif %}
+                </h6>
+                <small class="text-muted text-nowrap">{{ item.obj.criada_em|date:"d/m/Y H:i" }}</small>
+              </div>
+              <p class="mb-2 small text-body-secondary">{{ item.obj.mensagem|linebreaksbr }}</p>
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                  {{ item.obj.get_tipo_display }}
+                </span>
+                {% if item.obj.unidade_destino %}
+                  <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                    {{ item.obj.unidade_destino.sigla }}
+                  </span>
+                {% else %}
+                  <span class="badge bg-secondary-subtle text-secondary-emphasis">Todos</span>
+                {% endif %}
+                {% if item.obj.url_destino %}
+                  <a href="{{ item.obj.url_destino }}" class="small text-decoration-none">
+                    Abrir <i class="bi bi-arrow-right-short"></i>
+                  </a>
+                {% endif %}
+                {% if not item.lida %}
+                  <form method="post" class="ms-auto">
+                    {% csrf_token %}
+                    <input type="hidden" name="acao" value="marcar_lida">
+                    <input type="hidden" name="notificacao_id" value="{{ item.obj.pk }}">
+                    <input type="hidden" name="filtro" value="{{ filtro }}">
+                    <button type="submit" class="btn btn-sm btn-link text-decoration-none p-0">
+                      <i class="bi bi-check2 me-1"></i>Marcar como lida
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% else %}
+  <div class="card">
+    <div class="card-body text-center py-5 text-muted">
+      <i class="bi bi-bell-slash fs-2 d-block mb-2"></i>
+      {% if filtro == "nao_lidas" %}
+        Nenhuma notificação não lida.
+      {% else %}
+        Nenhuma notificação publicada.
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

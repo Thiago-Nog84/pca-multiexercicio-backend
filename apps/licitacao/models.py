@@ -9,6 +9,7 @@ class ProcessoLicitatorio(models.Model):
         CONCORRENCIA_ELETRONICA = "concorrencia_eletronica", "Concorrência Eletrônica"
         CONCORRENCIA_PRESENCIAL = "concorrencia_presencial", "Concorrência Presencial"
         CONCURSO = "concurso", "Concurso"
+        CREDENCIAMENTO = "credenciamento", "Credenciamento"
         DISPENSA = "dispensa", "Dispensa de Licitação"
         INEXIGIBILIDADE = "inexigibilidade", "Inexigibilidade"
         OUTROS = "outros", "Outras Modalidades"

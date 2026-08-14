@@ -28,6 +28,7 @@ urlpatterns = [
          NotasEmpenhoUGView.as_view(), name="siafe-ne-ug"),
 
     # Django Templates - modulos PCA
+    path("notificacoes/", include(("apps.core.urls_template", "core"))),
     path("pca/",          include(("apps.pca.urls",          "pca"))),
     path("planejamento/", include(("apps.planejamento.urls", "planejamento"))),
     path("cotacao/",      include(("apps.cotacao.urls",      "cotacao"))),

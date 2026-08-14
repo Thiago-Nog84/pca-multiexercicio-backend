@@ -108,6 +108,22 @@
       color: rgba(255,255,255,.75);
     }
 
+    /* ── Sino de notificações ─────────────────────────────── */
+    .notif-dot {
+      position: absolute;
+      top: -2px; right: -4px;
+      background: #fff;
+      color: var(--mppi-vermelho-escuro);
+      font-size: .6rem;
+      font-weight: 800;
+      line-height: 1;
+      padding: 2px 5px;
+      border-radius: 20px;
+      min-width: 15px;
+      text-align: center;
+    }
+    .notif-menu { width: 320px; max-height: 400px; overflow-y: auto; }
+
     /* ── Sidebar — fundo vermelho institucional (Identidade Visual MPPI) ── */
     .sidebar {
       position: fixed;
@@ -371,6 +387,42 @@
         </div>
       {% endfor %}
     {% endif %}
+    <div class="dropdown">
+      <button class="topbar-toggle position-relative" type="button"
+              id="notificacoesSino" data-bs-toggle="dropdown" data-bs-auto-close="outside"
+              title="Notificações">
+        <i class="bi bi-bell"></i>
+        {% if notificacoes_nao_lidas_qtd %}
+          <span class="notif-dot">{{ notificacoes_nao_lidas_qtd }}</span>
+        {% endif %}
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end notif-menu">
+        <li><h6 class="dropdown-header">Notificações</h6></li>
+        {% for n in notificacoes_recentes %}
+          <li>
+            <a class="dropdown-item py-2 {% if not forloop.last %}border-bottom{% endif %}"
+               href="{% if n.url_destino %}{{ n.url_destino }}{% else %}{% url 'core:notificacoes' %}{% endif %}">
+              <div class="d-flex gap-2">
+                <i class="bi {{ n.icone }} text-{{ n.css_contexto }} mt-1"></i>
+                <div>
+                  <div class="fw-semibold small">{{ n.titulo }}</div>
+                  <div class="small text-muted">{{ n.mensagem|truncatechars:70 }}</div>
+                  <div class="small text-muted">{{ n.criada_em|date:"d/m/Y H:i" }}</div>
+                </div>
+              </div>
+            </a>
+          </li>
+        {% empty %}
+          <li><span class="dropdown-item-text small text-muted">Nenhuma notificação nova.</span></li>
+        {% endfor %}
+        <li><hr class="dropdown-divider"></li>
+        <li>
+          <a class="dropdown-item small text-center" href="{% url 'core:notificacoes' %}">
+            Ver todas
+          </a>
+        </li>
+      </ul>
+    </div>
     <div class="dropdown">
       <button class="btn btn-sm btn-outline-light py-0 dropdown-toggle" type="button"
               id="visaoSelector" data-bs-toggle="dropdown" title="Escolher visão por perfil">
