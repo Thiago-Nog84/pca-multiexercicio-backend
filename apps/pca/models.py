@@ -771,3 +771,48 @@ class HistoricoFasePCA(models.Model):
 
     def __str__(self):
         return f"PCA {self.pca.exercicio}: {self.de_status} → {self.para_status}"
+
+
+class HistoricoDataItemPCA(models.Model):
+    """
+    Trilha de auditoria das alterações de datas de um ItemPCA feitas pela
+    tela de Controle de Prazos. Cada edição gera um registro imutável:
+    quem, quando, qual campo, de qual data para qual e por quê.
+
+    Existe porque remarcar o prazo de uma contratação é uma decisão de
+    gestão — sem a trilha, o indicador de "vencidos" pode ser zerado
+    silenciosamente empurrando as datas para a frente.
+    """
+
+    CAMPOS = [
+        ("data_pretendida_conclusao", "Conclusão prevista"),
+        ("data_envio_pgea", "Envio ao PGEA"),
+        ("data_finalizacao_licitacao", "Finalização da licitação"),
+        ("data_conclusao_efetiva", "Conclusão efetiva"),
+    ]
+
+    item = models.ForeignKey(
+        "ItemPCA",
+        on_delete=models.CASCADE,
+        related_name="historico_datas",
+    )
+    campo = models.CharField(max_length=40, choices=CAMPOS)
+    de_data = models.DateField(null=True, blank=True)
+    para_data = models.DateField(null=True, blank=True)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="mudancas_data_pca",
+    )
+    justificativa = models.TextField(blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Histórico de Data do Item"
+        verbose_name_plural = "Históricos de Datas dos Itens"
+        ordering = ["-criado_em"]
+        indexes = [models.Index(fields=["item", "-criado_em"])]
+
+    def __str__(self):
+        return f"{self.item_id} — {self.campo}: {self.de_data} → {self.para_data}"

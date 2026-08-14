@@ -86,6 +86,12 @@
         <option value="no_prazo" {% if status_prazo_filtro == "no_prazo" %}selected{% endif %}>No prazo</option>
         <option value="concluido" {% if status_prazo_filtro == "concluido" %}selected{% endif %}>Concluido</option>
       </select>
+      <select name="mes" class="form-select form-select-sm" style="max-width:170px;">
+        <option value="">Todos os meses</option>
+        {% for num, nome in meses %}
+          <option value="{{ num }}" {% if mes_filtro == num|stringformat:"s" %}selected{% endif %}>{{ nome }}</option>
+        {% endfor %}
+      </select>
       <button type="submit" class="btn btn-sm btn-primary">Filtrar</button>
       <a href="{% url 'pca:prazos' %}?exercicio={{ pca.exercicio }}" class="btn btn-sm btn-outline-secondary">Limpar</a>
     </form>
@@ -138,10 +144,29 @@
             </span>
           </td>
           <td class="text-center font-monospace" style="font-size:.8rem;">
-            {% if item.data_pretendida_conclusao %}
-              {{ item.data_pretendida_conclusao|date:"d/m/Y" }}
+            {% if pode_editar %}
+              <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none font-monospace"
+                      data-bs-toggle="modal" data-bs-target="#modalData"
+                      data-item="{{ item.pk }}" data-codigo="{{ item.codigo_pca }}"
+                      data-campo="data_pretendida_conclusao" data-rotulo="Conclusão prevista"
+                      data-valor="{{ item.data_pretendida_conclusao|date:'Y-m-d' }}"
+                      title="Alterar conclusão prevista">
+                {% if item.data_pretendida_conclusao %}
+                  {{ item.data_pretendida_conclusao|date:"d/m/Y" }}
+                {% else %}
+                  <span class="text-muted">— definir</span>
+                {% endif %}
+              </button>
             {% else %}
-              <span class="text-muted">—</span>
+              {% if item.data_pretendida_conclusao %}
+                {{ item.data_pretendida_conclusao|date:"d/m/Y" }}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            {% endif %}
+            {% if row.ultima_alteracao %}
+              <i class="bi bi-clock-history text-muted ms-1" data-bs-toggle="tooltip"
+                 title="Última alteração: {{ row.ultima_alteracao.get_campo_display }} de {{ row.ultima_alteracao.de_data|date:'d/m/Y'|default:'—' }} para {{ row.ultima_alteracao.para_data|date:'d/m/Y'|default:'—' }} por {{ row.ultima_alteracao.usuario|default:'—' }} em {{ row.ultima_alteracao.criado_em|date:'d/m/Y H:i' }}{% if row.ultima_alteracao.justificativa %} — {{ row.ultima_alteracao.justificativa }}{% endif %}"></i>
             {% endif %}
           </td>
           <td class="text-center font-monospace" style="font-size:.85rem; font-weight:600;">
@@ -154,21 +179,51 @@
             {% endif %}
           </td>
           <td class="text-center" style="font-size:.78rem;">
-            {% if item.data_envio_pgea %}
+            {% if pode_editar %}
+              <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none"
+                      data-bs-toggle="modal" data-bs-target="#modalData"
+                      data-item="{{ item.pk }}" data-codigo="{{ item.codigo_pca }}"
+                      data-campo="data_envio_pgea" data-rotulo="Envio ao PGEA"
+                      data-valor="{{ item.data_envio_pgea|date:'Y-m-d' }}">
+                {% if item.data_envio_pgea %}
+                  <span class="badge bg-light text-dark border">{{ item.data_envio_pgea|date:"d/m/Y" }}</span>
+                {% else %}<span class="text-muted">— definir</span>{% endif %}
+              </button>
+            {% elif item.data_envio_pgea %}
               <span class="badge bg-light text-dark border">{{ item.data_envio_pgea|date:"d/m/Y" }}</span>
             {% else %}
               <span class="text-muted">—</span>
             {% endif %}
           </td>
           <td class="text-center" style="font-size:.78rem;">
-            {% if item.data_finalizacao_licitacao %}
+            {% if pode_editar %}
+              <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none"
+                      data-bs-toggle="modal" data-bs-target="#modalData"
+                      data-item="{{ item.pk }}" data-codigo="{{ item.codigo_pca }}"
+                      data-campo="data_finalizacao_licitacao" data-rotulo="Finalização da licitação"
+                      data-valor="{{ item.data_finalizacao_licitacao|date:'Y-m-d' }}">
+                {% if item.data_finalizacao_licitacao %}
+                  <span class="badge bg-light text-dark border">{{ item.data_finalizacao_licitacao|date:"d/m/Y" }}</span>
+                {% else %}<span class="text-muted">— definir</span>{% endif %}
+              </button>
+            {% elif item.data_finalizacao_licitacao %}
               <span class="badge bg-light text-dark border">{{ item.data_finalizacao_licitacao|date:"d/m/Y" }}</span>
             {% else %}
               <span class="text-muted">—</span>
             {% endif %}
           </td>
           <td class="text-center" style="font-size:.78rem;">
-            {% if item.data_conclusao_efetiva %}
+            {% if pode_editar %}
+              <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none"
+                      data-bs-toggle="modal" data-bs-target="#modalData"
+                      data-item="{{ item.pk }}" data-codigo="{{ item.codigo_pca }}"
+                      data-campo="data_conclusao_efetiva" data-rotulo="Conclusão efetiva"
+                      data-valor="{{ item.data_conclusao_efetiva|date:'Y-m-d' }}">
+                {% if item.data_conclusao_efetiva %}
+                  <span class="badge bg-success-subtle text-success border border-success">{{ item.data_conclusao_efetiva|date:"d/m/Y" }}</span>
+                {% else %}<span class="text-muted">— definir</span>{% endif %}
+              </button>
+            {% elif item.data_conclusao_efetiva %}
               <span class="badge bg-success-subtle text-success border border-success">{{ item.data_conclusao_efetiva|date:"d/m/Y" }}</span>
             {% else %}
               <span class="text-muted">—</span>
@@ -206,7 +261,106 @@
   <i class="bi bi-info-circle me-1"></i>
   Demandas suspensas nao aparecem nesta tabela. Referencia de hoje: <strong>{{ hoje|date:"d/m/Y" }}</strong>.
   Proximo ao vencimento = ate 30 dias.
+  {% if restrito_a_unidade %}
+    <br><i class="bi bi-shield-lock me-1"></i>Voce esta vendo apenas as demandas da(s) sua(s) unidade(s).
+  {% endif %}
+  {% if pode_editar %}
+    <br><i class="bi bi-pencil me-1"></i>Clique numa data para altera-la. Toda alteracao fica registrada
+    (quem, quando e de/para); adiar a conclusao prevista exige justificativa.
+  {% endif %}
 </div>
 
+{% if pode_editar %}
+{# Modal de edicao de data #}
+<div class="modal fade" id="modalData" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="post" class="modal-content">
+      {% csrf_token %}
+      <input type="hidden" name="item_id" id="mdItemId">
+      <input type="hidden" name="campo" id="mdCampo">
+      <input type="hidden" name="querystring" value="{{ request.GET.urlencode }}">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-calendar-event me-2"></i>Alterar data</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted mb-3">
+          Demanda <strong id="mdCodigo" class="font-monospace"></strong> —
+          campo <strong id="mdRotulo"></strong>.
+        </p>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Nova data</label>
+          <input type="date" name="valor" id="mdValor" class="form-control form-control-sm">
+          <div class="form-text">Deixe em branco para limpar a data.</div>
+        </div>
+        <div class="mb-1">
+          <label class="form-label small fw-semibold">
+            Justificativa
+            <span class="text-muted fw-normal" id="mdJustLabel">(opcional)</span>
+          </label>
+          <textarea name="justificativa" id="mdJustificativa" rows="3"
+                    class="form-control form-control-sm"
+                    placeholder="Motivo da alteracao"></textarea>
+          <div class="form-text" id="mdJustHint" style="display:none;">
+            Obrigatoria porque a nova data adia a conclusao prevista.
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-sm btn-primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if pode_editar %}
+<script>
+(function () {
+  var modal = document.getElementById('modalData');
+  if (!modal) { return; }
+
+  var campoValorOriginal = null;
+
+  modal.addEventListener('show.bs.modal', function (event) {
+    var botao = event.relatedTarget;
+    if (!botao) { return; }
+
+    campoValorOriginal = botao.getAttribute('data-valor') || '';
+
+    document.getElementById('mdItemId').value = botao.getAttribute('data-item');
+    document.getElementById('mdCampo').value  = botao.getAttribute('data-campo');
+    document.getElementById('mdCodigo').textContent = botao.getAttribute('data-codigo');
+    document.getElementById('mdRotulo').textContent = botao.getAttribute('data-rotulo');
+    document.getElementById('mdValor').value = campoValorOriginal;
+    document.getElementById('mdJustificativa').value = '';
+    atualizarObrigatoriedade();
+  });
+
+  // Justificativa so e obrigatoria ao ADIAR a conclusao prevista — mesma
+  // regra aplicada no servidor (a validacao do backend e a que vale).
+  function atualizarObrigatoriedade() {
+    var campo = document.getElementById('mdCampo').value;
+    var novo  = document.getElementById('mdValor').value;
+    var just  = document.getElementById('mdJustificativa');
+    var hint  = document.getElementById('mdJustHint');
+    var label = document.getElementById('mdJustLabel');
+
+    var adiando = campo === 'data_pretendida_conclusao'
+                  && campoValorOriginal && novo && novo > campoValorOriginal;
+
+    just.required = !!adiando;
+    hint.style.display = adiando ? 'block' : 'none';
+    label.textContent = adiando ? '(obrigatoria)' : '(opcional)';
+  }
+
+  document.getElementById('mdValor').addEventListener('change', atualizarObrigatoriedade);
+})();
+</script>
 {% endif %}
 {% endblock %}

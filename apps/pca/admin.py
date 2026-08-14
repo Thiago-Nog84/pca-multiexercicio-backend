@@ -8,6 +8,7 @@ from django.utils.html import format_html
 from .models import (
     CLASSIFICACAO_CONTINUIDADE,
     DocumentoFormalizacaoDemanda,
+    HistoricoDataItemPCA,
     HistoricoFasePCA,
     ItemCatalogo,
     ItemPCA,
@@ -24,6 +25,25 @@ class HistoricoFasePCAAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False  # trilha de auditoria: criada apenas pelo painel de fases
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+
+@admin.register(HistoricoDataItemPCA)
+class HistoricoDataItemPCAAdmin(admin.ModelAdmin):
+    list_display = ("item", "campo", "de_data", "para_data", "usuario", "criado_em")
+    list_filter = ("campo", "criado_em")
+    search_fields = ("item__codigo_pca", "item__descricao", "justificativa")
+    readonly_fields = (
+        "item", "campo", "de_data", "para_data", "usuario", "justificativa", "criado_em",
+    )
+
+    def has_add_permission(self, request):
+        return False  # trilha de auditoria: criada apenas pela tela de prazos
 
     def has_change_permission(self, request, obj=None):
         return False
