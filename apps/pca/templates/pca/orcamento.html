@@ -179,6 +179,30 @@
             </a>
           </td>
         </tr>
+        {# Detalhe por fonte — a trava atua por UO, entao uma fonte pode
+           estar estourada mesmo com o consolidado folgado. #}
+        <tr class="{% if row.algum_estourado %}table-danger{% endif %}">
+          <td></td>
+          <td colspan="8" class="py-1">
+            <div class="d-flex gap-3 flex-wrap" style="font-size:.72rem;">
+              {% for uo in row.por_uo %}
+                <span class="d-inline-flex align-items-center gap-1">
+                  <strong>{{ uo.sigla }}</strong>
+                  <span class="text-muted">
+                    R$ {{ uo.comprometido|brl }} / R$ {{ uo.teto|brl }}
+                  </span>
+                  {% if uo.estourado %}
+                    <span class="badge bg-danger">estourado</span>
+                  {% elif uo.pct >= 90 %}
+                    <span class="badge bg-warning text-dark">{{ uo.pct }}%</span>
+                  {% else %}
+                    <span class="text-success">{{ uo.pct }}%</span>
+                  {% endif %}
+                </span>
+              {% endfor %}
+            </div>
+          </td>
+        </tr>
         {% endwith %}
         {% endfor %}
       </tbody>

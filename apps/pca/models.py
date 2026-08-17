@@ -1,9 +1,20 @@
 import random
 import string
 from datetime import timedelta
+from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
+
+
+def _brl(valor):
+    """
+    Formata um número no padrão brasileiro (1.234,56).
+
+    Aplicado só ao número — trocar separadores na frase inteira transforma
+    os pontos finais em vírgulas.
+    """
+    return f"{Decimal(valor):,.2f}".replace(",", "\x00").replace(".", ",").replace("\x00", ".")
 
 # ---------------------------------------------------------------------------
 # Classificação de continuidade — Ato PGJ 1.415/2024
@@ -647,6 +658,84 @@ class OrcamentoPlanejado(models.Model):
         if not self.valor_total:
             return 0
         return round((self.valor_comprometido() / self.valor_total) * 100, 1)
+
+    # ------------------------------------------------------------------
+    # Controle por unidade orçamentária (PGJ / FMMP / FEPDC)
+    #
+    # Os tetos são segregados por fonte de recurso, então o saldo também
+    # precisa ser: sobra no FMMP não autoriza gasto no PGJ.
+    # ------------------------------------------------------------------
+
+    CAMPO_TETO_POR_UO = {
+        "pgj": "valor_pgj",
+        "fmmp": "valor_fmmp",
+        "fepdc": "valor_fepdc",
+    }
+
+    def teto_por_uo(self, unidade_orcamentaria):
+        campo = self.CAMPO_TETO_POR_UO.get(unidade_orcamentaria)
+        return getattr(self, campo) if campo else 0
+
+    def comprometido_por_uo(self, unidade_orcamentaria, excluir_item_id=None):
+        """
+        Soma dos valores estimados das demandas ativas do setor nesta fonte.
+        `excluir_item_id` permite recalcular ignorando o próprio item que
+        está sendo editado — senão a edição competiria consigo mesma.
+        """
+        from django.db.models import Sum
+
+        qs = (
+            ItemPCA.objects
+            .filter(
+                dfd__pca=self.pca,
+                dfd__unidade=self.unidade,
+                unidade_orcamentaria=unidade_orcamentaria,
+            )
+            .exclude(status="suspenso")
+        )
+        if excluir_item_id:
+            qs = qs.exclude(pk=excluir_item_id)
+        return qs.aggregate(s=Sum("valor_total_estimado"))["s"] or Decimal("0")
+
+    def saldo_por_uo(self, unidade_orcamentaria, excluir_item_id=None):
+        return (
+            self.teto_por_uo(unidade_orcamentaria)
+            - self.comprometido_por_uo(unidade_orcamentaria, excluir_item_id)
+        )
+
+    @classmethod
+    def checar_limite(cls, pca, unidade, unidade_orcamentaria, valor,
+                      excluir_item_id=None):
+        """
+        Verifica se um valor cabe no teto da unidade naquela fonte.
+
+        Retorna (permitido, mensagem, orcamento). Só bloqueia quando existe
+        orçamento cadastrado E `trava_ativa` está ligada — sem isso o
+        sistema segue permissivo, como era antes.
+        """
+        if valor is None:
+            return True, "", None
+
+        orcamento = cls.objects.filter(pca=pca, unidade=unidade).first()
+        if orcamento is None or not orcamento.trava_ativa:
+            return True, "", orcamento
+
+        saldo = orcamento.saldo_por_uo(unidade_orcamentaria, excluir_item_id)
+        if Decimal(valor) <= saldo:
+            return True, "", orcamento
+
+        rotulo_uo = dict(ItemPCA.UNIDADE_ORCAMENTARIA).get(
+            unidade_orcamentaria, unidade_orcamentaria
+        )
+        excedente = Decimal(valor) - saldo
+        mensagem = (
+            f"Teto orçamentário de {unidade.sigla} em {rotulo_uo.split(' — ')[0]} "
+            f"excedido em R$ {_brl(excedente)}. "
+            f"Saldo disponível: R$ {_brl(saldo)}; "
+            f"valor da demanda: R$ {_brl(valor)}. "
+            f"Solicite revisão do teto à APG ou reduza o valor."
+        )
+        return False, mensagem, orcamento
 
 
 # ---------------------------------------------------------------------------

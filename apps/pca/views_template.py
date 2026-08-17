@@ -469,12 +469,32 @@ class OrcamentoView(View):
                 total_aprov = orc.valor_total
                 saldo = total_aprov - comprometido
                 pct = orc.percentual_comprometido()
+
+                # Detalhe por fonte de recurso — a trava atua por UO, entao o
+                # total consolidado pode estar folgado enquanto uma fonte
+                # especifica ja estourou.
+                por_uo = []
+                for chave, rotulo in ItemPCA.UNIDADE_ORCAMENTARIA:
+                    teto_uo = orc.teto_por_uo(chave)
+                    usado_uo = orc.comprometido_por_uo(chave)
+                    por_uo.append({
+                        "chave": chave,
+                        "sigla": rotulo.split(" — ")[0],
+                        "teto": teto_uo,
+                        "comprometido": usado_uo,
+                        "saldo": teto_uo - usado_uo,
+                        "estourado": usado_uo > teto_uo,
+                        "pct": round(usado_uo / teto_uo * 100, 1) if teto_uo else 0,
+                    })
+
                 orcamentos.append({
                     "obj": orc,
                     "comprometido": comprometido,
                     "saldo": saldo,
                     "pct": pct,
                     "alerta": pct >= 90,
+                    "por_uo": por_uo,
+                    "algum_estourado": any(u["estourado"] for u in por_uo),
                 })
                 totais["aprovado"] += total_aprov
                 totais["comprometido"] += comprometido

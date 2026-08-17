@@ -60,6 +60,7 @@ from .models import (
     DocumentoFormalizacaoDemanda,
     ItemCatalogo,
     ItemPCA,
+    OrcamentoPlanejado,
     PlanoContratacaoAnual,
 )
 
@@ -265,6 +266,21 @@ class CadastroGrupoDemandaView(View):
                         raise ValidationError(
                             f"Item \"{descricao[:40]}\": o item do catálogo selecionado "
                             f"não existe mais ou foi desativado. Refaça a busca."
+                        )
+
+                    # Teto orcamentario da unidade nesta fonte de recurso.
+                    # Como a checagem roda ANTES de cada save dentro da mesma
+                    # transacao, os itens ja gravados deste grupo entram na
+                    # conta — o limite vale para o grupo inteiro, nao item a item.
+                    permitido, msg_orcamento, _orc = OrcamentoPlanejado.checar_limite(
+                        pca=dfd.pca,
+                        unidade=dfd.unidade,
+                        unidade_orcamentaria=item.unidade_orcamentaria,
+                        valor=item.valor_total_estimado,
+                    )
+                    if not permitido:
+                        raise ValidationError(
+                            f"Item \"{descricao[:40]}\": {msg_orcamento}"
                         )
 
                     item.full_clean(exclude=["codigo_pca"])
