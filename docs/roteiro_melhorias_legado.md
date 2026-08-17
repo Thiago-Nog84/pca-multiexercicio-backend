@@ -5,7 +5,8 @@ Levantamento feito em 14/08/2026 a partir do código do sistema do Cleriston
 mais nova que a última comparação registrada em julho.
 
 A ordem abaixo é de esforço crescente, com o item 4 adiantado por impacto.
-Itens 1 a 3 estão concluídos.
+Itens 1 a 4 estão concluídos; restam o 5 e o 6, e o 7 depende de decisão de
+escopo.
 
 ---
 
@@ -48,29 +49,30 @@ filtro por mês, restrição do requisitante à própria unidade e o model
 prevista — sem isso o indicador de "vencidos" poderia ser zerado empurrando
 datas para a frente. Antecipar e os demais campos não exigem motivo.
 
----
-
-## Pendentes
-
-### 4. Checklist de conformidade por contratação — P1, esforço médio
+### 4. Checklist de conformidade documental — `c31136e`
 
 Referência: `src/pages/AvaliacaoConformidade.tsx` no legado.
 
-Duas fases com itens marcáveis e percentual de conformidade calculado:
+Telas `/contratos/conformidade/` (lista com percentual, média e filtro por
+faixa) e `/contratos/conformidade/<pk>/` (checklist editável). 25 itens em
+duas fases: Licitação/Contratação (11) e Execução (14).
 
-- **Licitação/Contratação (11):** termo de referência aprovado, pesquisa de
-  mercado, pareceres jurídicos, publicação do edital, atas do certame, termo
-  de homologação, termo de adjudicação, atos de autorização, documentação do
-  fornecedor, assinatura do contrato, publicação do extrato.
-- **Execução (14):** documento de aceite, justificativa da vantajosidade,
-  declaração de conformidade, pesquisa de preços, mapa comparativo, certidões
-  de habilitação, margem de cálculo, pareceres orçamentário/financeiro,
-  parecer jurídico, parecer CONINT, ofício e autorização de empenho,
-  atualização de certidões, termo aditivo/apostilamento, publicações.
+Decisões tomadas:
 
-É o item de maior valor de controle interno da lista — hoje não existe nada
-equivalente no nosso sistema. Modelar como `ChecklistConformidade` ligado a
-`Contrato` (ou a `ItemPCA`, a decidir).
+- **Vinculado ao `Contrato`**, não à demanda do PCA como no legado — os itens
+  de execução tratam do contrato assinado.
+- **Preenchimento restrito** aos perfis `auditor`, `apg` e `autoridade`, além
+  de superusuário. **Atenção:** CONINT é uma unidade requisitante, não um
+  perfil; o pessoal do controle interno precisa do perfil `auditor`. Avaliar
+  se vale criar um perfil próprio.
+- **Catálogo em constantes Python**, não em colunas: o legado tem uma coluna
+  booleana por item; aqui só os itens tocados viram linha em `ItemChecklist`,
+  então alterar o checklist não exige migração. Guarda observação, autor e
+  data por item.
+
+---
+
+## Pendentes
 
 ### 5. Bloqueio orçamentário rígido por UO — P2, esforço médio/alto
 
