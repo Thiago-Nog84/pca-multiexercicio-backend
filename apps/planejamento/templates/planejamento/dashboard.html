@@ -2,16 +2,181 @@
 {% load humanize %}
 {% load core_extras %}
 
-{% block title %}Planejamento — ETPs e TRs{% endblock %}
+{% block title %}Planejamento — Artefatos{% endblock %}
 {% block nav_planejamento %}active{% endblock %}
 
 {% block content %}
-<div class="page-header mb-4">
-  <h1><i class="bi bi-file-earmark-text text-primary me-2"></i>ETPs e Termos de Referência</h1>
-  <p>Gestão dos Estudos Técnicos Preliminares e Termos de Referência do MPPI.</p>
+<div class="page-header mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <div>
+    <h1><i class="bi bi-file-earmark-text text-primary me-2"></i>Artefatos do Planejamento</h1>
+    <p>Gestão dos DFDs, DODs, Estudos Técnicos Preliminares e Termos de Referência do MPPI.</p>
+  </div>
+  <a href="{% url 'planejamento:dod_novo' %}" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg me-1"></i>Novo DOD
+  </a>
 </div>
 
-<!-- KPIs -->
+<!-- KPIs — DFD -->
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">DFDs cadastrados
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Documentos de Formalização de Demanda cadastrados."></i>
+          </div>
+          <div class="kpi-value mt-1" data-countup="{{ total_dfds }}">{{ total_dfds }}</div>
+          <div class="kpi-sub">{{ dfds_enviados }} enviado{{ dfds_enviados|pluralize:"s" }} ao setor de licitações</div>
+        </div>
+        <div class="kpi-icon" style="background:#e8f0fb;">
+          <i class="bi bi-file-earmark-text text-primary"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="d-flex align-items-start justify-content-between">
+        <div>
+          <div class="kpi-label">DFDs em Rascunho
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="DFDs ainda não enviados ao setor de licitações."></i>
+          </div>
+          <div class="kpi-value mt-1" data-countup="{{ dfds_rascunho }}">{{ dfds_rascunho }}</div>
+          <div class="kpi-sub">Aguardando envio</div>
+        </div>
+        <div class="kpi-icon" style="background:#f3f4f6;">
+          <i class="bi bi-pencil-square text-secondary"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3 d-flex align-items-center justify-content-center text-center">
+      <a href="{% url 'planejamento:dfds' %}" class="btn btn-outline-primary btn-sm w-100">
+        <i class="bi bi-list-ul me-1"></i>Ver todos os DFDs
+      </a>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3 d-flex align-items-center justify-content-center text-center">
+      <a href="{% url 'pca:cadastro_grupo' %}" class="btn btn-primary btn-sm w-100">
+        <i class="bi bi-plus-lg me-1"></i>Novo DFD
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <!-- Status DFDs -->
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-bar-chart me-2 text-primary"></i>DFDs por Status
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr><th>Status</th><th class="text-end">Qtd</th><th class="text-end">%</th></tr>
+          </thead>
+          <tbody>
+            {% for s in dfds_por_status %}
+            <tr>
+              <td>
+                <span class="badge rounded-pill
+                  {% if s.status == 'aprovado' %}bg-success
+                  {% elif s.status == 'enviado' %}bg-primary
+                  {% elif s.status == 'devolvido' %}bg-warning text-dark
+                  {% elif s.status == 'suspensa' %}bg-danger
+                  {% else %}bg-light text-dark border{% endif %}
+                  " style="font-size:.7rem;">
+                  {{ s.status|capfirst }}
+                </span>
+              </td>
+              <td class="text-end fw-bold">{{ s.qtd }}</td>
+              <td class="text-end text-muted">{% if total_dfds %}{% widthratio s.qtd total_dfds 100 %}%{% else %}—{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="text-muted text-center py-3">Sem DFDs cadastrados</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Últimos DFDs -->
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-clock-history me-2 text-primary"></i>Últimos DFDs</span>
+        <a href="{% url 'planejamento:dfds' %}" class="btn btn-sm btn-outline-secondary">Ver todos</a>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover table-sm mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Nº DFD</th>
+                <th>Unidade</th>
+                <th class="text-center">Prioridade</th>
+                <th class="text-center">Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for dfd in ultimos_dfds %}
+              <tr>
+                <td class="fw-bold font-monospace text-primary" style="font-size:.8rem;">
+                  {{ dfd.numero_dfd|default:"—" }}
+                </td>
+                <td style="font-size:.82rem;">
+                  {{ dfd.unidade.sigla|default:"—" }}
+                </td>
+                <td class="text-center">
+                  <span class="badge rounded-pill
+                    {% if dfd.grau_prioridade == 'alto' %}bg-danger
+                    {% elif dfd.grau_prioridade == 'medio' %}bg-warning text-dark
+                    {% else %}bg-light text-dark border{% endif %}
+                    " style="font-size:.68rem;">
+                    {{ dfd.get_grau_prioridade_display }}
+                  </span>
+                </td>
+                <td class="text-center">
+                  <span class="badge rounded-pill
+                    {% if dfd.status == 'aprovado' %}bg-success
+                    {% elif dfd.status == 'enviado' %}bg-primary
+                    {% elif dfd.status == 'devolvido' %}bg-warning text-dark
+                    {% elif dfd.status == 'suspensa' %}bg-danger
+                    {% else %}bg-light text-dark border{% endif %}
+                    " style="font-size:.68rem;">
+                    {{ dfd.get_status_display }}
+                  </span>
+                </td>
+                <td class="text-end" style="min-width:60px;">
+                  <a href="{% url 'planejamento:dfd_detalhe' dfd.pk %}" class="btn btn-ghost btn-sm p-1" title="Ver detalhe">
+                    <i class="bi bi-eye text-secondary"></i>
+                  </a>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="5" class="text-center text-muted py-4">
+                  <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                  Nenhum DFD cadastrado.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- KPIs — ETP / TR -->
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
     <div class="card kpi-card h-100 p-3">
@@ -125,7 +290,7 @@
             <thead class="table-light">
               <tr>
                 <th>Nº ETP</th>
-                <th>Item PCA</th>
+                <th>Lote</th>
                 <th class="text-center">TI?</th>
                 <th class="text-center">Status</th>
                 <th class="text-end">Custo Est.</th>
@@ -138,7 +303,9 @@
                   {{ etp.numero_etp }}
                 </td>
                 <td style="font-size:.82rem;">
-                  {% if etp.item_pca %}{{ etp.item_pca.codigo_pca }}{% else %}—{% endif %}
+                  {% if etp.dod %}{{ etp.dod.identificador }}
+                    <span class="text-muted">({{ etp.dod.itens.count }})</span>
+                  {% else %}—{% endif %}
                 </td>
                 <td class="text-center">
                   {% if etp.is_ti %}<i class="bi bi-check-circle-fill text-info"></i>{% else %}—{% endif %}

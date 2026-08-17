@@ -1,0 +1,730 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% load core_extras %}
+
+{% block title %}Novo DOD{% endblock %}
+{% block nav_planejamento %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div class="page-header">
+    <h1><i class="bi bi-signpost-split text-primary me-2"></i>Novo DOD
+      <span class="fs-6 text-muted ms-1">— Documento de Oficialização da Demanda</span>
+    </h1>
+    <p>Abre o processo de contratação para itens já aprovados no PCA (modelo SEI 1465317).</p>
+  </div>
+  <a href="{% url 'planejamento:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Voltar a Artefatos
+  </a>
+</div>
+
+<!-- Unidade + PCA — sempre visível no topo, pra deixar claro pra quem esta demanda está sendo aberta -->
+<div class="card mb-3 border-0 text-white" style="background: linear-gradient(135deg, var(--mppi-vermelho) 0%, var(--mppi-vermelho-escuro) 100%);">
+  <div class="card-body py-3 px-4">
+    <form method="get" class="row g-3 align-items-end">
+      <div class="col-auto">
+        <div class="text-white-50 text-uppercase" style="font-size:.66rem; letter-spacing:.06em;">
+          <i class="bi bi-building me-1"></i>Preenchendo DOD para a unidade
+        </div>
+        {% if unidade %}
+          <div class="fs-5 fw-bold mt-1">
+            {{ unidade.sigla }}
+            <span class="fw-normal fs-6" style="opacity:.85;">— {{ unidade.nome }}</span>
+          </div>
+        {% else %}
+          <div class="fs-6 fw-semibold mt-1">
+            <i class="bi bi-exclamation-triangle me-1"></i>Nenhuma unidade selecionada ainda
+          </div>
+        {% endif %}
+      </div>
+
+      {% if unidades_disponiveis.count > 1 %}
+      <div class="col-auto">
+        <label class="form-label small text-white-50 mb-1">Trocar unidade</label>
+        <select name="unidade_id" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width:280px;">
+          <option value="">Selecione…</option>
+          {% for u in unidades_disponiveis %}
+            <option value="{{ u.pk }}" {% if unidade and u.pk == unidade.pk %}selected{% endif %}>{{ u.sigla }} — {{ u.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <div class="col-auto">
+        <label class="form-label small text-white-50 mb-1">PCA</label>
+        <select name="pca_id" class="form-select form-select-sm" onchange="this.form.submit()">
+          {% for p in todos_pcas %}
+            <option value="{{ p.pk }}" {% if pca and p.pk == pca.pk %}selected{% endif %}>PCA {{ p.exercicio }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if sem_unidade_vinculada %}
+  <div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle me-1"></i>
+    Seu usuário ainda não tem nenhuma unidade requisitante vinculada (Perfil de acesso).
+    Peça para o administrador do sistema cadastrar seu Perfil antes de criar um DOD.
+  </div>
+{% elif precisa_escolher_unidade %}
+  <div class="alert alert-info">
+    <i class="bi bi-info-circle me-1"></i>
+    Você tem acesso a mais de uma unidade — selecione acima para qual unidade este DOD será preenchido.
+  </div>
+{% elif not pca %}
+  <div class="alert alert-warning">Nenhum PCA cadastrado ainda.</div>
+{% elif unidade %}
+
+<form method="post" id="dodForm">
+  {% csrf_token %}
+  <input type="hidden" name="pca_id" value="{{ pca.pk }}">
+  <input type="hidden" name="unidade_id" value="{{ unidade.pk }}">
+  {{ demandas_unidade|json_script:"demandasData" }}
+
+  <!-- Identificação -->
+  <div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+      <i class="bi bi-card-list me-2 text-primary"></i>Identificação
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-5 position-relative">
+          <label class="form-label small fw-semibold">Identificador *
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Busque pela demanda (DFD) de origem — o texto e os itens dela são preenchidos automaticamente — ou digite um identificador livre."></i>
+          </label>
+          <input type="text" name="identificador" id="identificadorInput" class="form-control form-control-sm" required
+                 autocomplete="off"
+                 placeholder="Buscar demanda da unidade ({{ unidade.sigla }}) ou digitar um identificador livre…">
+          <div id="identificadorSugestoes" class="list-group position-absolute w-100 shadow-sm"
+               style="z-index:1055; max-height:260px; overflow-y:auto; display:none;"></div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold">Nº SEI</label>
+          <input type="text" name="numero_sei" class="form-control form-control-sm" placeholder="00000.000000/2026-00">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Unidade orçamentária
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Fundo/fonte de recurso responsável pela despesa (PGJ, FMMPI ou FPDC)."></i>
+          </label>
+          <select name="unidade_orcamentaria" class="form-select form-select-sm">
+            <option value="">—</option>
+            {% for val, label in unidade_orcamentaria_choices %}
+              <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold mb-1">Responsável(is) pela demanda
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Importado automaticamente do(s) DFD(s) de origem dos itens marcados abaixo — não precisa preencher de novo."></i>
+          </label>
+          <div id="responsaveisDemanda" class="border rounded p-2 bg-light text-muted" style="font-size:.82rem; min-height:42px;">
+            Marque itens na lista abaixo para ver aqui o(s) responsável(is) pela demanda (via DFD de origem).
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="d-flex align-items-center justify-content-between">
+            <label class="form-label small fw-semibold mb-0">Objeto</label>
+            <button type="button" class="btn btn-outline-primary btn-sm btn-ia-sugerir py-0 px-2" style="font-size:.7rem;">
+              <i class="bi bi-stars me-1"></i>Sugerir com IA
+            </button>
+          </div>
+          <textarea name="objeto" class="form-control form-control-sm" rows="2"
+                    placeholder="Descrição resumida do objeto da contratação"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Itens do PCA -->
+  <div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <span>
+        <i class="bi bi-list-ul me-2 text-primary"></i>Itens da unidade {{ unidade.sigla }} — PCA {{ pca.exercicio }}
+        <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+           title="Só aparecem itens já aprovados no PCA, desta unidade, que ainda não estejam em outro DOD com processo aberto."></i>
+      </span>
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <button type="button" id="btnSelecionarTodos" class="btn btn-outline-secondary btn-sm py-0 px-2" style="font-size:.72rem;">
+          Marcar todos
+        </button>
+        <button type="button" id="btnLimparSelecao" class="btn btn-outline-secondary btn-sm py-0 px-2" style="font-size:.72rem;">
+          Limpar
+        </button>
+        <span class="badge rounded-pill bg-primary" style="font-size:.75rem;">
+          <span id="qtdSelecionados">0</span> selecionado(s)
+        </span>
+        <input type="search" id="filtroItens" class="form-control form-control-sm" style="width:220px;"
+               placeholder="Filtrar por código ou descrição…">
+      </div>
+    </div>
+    <div class="card-body p-0">
+      {% if not itens_elegiveis %}
+        <div class="text-center text-muted py-4">
+          <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+          Nenhum item elegível na unidade {{ unidade.sigla }}: só entram itens já aprovados no PCA
+          e que ainda não estejam em outro DOD com processo aberto.
+        </div>
+      {% else %}
+      <div class="table-responsive" style="max-height:420px; overflow-y:auto;">
+        <table class="table table-hover table-sm mb-0">
+          <thead class="table-light" style="position:sticky; top:0; z-index:1;">
+            <tr>
+              <th style="width:36px;"></th>
+              <th>Código</th>
+              <th>Descrição</th>
+              <th>Categoria</th>
+              <th class="text-end">Qtd</th>
+              <th class="text-end">Valor Est.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in itens_elegiveis %}
+            <tr class="linha-item" data-busca="{{ item.codigo_pca|lower }} {{ item.descricao|lower }}">
+              <td>
+                {% comment %}
+                  firstof, e não |default: — o ARGUMENTO de um filtro é resolvido de forma estrita, então
+                  `...|default:item.dfd.requisitante.username` estoura VariableDoesNotExist quando o DFD
+                  está sem requisitante (caso dos DFDs importados em massa, IMP-2026-*). firstof resolve
+                  com ignore_failures e devolve vazio; o JS abaixo já mostra "sem responsável definido no DFD".
+                  Obs.: o comentário curto do Django (cerquilha) só vale para UMA linha; multilinha
+                  precisa ser comment/endcomment, senão o texto vaza renderizado na tela.
+                {% endcomment %}
+                <input type="checkbox" name="itens" value="{{ item.pk }}" class="form-check-input chk-item"
+                       data-dfd="{{ item.dfd_id }}"
+                       data-dfd-numero="{{ item.dfd.numero_dfd|default:'' }}"
+                       data-responsavel="{% firstof item.dfd.requisitante.get_full_name item.dfd.requisitante.username %}"
+                       data-email="{{ item.dfd.requisitante.email|default:'' }}"
+                       {% if item.pk in itens_pre_selecionados %}checked{% endif %}>
+              </td>
+              <td class="font-monospace fw-bold text-primary" style="font-size:.8rem;">{{ item.codigo_pca }}</td>
+              <td style="max-width:320px;">
+                <div class="text-truncate" style="max-width:310px;" title="{{ item.descricao }}">
+                  {{ item.descricao|truncatechars:70 }}
+                </div>
+              </td>
+              <td style="font-size:.8rem;">
+                <span class="badge bg-light text-dark border" style="font-size:.68rem;">{{ item.get_categoria_display }}</span>
+              </td>
+              <td class="text-end">{{ item.quantidade_estimada|qtd_br }}</td>
+              <td class="text-end fw-bold">R$ {{ item.valor_total_estimado|brl }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Informações gerais da contratação -->
+  <div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+      <i class="bi bi-gear me-2 text-primary"></i>Informações gerais da contratação
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold">Natureza do objeto
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Define o tipo de contratação. Contratações de Solução de TI exigem equipe de planejamento com 3 papéis distintos (Res. CNMP 283/2024)."></i>
+          </label>
+          <select name="natureza_objeto" id="naturezaObjeto" class="form-select form-select-sm">
+            <option value="">—</option>
+            {% for val, label in natureza_objeto_choices %}
+              <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+          <div id="avisoTI" class="alert alert-info py-2 px-3 mt-2 mb-0" style="font-size:.78rem; display:none;">
+            <i class="bi bi-info-circle me-1"></i>
+            Contratação de TI selecionada: preencha os 3 papéis distintos na Equipe de Planejamento abaixo.
+          </div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold d-block">Grau de prioridade
+            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+               title="Urgência da contratação — usada para priorizar a fila de instrução processual."></i>
+          </label>
+          <div class="btn-group w-100" role="group" aria-label="Grau de prioridade">
+            {% for val, label in grau_prioridade_choices %}
+            <input type="radio" class="btn-check" name="grau_prioridade" id="prio_{{ val }}" value="{{ val }}" autocomplete="off">
+            <label class="btn btn-outline-secondary btn-sm" for="prio_{{ val }}">{{ label }}</label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold">Previsão início execução</label>
+          <input type="date" name="previsao_inicio_execucao" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold">Previsão término execução</label>
+          <input type="date" name="previsao_termino_execucao" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-6 d-flex align-items-end">
+          <div class="form-check form-switch">
+            <input type="checkbox" name="contratacao_correlata" value="1" class="form-check-input" id="contratacaoCorrelata" role="switch">
+            <label class="form-check-label small" for="contratacaoCorrelata">
+              Há contratação correlata (providência prévia)?
+              <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                 title="Marque se este objeto depende de outra contratação já realizada ou em andamento (ex.: obra que depende de projeto executivo)."></i>
+            </label>
+          </div>
+        </div>
+        <div class="col-12" id="contratacaoCorrelataQualWrap" style="display:none;">
+          <label class="form-label small fw-semibold">Se sim, qual?</label>
+          <textarea name="contratacao_correlata_qual" class="form-control form-control-sm" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Equipe de Planejamento -->
+  <div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+      <i class="bi bi-people me-2 text-primary"></i>Equipe de Planejamento da Contratação
+    </div>
+    <div class="card-body">
+      <p class="text-muted small mb-3">
+        Os 3 papéis abaixo, preenchidos com pessoas <strong>distintas</strong>, só são
+        obrigatórios quando a natureza do objeto é <strong>Aquisição de solução de TI</strong>
+        (Res. CNMP 283/2024). Para as demais naturezas, o preenchimento é opcional.
+      </p>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold" id="lblRequisitante">Integrante Requisitante</label>
+          <div class="d-flex gap-1">
+            <select name="integrante_requisitante" id="selRequisitante" class="form-select form-select-sm">
+              <option value="">—</option>
+              {% for u in usuarios %}
+                <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+              {% endfor %}
+            </select>
+            <button type="button" class="btn btn-outline-secondary btn-sm btn-sou-eu" data-target="selRequisitante"
+                    title="Preencher com meu usuário">Sou eu</button>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold" id="lblTecnico">Integrante Técnico</label>
+          <div class="d-flex gap-1">
+            <select name="integrante_tecnico" id="selTecnico" class="form-select form-select-sm">
+              <option value="">—</option>
+              {% for u in usuarios %}
+                <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+              {% endfor %}
+            </select>
+            <button type="button" class="btn btn-outline-secondary btn-sm btn-sou-eu" data-target="selTecnico"
+                    title="Preencher com meu usuário">Sou eu</button>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold" id="lblAdministrativo">Integrante Administrativo</label>
+          <div class="d-flex gap-1">
+            <select name="integrante_administrativo" id="selAdministrativo" class="form-select form-select-sm">
+              <option value="">—</option>
+              {% for u in usuarios %}
+                <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+              {% endfor %}
+            </select>
+            <button type="button" class="btn btn-outline-secondary btn-sm btn-sou-eu" data-target="selAdministrativo"
+                    title="Preencher com meu usuário">Sou eu</button>
+          </div>
+        </div>
+        <div class="col-md-8">
+          <label class="form-label small fw-semibold d-block">Líder da equipe</label>
+          <div class="btn-group" role="group" aria-label="Líder da equipe">
+            <input type="radio" class="btn-check" name="lider" id="lider_requisitante" value="requisitante" checked autocomplete="off">
+            <label class="btn btn-outline-secondary btn-sm" for="lider_requisitante">Requisitante</label>
+            <input type="radio" class="btn-check" name="lider" id="lider_tecnico" value="tecnico" autocomplete="off">
+            <label class="btn btn-outline-secondary btn-sm" for="lider_tecnico">Técnico</label>
+            <input type="radio" class="btn-check" name="lider" id="lider_administrativo" value="administrativo" autocomplete="off">
+            <label class="btn btn-outline-secondary btn-sm" for="lider_administrativo">Administrativo</label>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Ato de designação (SEI)</label>
+          <input type="text" name="ato_designacao_sei" class="form-control form-control-sm">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alinhamento estratégico + Fundamentação (opcionais, colapsados) -->
+  <div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3" role="button" data-bs-toggle="collapse"
+         data-bs-target="#secDetalhamento" aria-expanded="false">
+      <i class="bi bi-chevron-down me-2 text-primary"></i>Alinhamento estratégico e fundamentação
+      <span class="text-muted small">(opcional)</span>
+    </div>
+    <div id="secDetalhamento" class="collapse">
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="d-flex align-items-center justify-content-between">
+              <label class="form-label small fw-semibold mb-0">Objetivos estratégicos
+                <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                   title="Copie/adapte os objetivos estratégicos do PCA vigente relacionados a esta demanda."></i>
+              </label>
+              <button type="button" class="btn btn-outline-primary btn-sm btn-ia-sugerir py-0 px-2" style="font-size:.7rem;">
+                <i class="bi bi-stars me-1"></i>Sugerir com IA
+              </button>
+            </div>
+            <textarea name="objetivos_estrategicos" class="form-control form-control-sm" rows="2"></textarea>
+          </div>
+          <div class="col-md-6">
+            <div class="d-flex align-items-center justify-content-between">
+              <label class="form-label small fw-semibold mb-0">Alinhamento PDTIC
+                <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                   title="Referencie a ação/meta do Plano Diretor de TIC relacionada — só se aplicável a TI."></i>
+              </label>
+              <button type="button" class="btn btn-outline-primary btn-sm btn-ia-sugerir py-0 px-2" style="font-size:.7rem;">
+                <i class="bi bi-stars me-1"></i>Sugerir com IA
+              </button>
+            </div>
+            <textarea name="alinhamento_pdtic" class="form-control form-control-sm" rows="2"
+                      placeholder="Ex.: Ação 3 — Meta 5"></textarea>
+          </div>
+          <div class="col-md-6">
+            <div class="d-flex align-items-center justify-content-between">
+              <label class="form-label small fw-semibold mb-0">Necessidade da contratação
+                <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                   title="Por que esta contratação é necessária agora — a motivação de fundo."></i>
+              </label>
+              <button type="button" class="btn btn-outline-primary btn-sm btn-ia-sugerir py-0 px-2" style="font-size:.7rem;">
+                <i class="bi bi-stars me-1"></i>Sugerir com IA
+              </button>
+            </div>
+            <textarea name="necessidade_contratacao" class="form-control form-control-sm" rows="2"></textarea>
+          </div>
+          <div class="col-md-6">
+            <div class="d-flex align-items-center justify-content-between">
+              <label class="form-label small fw-semibold mb-0">Motivação / justificativa
+                <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                   title="Fundamento legal e prático que justifica a contratação (art. 18, §1º, I, NLLC)."></i>
+              </label>
+              <button type="button" class="btn btn-outline-primary btn-sm btn-ia-sugerir py-0 px-2" style="font-size:.7rem;">
+                <i class="bi bi-stars me-1"></i>Sugerir com IA
+              </button>
+            </div>
+            <textarea name="motivacao_justificativa" class="form-control form-control-sm" rows="2"></textarea>
+          </div>
+          <div class="col-md-6">
+            <div class="d-flex align-items-center justify-content-between">
+              <label class="form-label small fw-semibold mb-0">Objetivo da contratação
+                <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                   title="O que se pretende alcançar com a contratação."></i>
+              </label>
+              <button type="button" class="btn btn-outline-primary btn-sm btn-ia-sugerir py-0 px-2" style="font-size:.7rem;">
+                <i class="bi bi-stars me-1"></i>Sugerir com IA
+              </button>
+            </div>
+            <textarea name="objetivo_contratacao" class="form-control form-control-sm" rows="2"></textarea>
+          </div>
+          <div class="col-md-6">
+            <div class="d-flex align-items-center justify-content-between">
+              <label class="form-label small fw-semibold mb-0">Meta a ser alcançada
+                <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                   title="Resultado mensurável esperado com a contratação."></i>
+              </label>
+              <button type="button" class="btn btn-outline-primary btn-sm btn-ia-sugerir py-0 px-2" style="font-size:.7rem;">
+                <i class="bi bi-stars me-1"></i>Sugerir com IA
+              </button>
+            </div>
+            <textarea name="meta_contratacao" class="form-control form-control-sm" rows="2"></textarea>
+          </div>
+          <div class="col-md-6">
+            <div class="d-flex align-items-center justify-content-between">
+              <label class="form-label small fw-semibold mb-0">Indicador de resultado
+                <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                   title="Como será medido se a meta foi atingida."></i>
+              </label>
+              <button type="button" class="btn btn-outline-primary btn-sm btn-ia-sugerir py-0 px-2" style="font-size:.7rem;">
+                <i class="bi bi-stars me-1"></i>Sugerir com IA
+              </button>
+            </div>
+            <textarea name="indicador_resultado" class="form-control form-control-sm" rows="2"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2 mb-5">
+    <a href="{% url 'planejamento:dashboard' %}" class="btn btn-outline-secondary">Cancelar</a>
+    <button type="submit" class="btn btn-primary">
+      <i class="bi bi-check-lg me-1"></i>Salvar DOD
+    </button>
+  </div>
+</form>
+{% endif %}
+
+<!-- Toast de aviso do "Sugerir com IA" (recurso ainda em desenvolvimento) -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index:1080;">
+  <div id="iaToast" class="toast align-items-center text-white border-0" role="alert" aria-live="assertive" aria-atomic="true"
+       style="background: var(--mppi-vermelho-escuro);">
+    <div class="d-flex">
+      <div class="toast-body">
+        <i class="bi bi-stars me-1"></i>
+        Sugestão por IA — recurso em desenvolvimento. Em breve você vai poder gerar um texto
+        inicial automaticamente aqui.
+      </div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  // Filtro client-side da lista de itens (sem reload, preserva marcações).
+  var filtro = document.getElementById('filtroItens');
+  if (filtro) {
+    filtro.addEventListener('input', function () {
+      var termo = filtro.value.trim().toLowerCase();
+      document.querySelectorAll('.linha-item').forEach(function (tr) {
+        var busca = tr.getAttribute('data-busca') || '';
+        tr.style.display = busca.indexOf(termo) === -1 ? 'none' : '';
+      });
+    });
+  }
+
+  // Contador de itens selecionados + destaque visual da linha marcada.
+  var contador = document.getElementById('qtdSelecionados');
+  function atualizarContador() {
+    if (contador) {
+      contador.textContent = document.querySelectorAll('.chk-item:checked').length;
+    }
+  }
+  function atualizarDestaque(chk) {
+    var tr = chk.closest('tr');
+    if (tr) { tr.classList.toggle('table-primary', chk.checked); }
+  }
+
+  // Painel "Responsável(is) pela demanda" — importado automaticamente do(s)
+  // DFD(s) de origem dos itens marcados (pedido do Thiago em 2026-08-17: os
+  // dados de identificação da seção 2 do modelo SEI já existem no DFD, não
+  // precisam ser digitados de novo no DOD).
+  var painelResponsaveis = document.getElementById('responsaveisDemanda');
+  var TEXTO_PADRAO_RESPONSAVEIS = painelResponsaveis ? painelResponsaveis.textContent.trim() : '';
+  function atualizarResponsaveis() {
+    if (!painelResponsaveis) { return; }
+    var vistos = {};
+    var linhas = [];
+    document.querySelectorAll('.chk-item:checked').forEach(function (chk) {
+      var dfdId = chk.getAttribute('data-dfd');
+      if (!dfdId || vistos[dfdId]) { return; }
+      vistos[dfdId] = true;
+      var numero = chk.getAttribute('data-dfd-numero') || ('DFD #' + dfdId);
+      var responsavel = chk.getAttribute('data-responsavel') || 'sem responsável definido no DFD';
+      var email = chk.getAttribute('data-email');
+      linhas.push(numero + ' — ' + responsavel + (email ? ' (' + email + ')' : ''));
+    });
+    if (!linhas.length) {
+      painelResponsaveis.classList.add('text-muted');
+      painelResponsaveis.textContent = TEXTO_PADRAO_RESPONSAVEIS;
+    } else {
+      painelResponsaveis.classList.remove('text-muted');
+      painelResponsaveis.innerHTML = linhas.map(function (l) {
+        return '<div><i class="bi bi-person-badge me-1 text-primary"></i>' + l + '</div>';
+      }).join('');
+    }
+  }
+
+  document.querySelectorAll('.chk-item').forEach(function (chk) {
+    atualizarDestaque(chk);
+    chk.addEventListener('change', function () {
+      atualizarDestaque(chk);
+      atualizarContador();
+      atualizarResponsaveis();
+    });
+  });
+  atualizarContador();
+  atualizarResponsaveis();
+
+  // Marcar todos / Limpar seleção — só afeta as linhas visíveis (respeita o filtro).
+  var btnTodos = document.getElementById('btnSelecionarTodos');
+  var btnLimpar = document.getElementById('btnLimparSelecao');
+  function linhasVisiveis() {
+    return Array.prototype.filter.call(document.querySelectorAll('.linha-item'), function (tr) {
+      return tr.style.display !== 'none';
+    });
+  }
+  if (btnTodos) {
+    btnTodos.addEventListener('click', function () {
+      linhasVisiveis().forEach(function (tr) {
+        var chk = tr.querySelector('.chk-item');
+        if (chk) { chk.checked = true; atualizarDestaque(chk); }
+      });
+      atualizarContador();
+      atualizarResponsaveis();
+    });
+  }
+  if (btnLimpar) {
+    btnLimpar.addEventListener('click', function () {
+      linhasVisiveis().forEach(function (tr) {
+        var chk = tr.querySelector('.chk-item');
+        if (chk) { chk.checked = false; atualizarDestaque(chk); }
+      });
+      atualizarContador();
+      atualizarResponsaveis();
+    });
+  }
+
+  // Busca textual inteligente de demandas (DFDs) da unidade, no campo
+  // Identificador — em vez de digitar um rótulo do zero, busca a demanda de
+  // origem (por nº DFD, nº SEI ou objeto, sem acento/maiúsculas) e, ao
+  // escolher, preenche o campo e já marca os itens elegíveis daquele DFD.
+  var demandasData = [];
+  var demandasEl = document.getElementById('demandasData');
+  if (demandasEl) {
+    try { demandasData = JSON.parse(demandasEl.textContent); } catch (e) { demandasData = []; }
+  }
+  var idInput = document.getElementById('identificadorInput');
+  var idSugestoes = document.getElementById('identificadorSugestoes');
+
+  function normalizar(s) {
+    return (s || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function escapeHtml(s) {
+    var div = document.createElement('div');
+    div.textContent = s == null ? '' : String(s);
+    return div.innerHTML;
+  }
+
+  function renderSugestoesIdentificador(termo) {
+    if (!idSugestoes) { return; }
+    var termoNorm = normalizar(termo);
+    var resultados = demandasData.filter(function (d) {
+      if (!termoNorm) { return true; }
+      var alvo = normalizar((d.numero_dfd || '') + ' ' + (d.numero_sei || '') + ' ' + (d.descricao_objeto || ''));
+      return alvo.indexOf(termoNorm) !== -1;
+    }).slice(0, 12);
+
+    // Sem resultados: d\u00e1 um retorno vis\u00edvel em vez de ficar mudo \u2014 sem isso
+    // parecia que a busca "n\u00e3o fazia nada" quando a unidade simplesmente n\u00e3o
+    // tinha nenhuma demanda batendo com o texto digitado (achado por Thiago
+    // testando com "\u00e1gua mineral" numa unidade sem nenhuma demanda de \u00e1gua).
+    if (!resultados.length) {
+      var mensagem = termoNorm && demandasData.length
+        ? 'Nenhuma demanda encontrada com "' + escapeHtml(termo) + '" nesta unidade \u2014 pode continuar digitando um identificador livre.'
+        : 'Nenhuma demanda (DFD) cadastrada ainda para esta unidade \u2014 digite um identificador livre.';
+      idSugestoes.innerHTML =
+        '<div class="list-group-item text-muted py-2" style="font-size:.8rem;">' +
+        '<i class="bi bi-info-circle me-1"></i>' + mensagem + '</div>';
+      idSugestoes.style.display = '';
+      return;
+    }
+
+    idSugestoes.innerHTML = resultados.map(function (d) {
+      var numero = d.numero_dfd || ('DFD #' + d.pk);
+      var rotulo = (numero + ' — ' + (d.descricao_objeto || '')).slice(0, 120);
+      return (
+        '<button type="button" class="list-group-item list-group-item-action py-2 opcao-demanda" ' +
+        'data-dfd-id="' + d.pk + '" data-rotulo="' + rotulo.replace(/"/g, '&quot;') + '" style="font-size:.82rem;">' +
+        '<div class="fw-semibold text-primary font-monospace" style="font-size:.75rem;">' + numero + '</div>' +
+        '<div class="text-truncate">' + (d.descricao_objeto || '') + '</div>' +
+        '</button>'
+      );
+    }).join('');
+    idSugestoes.style.display = '';
+
+    idSugestoes.querySelectorAll('.opcao-demanda').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        idInput.value = btn.getAttribute('data-rotulo');
+        idSugestoes.style.display = 'none';
+        var dfdId = btn.getAttribute('data-dfd-id');
+        document.querySelectorAll('.chk-item[data-dfd="' + dfdId + '"]').forEach(function (chk) {
+          if (!chk.checked) {
+            chk.checked = true;
+            chk.dispatchEvent(new Event('change'));
+          }
+        });
+      });
+    });
+  }
+
+  if (idInput) {
+    idInput.addEventListener('focus', function () { renderSugestoesIdentificador(idInput.value); });
+    idInput.addEventListener('input', function () { renderSugestoesIdentificador(idInput.value); });
+    document.addEventListener('click', function (e) {
+      if (idSugestoes && e.target !== idInput && !idSugestoes.contains(e.target)) {
+        idSugestoes.style.display = 'none';
+      }
+    });
+  }
+
+  // Mostra/esconde o campo "qual" da contratação correlata.
+  var chkCorrelata = document.getElementById('contratacaoCorrelata');
+  var wrapCorrelata = document.getElementById('contratacaoCorrelataQualWrap');
+  if (chkCorrelata && wrapCorrelata) {
+    chkCorrelata.addEventListener('change', function () {
+      wrapCorrelata.style.display = chkCorrelata.checked ? '' : 'none';
+    });
+  }
+
+  // Marca visualmente os 3 papéis da equipe como obrigatórios quando a
+  // natureza do objeto é "Solução de TI" — a validação de verdade roda no
+  // servidor (EquipePlanejamentoTI.clean()); isto é só uma pista pro usuário.
+  var naturezaObjeto = document.getElementById('naturezaObjeto');
+  var avisoTI = document.getElementById('avisoTI');
+  var NATUREZA_TI = "{{ natureza_ti }}";
+  var labels = [
+    document.getElementById('lblRequisitante'),
+    document.getElementById('lblTecnico'),
+    document.getElementById('lblAdministrativo'),
+  ];
+  function atualizarObrigatoriedade() {
+    var isTI = naturezaObjeto.value === NATUREZA_TI;
+    labels.forEach(function (lbl) {
+      if (!lbl) { return; }
+      var base = lbl.textContent.replace(' *', '');
+      lbl.textContent = isTI ? base + ' *' : base;
+    });
+    if (avisoTI) { avisoTI.style.display = isTI ? '' : 'none'; }
+  }
+  if (naturezaObjeto) {
+    naturezaObjeto.addEventListener('change', atualizarObrigatoriedade);
+    atualizarObrigatoriedade();
+  }
+
+  // Botões "Sou eu" — preenche o select de integrante com o usuário logado.
+  var MEU_USUARIO_ID = "{{ request.user.pk|default:'' }}";
+  document.querySelectorAll('.btn-sou-eu').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var targetId = btn.getAttribute('data-target');
+      var select = document.getElementById(targetId);
+      if (select && MEU_USUARIO_ID) { select.value = MEU_USUARIO_ID; }
+    });
+  });
+
+  // Botões "Sugerir com IA" — recurso ainda não implementado (sem provedor de
+  // IA configurado no sistema); por ora só avisa via toast, sem travar o
+  // preenchimento manual do campo.
+  var iaToastEl = document.getElementById('iaToast');
+  var iaToast = (iaToastEl && window.bootstrap) ? new bootstrap.Toast(iaToastEl, { delay: 4500 }) : null;
+  document.querySelectorAll('.btn-ia-sugerir').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (iaToast) { iaToast.show(); }
+    });
+  });
+
+  // Bloqueio simples no submit: exige ao menos 1 item marcado.
+  var form = document.getElementById('dodForm');
+  if (form) {
+    form.addEventListener('submit', function (e) {
+      if (document.querySelectorAll('.chk-item:checked').length === 0) {
+        e.preventDefault();
+        alert('Selecione ao menos um item do PCA para compor o DOD.');
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

@@ -326,7 +326,7 @@ class ItemPCAAdmin(admin.ModelAdmin):
             "classes": ["collapse"],
         }),
         ("Execucao e rastreabilidade", {
-            "fields": ["status", "valor_empenhado", "etp", "item_pai", "observacoes"],
+            "fields": ["status", "valor_empenhado", "item_pai", "observacoes"],
             "classes": ["collapse"],
         }),
     ]

@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% load core_extras %}
+
+{% block title %}Artefatos — DFDs{% endblock %}
+{% block nav_planejamento %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div class="page-header">
+    <h1><i class="bi bi-file-earmark-text text-primary me-2"></i>DFDs
+      {% if pca %}<span class="fs-5 text-muted ms-2">{{ pca.exercicio }}</span>{% endif %}
+    </h1>
+    <p>{{ total }} DFD{{ total|pluralize:"s" }} encontrado{{ total|pluralize:"s" }}.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'planejamento:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Voltar a Artefatos
+    </a>
+    <a href="{% url 'pca:cadastro_grupo' %}" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>Novo DFD
+    </a>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="card mb-4">
+  <div class="card-body py-2 px-3">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-6 col-md-2">
+        <select name="pca_id" class="form-select form-select-sm" onchange="this.form.submit()">
+          {% for p in todos_pcas %}
+            <option value="{{ p.pk }}" {% if pca and p.pk == pca.pk %}selected{% endif %}>
+              PCA {{ p.exercicio }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-3">
+        <input type="search" name="q" value="{{ busca }}" class="form-control form-control-sm"
+               placeholder="Buscar por nº DFD, SEI ou objeto…">
+      </div>
+      <div class="col-6 col-md-2">
+        <select name="status" class="form-select form-select-sm">
+          <option value="">Todos os status</option>
+          {% for val, label in status_choices %}
+            <option value="{{ val }}" {% if status_filtro == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <select name="prioridade" class="form-select form-select-sm">
+          <option value="">Toda prioridade</option>
+          <option value="alto" {% if prioridade_filtro == "alto" %}selected{% endif %}>Alto</option>
+          <option value="medio" {% if prioridade_filtro == "medio" %}selected{% endif %}>Médio</option>
+          <option value="baixo" {% if prioridade_filtro == "baixo" %}selected{% endif %}>Baixo</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <select name="unidade" class="form-select form-select-sm">
+          <option value="">Todas as unidades</option>
+          {% for u in unidades %}
+            <option value="{{ u.pk }}" {% if unidade_filtro == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.sigla }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-1 d-flex gap-2">
+        <button type="submit" class="btn btn-primary btn-sm flex-fill">
+          <i class="bi bi-search me-1"></i>
+        </button>
+        <a href="{% url 'planejamento:dfds' %}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-x"></i>
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Tabela -->
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Nº DFD</th>
+            <th>Nº SEI</th>
+            <th>Unidade</th>
+            <th>Objeto</th>
+            <th class="text-end">Itens</th>
+            <th class="text-end">Valor Est.</th>
+            <th class="text-center">Prioridade</th>
+            <th class="text-center">Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for dfd in dfds %}
+          <tr>
+            <td class="font-monospace fw-bold text-primary" style="font-size:.8rem;">
+              {{ dfd.numero_dfd|default:"—" }}
+            </td>
+            <td style="font-size:.8rem;">{{ dfd.numero_sei|default:"—" }}</td>
+            <td style="font-size:.82rem;">{{ dfd.unidade.sigla|default:"—" }}</td>
+            <td style="max-width:280px;">
+              <div class="text-truncate" style="max-width:270px;" title="{{ dfd.descricao_objeto }}">
+                {{ dfd.descricao_objeto|truncatechars:70 }}
+              </div>
+            </td>
+            <td class="text-end">{{ dfd.qtd_itens }}</td>
+            <td class="text-end fw-bold">R$ {{ dfd.valor_total|default:0|brl }}</td>
+            <td class="text-center">
+              <span class="badge rounded-pill
+                {% if dfd.grau_prioridade == 'alto' %}bg-danger
+                {% elif dfd.grau_prioridade == 'medio' %}bg-warning text-dark
+                {% else %}bg-light text-dark border{% endif %}
+                " style="font-size:.68rem;">
+                {{ dfd.get_grau_prioridade_display }}
+              </span>
+            </td>
+            <td class="text-center">
+              <span class="badge rounded-pill
+                {% if dfd.status == 'aprovado' %}bg-success
+                {% elif dfd.status == 'enviado' %}bg-primary
+                {% elif dfd.status == 'devolvido' %}bg-warning text-dark
+                {% elif dfd.status == 'suspensa' %}bg-danger
+                {% else %}bg-light text-dark border{% endif %}
+                " style="font-size:.68rem;">
+                {{ dfd.get_status_display }}
+              </span>
+            </td>
+            <td class="text-end" style="min-width:60px;">
+              <a href="{% url 'planejamento:dfd_detalhe' dfd.pk %}" class="btn btn-ghost btn-sm p-1" title="Ver detalhe">
+                <i class="bi bi-eye text-secondary"></i>
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="text-center text-muted py-4">
+              <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+              Nenhum DFD encontrado.
+              {% if busca or status_filtro or unidade_filtro or prioridade_filtro %}
+                <a href="{% url 'planejamento:dfds' %}" class="d-block mt-1">Limpar filtros</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

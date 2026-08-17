@@ -369,11 +369,6 @@ class ItemPCA(models.Model):
         ),
     )
 
-    # Planejamento
-    etp = models.ForeignKey(
-        "planejamento.ETP", null=True, blank=True, on_delete=models.SET_NULL, related_name="itens_pca"
-    )
-
     # Atendimento por contrato vigente (alternativa à ARP para tipo_demanda
     # renovacao/aditivo/apostilamento/repactuacao) — evita nova licitação
     # quando um contrato já em vigor cobre a demanda.
