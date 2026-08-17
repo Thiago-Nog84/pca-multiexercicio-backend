@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% load core_extras %}
+
+{% block title %}DOD {{ dod.identificador }}{% endblock %}
+{% block nav_planejamento %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div class="page-header">
+    <h1>
+      <i class="bi bi-signpost-split text-primary me-2"></i>{{ dod.identificador }}
+      <span class="badge rounded-pill ms-2
+        {% if dod.status == 'aberto' %}bg-success
+        {% elif dod.status == 'cancelado' %}bg-danger
+        {% else %}bg-light text-dark border{% endif %}
+        " style="font-size:.62rem; vertical-align:middle;">
+        {{ dod.get_status_display }}
+      </span>
+    </h1>
+    <p>
+      {{ dod.pca }}
+      {% for u in unidades %}· {{ u.sigla }}{% endfor %}
+      {% if unidades|length > 1 %}
+        <span class="badge bg-warning text-dark ms-1" style="font-size:.62rem;"
+              title="Um DOD deveria reunir itens de uma unidade só">mais de uma unidade</span>
+      {% endif %}
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'planejamento:checklist_instrucao' %}?pca_id={{ dod.pca_id }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Voltar ao checklist
+    </a>
+    <a href="/admin/planejamento/documentooficializacaodemanda/{{ dod.pk }}/change/" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-pencil me-1"></i>Editar
+    </a>
+  </div>
+</div>
+
+<!-- Trilha dos artefatos que dependem deste DOD -->
+<div class="card mb-4">
+  <div class="card-header bg-white border-bottom py-3">
+    <i class="bi bi-diagram-3 me-2 text-primary"></i>Instrução do processo
+  </div>
+  <div class="card-body">
+    <div class="row g-3 text-center">
+
+      <div class="col-6 col-md-3">
+        <div class="border rounded p-3 h-100">
+          <div class="text-muted mb-2" style="font-size:.75rem;">Equipe de Planejamento</div>
+          {% if equipe %}
+            <span class="badge rounded-pill bg-success mb-2" style="font-size:.7rem;">
+              <i class="bi bi-check-lg"></i> Definida
+            </span>
+            <div style="font-size:.72rem;" class="text-muted">
+              Líder: {{ equipe.get_lider_display }}
+            </div>
+          {% else %}
+            <span class="badge rounded-pill bg-light text-dark border mb-2" style="font-size:.7rem;">Pendente</span>
+            <div>
+              <a href="/admin/planejamento/equipeplanejamentoti/add/?dod={{ dod.pk }}"
+                 class="btn btn-outline-primary btn-sm py-0" style="font-size:.72rem;">Definir</a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <div class="border rounded p-3 h-100">
+          <div class="text-muted mb-2" style="font-size:.75rem;">ETP</div>
+          {% if etp %}
+            <span class="badge rounded-pill mb-2
+              {% if etp.status == 'aprovado' %}bg-success
+              {% elif etp.status == 'em_revisao' %}bg-warning text-dark
+              {% else %}bg-light text-dark border{% endif %}
+              " style="font-size:.7rem;">{{ etp.get_status_display }}</span>
+            <div>
+              <a href="/admin/planejamento/etp/{{ etp.pk }}/change/"
+                 class="btn btn-outline-primary btn-sm py-0" style="font-size:.72rem;">
+                {{ etp.numero_etp|default:"Abrir" }}
+              </a>
+            </div>
+          {% else %}
+            <span class="badge rounded-pill bg-light text-dark border mb-2" style="font-size:.7rem;">Pendente</span>
+            <div>
+              <a href="/admin/planejamento/etp/add/?dod={{ dod.pk }}"
+                 class="btn btn-outline-primary btn-sm py-0" style="font-size:.72rem;">Iniciar</a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <div class="border rounded p-3 h-100">
+          <div class="text-muted mb-2" style="font-size:.75rem;">Matriz de Risco</div>
+          {% if matriz_risco %}
+            <span class="badge rounded-pill bg-success mb-2" style="font-size:.7rem;">
+              <i class="bi bi-check-lg"></i> {{ matriz_risco.get_fase_atual_display }}
+            </span>
+            <div>
+              <a href="/admin/planejamento/matrizrisco/{{ matriz_risco.pk }}/change/"
+                 class="btn btn-outline-primary btn-sm py-0" style="font-size:.72rem;">Abrir</a>
+            </div>
+          {% elif etp %}
+            <span class="badge rounded-pill bg-light text-dark border mb-2" style="font-size:.7rem;">Pendente</span>
+            <div>
+              <a href="/admin/planejamento/matrizrisco/add/?etp={{ etp.pk }}"
+                 class="btn btn-outline-primary btn-sm py-0" style="font-size:.72rem;">Iniciar</a>
+            </div>
+          {% else %}
+            <span class="badge rounded-pill bg-light text-dark border" style="font-size:.7rem;">Depende do ETP</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="col-6 col-md-3">
+        <div class="border rounded p-3 h-100">
+          <div class="text-muted mb-2" style="font-size:.75rem;">Termo de Referência</div>
+          {% if termo_referencia %}
+            <span class="badge rounded-pill mb-2
+              {% if termo_referencia.status == 'publicado' or termo_referencia.status == 'aprovado' %}bg-success
+              {% elif termo_referencia.status == 'em_revisao' or termo_referencia.status == 'appl' %}bg-warning text-dark
+              {% else %}bg-light text-dark border{% endif %}
+              " style="font-size:.7rem;">{{ termo_referencia.get_status_display }}</span>
+            <div>
+              <a href="/admin/planejamento/termoreferencia/{{ termo_referencia.pk }}/change/"
+                 class="btn btn-outline-primary btn-sm py-0" style="font-size:.72rem;">Abrir</a>
+            </div>
+          {% elif etp %}
+            <span class="badge rounded-pill bg-light text-dark border mb-2" style="font-size:.7rem;">Pendente</span>
+            <div>
+              <a href="/admin/planejamento/termoreferencia/add/?etp={{ etp.pk }}"
+                 class="btn btn-outline-primary btn-sm py-0" style="font-size:.72rem;">Iniciar</a>
+            </div>
+          {% else %}
+            <span class="badge rounded-pill bg-light text-dark border" style="font-size:.7rem;">Depende do ETP</span>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+    <div class="text-muted mt-3 mb-0" style="font-size:.73rem;">
+      <i class="bi bi-info-circle me-1"></i>Matriz de Risco e Termo de Referência penduram no ETP —
+      por isso só ficam disponíveis depois que ele existe. Art. 20 do Decreto 21.872/2023 e Ato PGJ 1381/2024.
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <!-- Identificação -->
+  <div class="col-md-5">
+    <div class="card h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-card-list me-2 text-primary"></i>Identificação
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0" style="font-size:.85rem;">
+          <dt class="col-5 text-muted">Identificador</dt>
+          <dd class="col-7 fw-bold">{{ dod.identificador }}</dd>
+
+          <dt class="col-5 text-muted">Nº SEI</dt>
+          <dd class="col-7">{{ dod.numero_sei|default:"—" }}</dd>
+
+          <dt class="col-5 text-muted">PCA</dt>
+          <dd class="col-7">{{ dod.pca }}</dd>
+
+          <dt class="col-5 text-muted">Unidade requisitante</dt>
+          <dd class="col-7">
+            {% for u in unidades %}{{ u.sigla }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
+          </dd>
+
+          <dt class="col-5 text-muted">DFDs de origem</dt>
+          <dd class="col-7 font-monospace" style="font-size:.8rem;">
+            {% for d in dfds %}
+              <a href="{% url 'planejamento:dfd_detalhe' d.pk %}" class="text-decoration-none">{{ d.numero_dfd|default:"—" }}</a>{% if not forloop.last %}, {% endif %}
+            {% empty %}—{% endfor %}
+          </dd>
+
+          <dt class="col-5 text-muted">Unidade orçamentária</dt>
+          <dd class="col-7">{{ dod.get_unidade_orcamentaria_display|default:"—" }}</dd>
+
+          <dt class="col-5 text-muted">Natureza do objeto</dt>
+          <dd class="col-7">{{ dod.get_natureza_objeto_display|default:"—" }}</dd>
+
+          <dt class="col-5 text-muted">Prioridade</dt>
+          <dd class="col-7">
+            {% if dod.grau_prioridade %}
+            <span class="badge rounded-pill
+              {% if dod.grau_prioridade == 'alto' %}bg-danger
+              {% elif dod.grau_prioridade == 'medio' %}bg-warning text-dark
+              {% else %}bg-light text-dark border{% endif %}
+              " style="font-size:.68rem;">{{ dod.get_grau_prioridade_display }}</span>
+            {% else %}—{% endif %}
+          </dd>
+
+          <dt class="col-5 text-muted">Execução prevista</dt>
+          <dd class="col-7">
+            {% if dod.previsao_inicio_execucao or dod.previsao_termino_execucao %}
+              {{ dod.previsao_inicio_execucao|date:"d/m/Y"|default:"?" }} a {{ dod.previsao_termino_execucao|date:"d/m/Y"|default:"?" }}
+            {% else %}—{% endif %}
+          </dd>
+
+          <dt class="col-5 text-muted">Contratação correlata</dt>
+          <dd class="col-7">
+            {% if dod.contratacao_correlata %}
+              Sim{% if dod.contratacao_correlata_qual %} — {{ dod.contratacao_correlata_qual }}{% endif %}
+            {% else %}Não{% endif %}
+          </dd>
+
+          <dt class="col-5 text-muted">Responsável</dt>
+          <dd class="col-7">{{ dod.responsavel_preenchimento.get_full_name|default:dod.responsavel_preenchimento.username|default:"—" }}</dd>
+
+          <dt class="col-5 text-muted">Criado em</dt>
+          <dd class="col-7">{{ dod.criado_em|date:"d/m/Y H:i" }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fundamentação -->
+  <div class="col-md-7">
+    <div class="card h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-file-text me-2 text-primary"></i>Objeto e fundamentação
+      </div>
+      <div class="card-body" style="font-size:.85rem;">
+        {% if dod.objeto %}
+        <div class="mb-3">
+          <div class="text-muted small mb-1">Objeto</div>
+          <p class="mb-0" style="white-space:pre-wrap;">{{ dod.objeto }}</p>
+        </div>
+        {% endif %}
+        {% for rotulo, texto in campos_texto %}
+          {% if texto %}
+          <div class="mb-3">
+            <div class="text-muted small mb-1">{{ rotulo }}</div>
+            <p class="mb-0" style="white-space:pre-wrap;">{{ texto }}</p>
+          </div>
+          {% endif %}
+        {% endfor %}
+        {% if not dod.objeto and not tem_fundamentacao %}
+          <div class="text-muted text-center py-4">
+            <i class="bi bi-pencil-square fs-3 d-block mb-2"></i>
+            Nenhum campo de fundamentação preenchido ainda.
+            <div class="mt-2">
+              <a href="/admin/planejamento/documentooficializacaodemanda/{{ dod.pk }}/change/" class="btn btn-outline-primary btn-sm">Preencher</a>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if equipe %}
+<div class="card mb-4">
+  <div class="card-header bg-white border-bottom py-3">
+    <i class="bi bi-people me-2 text-primary"></i>Equipe de Planejamento
+    {% if dod.natureza_objeto == 'solucao_ti' %}
+      <span class="badge bg-info text-dark ms-2" style="font-size:.65rem;" title="Res. CNMP 283/2024 exige os 3 papéis distintos">Solução de TI</span>
+    {% endif %}
+  </div>
+  <div class="card-body">
+    <div class="row g-3" style="font-size:.85rem;">
+      <div class="col-md-4">
+        <div class="text-muted small mb-1">
+          Requisitante {% if equipe.lider == 'requisitante' %}<i class="bi bi-star-fill text-warning" title="Líder"></i>{% endif %}
+        </div>
+        {{ equipe.integrante_requisitante.get_full_name|default:equipe.integrante_requisitante.username|default:"—" }}
+      </div>
+      <div class="col-md-4">
+        <div class="text-muted small mb-1">
+          Técnico {% if equipe.lider == 'tecnico' %}<i class="bi bi-star-fill text-warning" title="Líder"></i>{% endif %}
+        </div>
+        {{ equipe.integrante_tecnico.get_full_name|default:equipe.integrante_tecnico.username|default:"—" }}
+      </div>
+      <div class="col-md-4">
+        <div class="text-muted small mb-1">
+          Administrativo {% if equipe.lider == 'administrativo' %}<i class="bi bi-star-fill text-warning" title="Líder"></i>{% endif %}
+        </div>
+        {{ equipe.integrante_administrativo.get_full_name|default:equipe.integrante_administrativo.username|default:"—" }}
+      </div>
+    </div>
+    {% if equipe.ato_designacao_sei %}
+    <div class="text-muted mt-3 mb-0" style="font-size:.78rem;">
+      Ato de designação (SEI): <span class="font-monospace">{{ equipe.ato_designacao_sei }}</span>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Itens vinculados -->
+<div class="card">
+  <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <span><i class="bi bi-list-ul me-2 text-primary"></i>Itens do PCA neste DOD</span>
+    <span class="text-muted" style="font-size:.82rem;">
+      {{ itens|length }} item{{ itens|length|pluralize:"ns" }} · R$ {{ valor_total|brl }}
+      {% if qtd_parciais %}
+        <span class="badge bg-warning text-dark ms-2" style="font-size:.65rem;"
+              title="Itens aprovados com quantidade menor que a solicitada pela unidade">
+          {{ qtd_parciais }} parcial{{ qtd_parciais|pluralize:"is" }}
+        </span>
+      {% endif %}
+    </span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Código PCA</th>
+            <th>Descrição</th>
+            <th>DFD</th>
+            <th class="text-end">Qtd</th>
+            <th class="text-end">Valor Est.</th>
+            <th class="text-center">Aprovação</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in itens %}
+          <tr>
+            <td class="font-monospace fw-bold text-primary" style="font-size:.8rem;">{{ item.codigo_pca }}</td>
+            <td style="max-width:300px;">
+              <div class="text-truncate" style="max-width:290px;" title="{{ item.descricao }}">
+                {{ item.descricao|truncatechars:70 }}
+              </div>
+            </td>
+            <td class="font-monospace" style="font-size:.78rem;">
+              {% if item.dfd_id %}
+                <a href="{% url 'planejamento:dfd_detalhe' item.dfd_id %}" class="text-decoration-none">{{ item.dfd.numero_dfd|default:"—" }}</a>
+              {% else %}—{% endif %}
+            </td>
+            <td class="text-end">
+              {{ item.quantidade_estimada|qtd_br }}
+              {% if item.status_aprovacao == 'aprovada_parcial' and item.quantidade_solicitada %}
+                <div class="text-muted" style="font-size:.7rem;" title="Quantidade solicitada pela unidade">
+                  de {{ item.quantidade_solicitada|qtd_br }}
+                </div>
+              {% endif %}
+            </td>
+            <td class="text-end fw-bold">R$ {{ item.valor_total_estimado|brl }}</td>
+            <td class="text-center">
+              <span class="badge rounded-pill
+                {% if item.status_aprovacao == 'aprovada_integral' %}bg-success
+                {% elif item.status_aprovacao == 'aprovada_parcial' %}bg-warning text-dark
+                {% else %}bg-light text-dark border{% endif %}
+                " style="font-size:.68rem;"
+                {% if item.motivo_analise %}title="{{ item.motivo_analise }}"{% endif %}>
+                {{ item.get_status_aprovacao_display }}
+              </span>
+            </td>
+            <td class="text-end" style="min-width:60px;">
+              <a href="{% url 'pca:item_detalhe' item.pk %}" class="btn btn-ghost btn-sm p-1" title="Ver detalhe do item">
+                <i class="bi bi-eye text-secondary"></i>
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">
+              <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+              Nenhum item vinculado a este DOD.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -6,6 +6,8 @@ full_clean() explícito — sem Django Forms/ModelForms, por consistência com
 o resto do sistema.
 """
 
+from decimal import Decimal
+
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
@@ -241,4 +243,90 @@ class DODCriarView(View):
             return redirect(f"/planejamento/dods/novo/?pca_id={pca_id}&unidade_id={unidade.pk}")
 
         messages.success(request, f"DOD \"{identificador}\" cadastrado com {len(itens_ids)} item(ns).")
-        return redirect(f"/admin/planejamento/documentooficializacaodemanda/{dod.pk}/change/")
+        return redirect("planejamento:dod_detalhe", pk=dod.pk)
+
+
+@method_decorator(login_required, name="dispatch")
+class DODDetalheView(View):
+    """
+    GET /planejamento/dods/<pk>/ — ficha do DOD já cadastrado.
+
+    Fecha o ciclo da tela de criação: até 2026-08-17 quem salvava um DOD caía
+    direto no admin do Django, sem nenhuma tela do sistema que mostrasse o
+    documento. Reúne aqui o que antes só dava para ver espalhado — dados do
+    documento, itens vinculados, equipe de planejamento e o estado dos
+    artefatos que dependem dele (ETP, Matriz de Risco, Termo de Referência).
+
+    A unidade requisitante NÃO é campo do model: cada DOD é de uma unidade só
+    (regra da tela de criação, ver `_unidades_permitidas`), então ela é
+    derivada dos DFDs dos itens. Se algum caminho antigo tiver deixado itens
+    de unidades diferentes, todas aparecem — melhor expor a inconsistência do
+    que escondê-la mostrando só a primeira.
+    """
+
+    template_name = "planejamento/dod_detalhe.html"
+
+    def get(self, request, pk):
+        dod = get_object_or_404(
+            DocumentoOficializacaoDemanda.objects.select_related(
+                "pca",
+                "responsavel_preenchimento",
+                "equipe_planejamento_ti",
+                "etp",
+                "etp__matriz_risco",
+                "etp__termo_referencia",
+            ),
+            pk=pk,
+        )
+
+        itens = list(
+            dod.itens.select_related("dfd", "dfd__unidade").order_by("codigo_pca")
+        )
+
+        # getattr(..., None) funciona em OneToOne reverso porque o
+        # RelatedObjectDoesNotExist do Django herda de AttributeError — mesmo
+        # padrão já usado em views_checklist._montar_processos.
+        etp = getattr(dod, "etp", None)
+        equipe = getattr(dod, "equipe_planejamento_ti", None)
+
+        unidades = sorted(
+            {item.dfd.unidade for item in itens if item.dfd_id and item.dfd.unidade_id},
+            key=lambda u: u.sigla,
+        )
+        dfds = sorted(
+            {item.dfd for item in itens if item.dfd_id},
+            key=lambda d: d.numero_dfd or "",
+        )
+
+        # Blocos de texto das seções 8-10 do modelo SEI 1465317, na ordem do
+        # documento. Como lista de tuplas para o template só iterar e pular o
+        # que estiver vazio — evita repetir o mesmo {% if %} sete vezes.
+        campos_texto = [
+            ("Objetivos estratégicos", dod.objetivos_estrategicos),
+            ("Alinhamento ao PDTIC", dod.alinhamento_pdtic),
+            ("Necessidade da contratação", dod.necessidade_contratacao),
+            ("Motivação / justificativa", dod.motivacao_justificativa),
+            ("Objetivo da contratação", dod.objetivo_contratacao),
+            ("Meta a ser alcançada", dod.meta_contratacao),
+            ("Indicador de resultado", dod.indicador_resultado),
+        ]
+
+        context = {
+            "dod": dod,
+            "itens": itens,
+            "campos_texto": campos_texto,
+            "tem_fundamentacao": any(texto for _, texto in campos_texto),
+            "valor_total": sum(
+                (item.valor_total_estimado or Decimal("0") for item in itens), Decimal("0")
+            ),
+            "unidades": unidades,
+            "dfds": dfds,
+            "equipe": equipe,
+            "etp": etp,
+            "matriz_risco": getattr(etp, "matriz_risco", None) if etp else None,
+            "termo_referencia": getattr(etp, "termo_referencia", None) if etp else None,
+            "qtd_parciais": sum(
+                1 for item in itens if item.status_aprovacao == "aprovada_parcial"
+            ),
+        }
+        return render(request, self.template_name, context)

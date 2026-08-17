@@ -108,7 +108,7 @@
           {% for p in processos %}
           <tr>
             <td style="font-size:.82rem;">
-              <a href="/admin/planejamento/documentooficializacaodemanda/{{ p.dod.pk }}/change/" class="fw-bold text-primary text-decoration-none">
+              <a href="{% url 'planejamento:dod_detalhe' p.dod.pk %}" class="fw-bold text-primary text-decoration-none">
                 {{ p.dod.identificador }}
               </a>
               <div class="text-muted" style="font-size:.72rem;">{{ p.dod.get_status_display }}</div>
@@ -122,7 +122,7 @@
               {% if p.equipe %}
                 <span class="badge rounded-pill bg-success" style="font-size:.68rem;"><i class="bi bi-check-lg"></i> Definida</span>
               {% else %}
-                <a href="/admin/planejamento/equipeplanejamentoti/add/" class="badge rounded-pill bg-light text-dark border text-decoration-none" style="font-size:.68rem;">Pendente</a>
+                <a href="/admin/planejamento/equipeplanejamentoti/add/?dod={{ p.dod.pk }}" class="badge rounded-pill bg-light text-dark border text-decoration-none" style="font-size:.68rem;">Pendente</a>
               {% endif %}
             </td>
             <td class="text-center">
@@ -131,14 +131,14 @@
                   {% if p.etp.status == 'aprovado' %}bg-success{% elif p.etp.status == 'em_revisao' %}bg-warning text-dark{% else %}bg-light text-dark border{% endif %}
                   " style="font-size:.68rem;">{{ p.etp.get_status_display }}</span>
               {% else %}
-                <a href="/admin/planejamento/etp/add/" class="badge rounded-pill bg-light text-dark border text-decoration-none" style="font-size:.68rem;">Pendente</a>
+                <a href="/admin/planejamento/etp/add/?dod={{ p.dod.pk }}" class="badge rounded-pill bg-light text-dark border text-decoration-none" style="font-size:.68rem;">Pendente</a>
               {% endif %}
             </td>
             <td class="text-center">
               {% if p.matriz_risco %}
                 <span class="badge rounded-pill bg-success" style="font-size:.68rem;"><i class="bi bi-check-lg"></i> Definida</span>
               {% else %}
-                <a href="/admin/planejamento/matrizrisco/add/" class="badge rounded-pill bg-light text-dark border text-decoration-none" style="font-size:.68rem;">Pendente</a>
+                <a href="{% if p.etp %}/admin/planejamento/matrizrisco/add/?etp={{ p.etp.pk }}{% else %}#{% endif %}" class="badge rounded-pill bg-light text-dark border text-decoration-none" style="font-size:.68rem;" {% if not p.etp %}title="Depende do ETP"{% endif %}>Pendente</a>
               {% endif %}
             </td>
             <td class="text-center">
@@ -147,7 +147,7 @@
                   {% if p.termo_referencia.status == 'publicado' or p.termo_referencia.status == 'aprovado' %}bg-success{% elif p.termo_referencia.status == 'em_revisao' or p.termo_referencia.status == 'appl' %}bg-warning text-dark{% else %}bg-light text-dark border{% endif %}
                   " style="font-size:.68rem;">{{ p.termo_referencia.get_status_display }}</span>
               {% else %}
-                <a href="/admin/planejamento/termorreferencia/add/" class="badge rounded-pill bg-light text-dark border text-decoration-none" style="font-size:.68rem;">Pendente</a>
+                <a href="{% if p.etp %}/admin/planejamento/termoreferencia/add/?etp={{ p.etp.pk }}{% else %}#{% endif %}" class="badge rounded-pill bg-light text-dark border text-decoration-none" style="font-size:.68rem;" {% if not p.etp %}title="Depende do ETP"{% endif %}>Pendente</a>
               {% endif %}
             </td>
           </tr>
