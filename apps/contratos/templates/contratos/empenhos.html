@@ -266,7 +266,8 @@
                 <span class="orgao-badge bg-light border text-dark">{{ emp.contrato.orgao.sigla }}</span>
               </td>
               <td style="max-width:180px;">
-                <span title="{{ emp.nome_favorecido }}" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-block;max-width:180px;vertical-align:middle;">{{ emp.nome_favorecido|default:emp.contrato.contratado_razao_social }}</span>
+                {# firstof, e nao |default: — o argumento de um filtro e resolvido sempre, entao com emp.contrato nulo (FK e null=True) o |default: estourava VariableDoesNotExist. #}
+                <span title="{{ emp.nome_favorecido }}" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-block;max-width:180px;vertical-align:middle;">{% firstof emp.nome_favorecido emp.contrato.contratado_razao_social %}</span>
               </td>
               <td><code style="font-size:.78rem;">{{ emp.elemento_despesa|default:"—" }}</code></td>
               <td class="text-end fw-semibold">R$ {{ emp.valor_empenhado|brl }}</td>
