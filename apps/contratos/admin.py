@@ -1,6 +1,33 @@
 from django.contrib import admin
 
-from .models import Aditivo, Apostilamento, Contrato, OrdemFornecimento, PaginaContratosMPPI
+from .models import (
+    Aditivo,
+    Apostilamento,
+    ChecklistConformidade,
+    Contrato,
+    ItemChecklist,
+    OrdemFornecimento,
+    PaginaContratosMPPI,
+)
+
+
+class ItemChecklistInline(admin.TabularInline):
+    model = ItemChecklist
+    extra = 0
+    fields = ("chave", "marcado", "observacao", "marcado_por", "marcado_em")
+    readonly_fields = ("marcado_por", "marcado_em")
+
+
+@admin.register(ChecklistConformidade)
+class ChecklistConformidadeAdmin(admin.ModelAdmin):
+    list_display = ("contrato", "percentual_display", "atualizado_por", "atualizado_em")
+    search_fields = ("contrato__numero_contrato", "contrato__objeto", "observacoes")
+    readonly_fields = ("criado_em", "atualizado_em", "atualizado_por")
+    inlines = (ItemChecklistInline,)
+
+    @admin.display(description="Conformidade")
+    def percentual_display(self, obj):
+        return f"{obj.percentual}% ({obj.qtd_marcados}/{obj.total_itens})"
 
 
 @admin.register(PaginaContratosMPPI)

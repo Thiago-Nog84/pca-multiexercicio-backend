@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block nav_contratos %}active{% endblock %}
+
+{% block title %}Conformidade dos Contratos — PCA MPPI{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div class="page-header">
+    <h1><i class="bi bi-clipboard2-check me-2" style="color:var(--mppi-vermelho);"></i>Avaliação de Conformidade</h1>
+    <p>Checklist documental por contrato — fases de licitação/contratação e execução.</p>
+  </div>
+  <a href="{% url 'contratos:dashboard' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Voltar
+  </a>
+</div>
+
+{# KPIs #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="kpi-label">Contratos</div>
+      <div class="kpi-value mt-1" data-countup="{{ total_contratos }}">{{ total_contratos }}</div>
+      <div class="kpi-sub">Avaliáveis</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="kpi-label">Conformidade média</div>
+      <div class="kpi-value mt-1" data-countup="{{ media_pct }}" data-countup-suffix="%">{{ media_pct }}%</div>
+      <div class="kpi-sub">Média simples</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="kpi-label">Conformes</div>
+      <div class="kpi-value mt-1" style="color:#16a34a;" data-countup="{{ contagem_faixa.success }}">{{ contagem_faixa.success }}</div>
+      <div class="kpi-sub">80% ou mais</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card kpi-card h-100 p-3">
+      <div class="kpi-label">Críticos</div>
+      <div class="kpi-value mt-1" style="color:#dc2626;" data-countup="{{ contagem_faixa.danger }}">{{ contagem_faixa.danger }}</div>
+      <div class="kpi-sub">Abaixo de 30%</div>
+    </div>
+  </div>
+</div>
+
+{# Filtros #}
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="d-flex gap-2 flex-wrap align-items-center">
+      <input type="text" name="q" value="{{ busca }}" class="form-control form-control-sm"
+             style="max-width:280px;" placeholder="Contrato, objeto, fornecedor ou SEI...">
+      <select name="status" class="form-select form-select-sm" style="max-width:160px;">
+        <option value="">Todos os status</option>
+        {% for valor, rotulo in status_opcoes %}
+          <option value="{{ valor }}" {% if status_filtro == valor %}selected{% endif %}>{{ rotulo }}</option>
+        {% endfor %}
+      </select>
+      <select name="faixa" class="form-select form-select-sm" style="max-width:190px;">
+        <option value="">Todas as faixas</option>
+        <option value="success" {% if faixa_filtro == "success" %}selected{% endif %}>Conforme (80%+)</option>
+        <option value="warning" {% if faixa_filtro == "warning" %}selected{% endif %}>Parcial (30–79%)</option>
+        <option value="danger"  {% if faixa_filtro == "danger" %}selected{% endif %}>Crítico (abaixo de 30%)</option>
+      </select>
+      <button type="submit" class="btn btn-sm btn-primary">Filtrar</button>
+      <a href="{% url 'contratos:conformidade' %}" class="btn btn-sm btn-outline-secondary">Limpar</a>
+    </form>
+  </div>
+</div>
+
+{% if linhas %}
+<div class="card">
+  <div class="card-header bg-white border-bottom py-3">
+    <i class="bi bi-table me-2 text-primary"></i>{{ linhas|length }} contrato(s)
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover table-sm mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Contrato</th>
+          <th>Objeto</th>
+          <th class="text-center">Unidade</th>
+          <th class="text-center">Status</th>
+          <th style="min-width:170px;">Conformidade</th>
+          <th class="text-center">Itens</th>
+          <th class="text-end">Ação</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for linha in linhas %}
+        <tr>
+          <td class="font-monospace" style="font-size:.8rem; white-space:nowrap;">
+            {{ linha.contrato.numero_contrato }}
+          </td>
+          <td style="max-width:300px; font-size:.82rem;">
+            {{ linha.contrato.objeto|truncatechars:70 }}
+          </td>
+          <td class="text-center">
+            {% if linha.contrato.unidade_requisitante %}
+              <span class="badge bg-secondary" style="font-size:.7rem;">
+                {{ linha.contrato.unidade_requisitante.sigla }}
+              </span>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td class="text-center">
+            <span class="badge badge-{{ linha.contrato.status }}">
+              {{ linha.contrato.get_status_display }}
+            </span>
+          </td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="progress flex-grow-1 prog-bar-sm" style="min-width:80px;">
+                <div class="progress-bar bg-{{ linha.faixa }}" role="progressbar"
+                     style="width: {{ linha.percentual }}%;"
+                     aria-valuenow="{{ linha.percentual }}" aria-valuemin="0" aria-valuemax="100"></div>
+              </div>
+              <span class="fw-semibold text-{{ linha.faixa }}" style="font-size:.8rem; min-width:38px;">
+                {{ linha.percentual }}%
+              </span>
+            </div>
+          </td>
+          <td class="text-center text-muted" style="font-size:.78rem;">
+            {{ linha.marcados }}/{{ linha.total }}
+          </td>
+          <td class="text-end">
+            <a href="{% url 'contratos:conformidade_detalhe' linha.contrato.pk %}"
+               class="btn btn-sm btn-outline-primary py-0">
+              {% if pode_avaliar %}Avaliar{% else %}Ver{% endif %}
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="card-body text-center text-muted py-5">
+    <i class="bi bi-clipboard2-x fs-2 d-block mb-2"></i>
+    Nenhum contrato encontrado com os filtros selecionados.
+  </div>
+</div>
+{% endif %}
+
+<div class="mt-3 text-muted" style="font-size:.78rem;">
+  <i class="bi bi-info-circle me-1"></i>
+  O percentual considera os {{ linhas.0.total|default:25 }} itens das duas fases.
+  Contratos sem checklist iniciado aparecem com 0%.
+  {% if not pode_avaliar %}
+    <br><i class="bi bi-shield-lock me-1"></i>Você tem acesso somente de leitura
+    (preencher exige perfil Auditor, APG ou Autoridade Competente).
+  {% endif %}
+</div>
+{% endblock %}

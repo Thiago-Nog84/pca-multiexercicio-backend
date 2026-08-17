@@ -9,6 +9,10 @@ Alertas de vigência: 90 / 60 / 30 dias antes do vencimento.
 from django.conf import settings
 from django.db import models
 from .models_empenho import Empenho, EmpenhoProduto  # noqa: F401 — re-exportado para acesso via contratos.models
+from .models_conformidade import (  # noqa: F401 — idem
+    ChecklistConformidade,
+    ItemChecklist,
+)
 
 
 class Contrato(models.Model):

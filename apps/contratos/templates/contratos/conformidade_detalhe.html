@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block nav_contratos %}active{% endblock %}
+
+{% block title %}Conformidade — {{ contrato.numero_contrato }}{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div class="page-header">
+    <h1>
+      <i class="bi bi-clipboard2-check me-2" style="color:var(--mppi-vermelho);"></i>
+      Conformidade — <span class="font-monospace">{{ contrato.numero_contrato }}</span>
+    </h1>
+    <p>{{ contrato.objeto|truncatechars:120 }}</p>
+  </div>
+  <a href="{% url 'contratos:conformidade' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Voltar à lista
+  </a>
+</div>
+
+{# Cabeçalho do contrato #}
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <div class="row g-3 align-items-center">
+      <div class="col-md-3">
+        <div class="kpi-label">Fornecedor</div>
+        <div style="font-size:.85rem;">{{ contrato.contratado_razao_social|truncatechars:40 }}</div>
+      </div>
+      <div class="col-md-2">
+        <div class="kpi-label">Processo SEI</div>
+        <div class="font-monospace" style="font-size:.82rem;">
+          {{ contrato.numero_sei|default:"—" }}
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="kpi-label">Unidade</div>
+        <div style="font-size:.85rem;">
+          {% if contrato.unidade_requisitante %}{{ contrato.unidade_requisitante.sigla }}{% else %}—{% endif %}
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="kpi-label">Status</div>
+        <span class="badge badge-{{ contrato.status }}">{{ contrato.get_status_display }}</span>
+      </div>
+      <div class="col-md-3">
+        <div class="kpi-label">Conformidade</div>
+        <div class="d-flex align-items-center gap-2">
+          <div class="progress flex-grow-1 prog-bar-sm">
+            <div class="progress-bar bg-{{ faixa }}" style="width: {{ percentual }}%;"></div>
+          </div>
+          <span class="fw-bold text-{{ faixa }}">{{ percentual }}%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+
+  {% for fase in fases %}
+  <div class="card mb-3">
+    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+      <span>
+        <i class="bi bi-list-check me-2 text-primary"></i>{{ fase.rotulo }}
+      </span>
+      <span class="badge bg-secondary-subtle text-secondary-emphasis">
+        {{ fase.marcados }}/{{ fase.total }}
+      </span>
+    </div>
+    <div class="list-group list-group-flush">
+      {% for linha in fase.linhas %}
+      <div class="list-group-item py-2">
+        <div class="row g-2 align-items-center">
+          <div class="col-md-5">
+            <div class="form-check mb-0">
+              <input class="form-check-input" type="checkbox" name="itens" value="{{ linha.chave }}"
+                     id="chk_{{ linha.chave }}"
+                     {% if linha.marcado %}checked{% endif %}
+                     {% if not pode_avaliar %}disabled{% endif %}>
+              <label class="form-check-label" for="chk_{{ linha.chave }}" style="font-size:.85rem;">
+                {{ linha.rotulo }}
+              </label>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <input type="text" name="obs__{{ linha.chave }}" maxlength="300"
+                   class="form-control form-control-sm"
+                   placeholder="Observação (opcional)"
+                   value="{% if linha.registro %}{{ linha.registro.observacao }}{% endif %}"
+                   {% if not pode_avaliar %}disabled{% endif %}>
+          </div>
+          <div class="col-md-3 text-md-end">
+            {% if linha.registro and linha.registro.marcado and linha.registro.marcado_em %}
+              <small class="text-muted" style="font-size:.72rem;">
+                <i class="bi bi-check2-circle text-success me-1"></i>
+                {{ linha.registro.marcado_por|default:"—" }} em
+                {{ linha.registro.marcado_em|date:"d/m/Y H:i" }}
+              </small>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="card mb-3">
+    <div class="card-header bg-white border-bottom py-3">
+      <i class="bi bi-journal-text me-2 text-primary"></i>Observações gerais da auditoria
+    </div>
+    <div class="card-body">
+      <textarea name="observacoes" rows="4" class="form-control form-control-sm"
+                placeholder="Anotações sobre a análise deste contrato"
+                {% if not pode_avaliar %}disabled{% endif %}>{% if checklist %}{{ checklist.observacoes }}{% endif %}</textarea>
+    </div>
+  </div>
+
+  {% if pode_avaliar %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <small class="text-muted">
+        {% if checklist and checklist.atualizado_por %}
+          Última atualização por {{ checklist.atualizado_por }} em
+          {{ checklist.atualizado_em|date:"d/m/Y H:i" }}.
+        {% else %}
+          Checklist ainda não iniciado.
+        {% endif %}
+      </small>
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-save me-1"></i>Salvar avaliação
+      </button>
+    </div>
+  {% else %}
+    <div class="alert alert-secondary" style="font-size:.82rem;">
+      <i class="bi bi-shield-lock me-1"></i>
+      Acesso somente de leitura — preencher a conformidade exige perfil
+      Auditor (CONINT), APG ou Autoridade Competente.
+    </div>
+  {% endif %}
+</form>
+{% endblock %}

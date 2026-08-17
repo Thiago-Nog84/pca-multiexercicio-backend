@@ -1,4 +1,6 @@
 from django.urls import path
+
+from .views_conformidade import ConformidadeDetalheView, ConformidadeListaView
 from .views_template import (
     DashboardContratosView,
     EmpenhosSIAFEView,
@@ -13,6 +15,9 @@ urlpatterns = [
     path("", DashboardContratosView.as_view(), name="dashboard"),
     path("empenhos/", EmpenhosSIAFEView.as_view(), name="empenhos"),
     path("vencimentos/", VencimentosView.as_view(), name="vencimentos"),
+    path("conformidade/", ConformidadeListaView.as_view(), name="conformidade"),
+    path("conformidade/<int:pk>/", ConformidadeDetalheView.as_view(),
+         name="conformidade_detalhe"),
     path("sincronizar-siafe/", SincronizarExecucaoSIAFEView.as_view(), name="sincronizar_siafe"),
     path("instrumento/<int:pk>/pdf/", proxy_instrumento_pdf, name="instrumento_pdf"),
 ]
