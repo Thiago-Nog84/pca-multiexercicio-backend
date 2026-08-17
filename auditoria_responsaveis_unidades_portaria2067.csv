@@ -1,0 +1,13 @@
+﻿sigla,unidade_nome,coordenador,matricula_portaria,username,user_id,usuario_criado_agora,is_active
+CAA,Coordenadoria de Apoio Administrativo,Marcílio de Oliveira Silva,,marcilio.silva,19,True,False
+CPPT,Coordenadoria de Pericias e Pareceres Tecnicos,Francisco Eduardo Lopes Viana,20082,francisco.viana,20,True,False
+CCF,Coordenadoria de Contabilidade e Financas,Dênis Rodrigues de Lima,16576,denis.lima,21,True,False
+CLC,Coordenadoria de Licitacoes e Contratos,Afrânio Oliveira da Silva,176,afranio.silva,22,True,False
+CCS,Coordenadoria de Comunicacao Social,Edigar Nogueira Brandão Neto,15092,edigar.neto,23,True,False
+CRH,Coordenadoria de Recursos Humanos,Francisco Mariano de Araújo Filho,128,francisco.filho,24,True,False
+CONINT,Controle Interno,Sidney Feitosa da Silva,252,sidney.silva,25,True,False
+GAECO,Grupo de Atuacao Especial Contra o Crime Organizado,Thiago de Araújo Costa Soares,335,thiago.soares,26,True,False
+GSI,Gerencia de Seguranca Institucional,Patrícia Luz Martins,233,patricia.martins,27,True,False
+FPROCON,Fundo de Protecao ao Consumidor,Edivar Cruz Carvalho,,edivar.carvalho,28,True,False
+CEAF,Centro de Estudos e Aperfeicoamento Funcional,Viviane Maria de Pádua Rios Magalhães,16318,viviane.magalhaes,29,True,False
+APG,Assessoria de Planejamento e Gestao,Vicente Oliveira Miranda,15812,vicente.miranda,30,True,False

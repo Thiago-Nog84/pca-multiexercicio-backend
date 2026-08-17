@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% load core_extras %}
+
+{% block title %}Checklist de instrução{% endblock %}
+{% block nav_planejamento %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div class="page-header">
+    <h1><i class="bi bi-list-check text-primary me-2"></i>Checklist de instrução
+      {% if pca %}<span class="fs-5 text-muted ms-2">{{ pca.exercicio }}</span>{% endif %}
+    </h1>
+    <p>Itens aprovados aguardando abertura de processo, e o status dos artefatos de instrução por processo já aberto.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'planejamento:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Voltar a Artefatos
+    </a>
+  </div>
+</div>
+
+<!-- Seletor de PCA -->
+<div class="card mb-4">
+  <div class="card-body py-2 px-3">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-6 col-md-3">
+        <select name="pca_id" class="form-select form-select-sm" onchange="this.form.submit()">
+          {% for p in todos_pcas %}
+            <option value="{{ p.pk }}" {% if pca and p.pk == pca.pk %}selected{% endif %}>
+              PCA {{ p.exercicio }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Seção 1: Backlog — itens aprovados sem DOD aberto, por unidade -->
+<div class="card mb-4">
+  <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+    <span><i class="bi bi-inboxes me-2 text-primary"></i>Backlog — itens aprovados sem processo aberto</span>
+    <span class="badge rounded-pill bg-light text-dark border">{{ total_itens_backlog }} item{{ total_itens_backlog|pluralize:"s" }}</span>
+  </div>
+  <div class="card-body p-0">
+    {% for grupo in backlog %}
+    <div class="border-bottom">
+      <div class="d-flex align-items-center justify-content-between px-3 py-2" style="background:#f8f9fb;">
+        <div>
+          <span class="fw-bold">{{ grupo.sigla }}</span>
+          {% if grupo.unidade %}<span class="text-muted ms-1" style="font-size:.82rem;">{{ grupo.unidade.nome }}</span>{% endif %}
+          <span class="badge rounded-pill bg-light text-dark border ms-2" style="font-size:.7rem;">{{ grupo.qtd_itens }} item{{ grupo.qtd_itens|pluralize:"s" }}</span>
+          <span class="text-muted ms-2" style="font-size:.8rem;">R$ {{ grupo.valor_total|brl }}</span>
+        </div>
+        {% if pca and grupo.unidade %}
+        <a href="{% url 'planejamento:dod_novo' %}?pca_id={{ pca.pk }}&unidade_id={{ grupo.unidade.pk }}&itens={{ grupo.itens_ids_csv }}"
+           class="btn btn-primary btn-sm">
+          <i class="bi bi-play-fill me-1"></i>Iniciar DOD
+        </a>
+        {% endif %}
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <tbody>
+            {% for item in grupo.itens %}
+            <tr>
+              <td class="font-monospace text-primary" style="font-size:.78rem; width:160px;">{{ item.codigo_pca|default:"—" }}</td>
+              <td style="font-size:.82rem;">
+                <div class="text-truncate" style="max-width:520px;" title="{{ item.descricao }}">{{ item.descricao|truncatechars:90 }}</div>
+              </td>
+              <td class="text-end fw-bold" style="font-size:.8rem; width:130px;">R$ {{ item.valor_total_estimado|default:0|brl }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% empty %}
+    <div class="text-center text-muted py-4">
+      <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+      Nenhum item aprovado aguardando abertura de processo{% if pca %} no PCA {{ pca.exercicio }}{% endif %}.
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Seção 2: checklist por processo (art. 20 do Decreto 21.872/2023 / Ato PGJ 1381/2024) -->
+<div class="card">
+  <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+    <span><i class="bi bi-diagram-3 me-2 text-primary"></i>Checklist por processo</span>
+    <span class="badge rounded-pill bg-light text-dark border">{{ total_processos }} processo{{ total_processos|pluralize:"s" }}</span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>DOD</th>
+            <th>DFD(s) de origem</th>
+            <th class="text-center">Equipe de Planej.</th>
+            <th class="text-center">ETP</th>
+            <th class="text-center">Matriz de Risco</th>
+            <th class="text-center">Termo de Referência</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in processos %}
+          <tr>
+            <td style="font-size:.82rem;">
+              <a href="/admin/planejamento/documentooficializacaodemanda/{{ p.dod.pk }}/change/" class="fw-bold text-primary text-decoration-none">
+                {{ p.dod.identificador }}
+              </a>
+              <div class="text-muted" style="font-size:.72rem;">{{ p.dod.get_status_display }}</div>
+            </td>
+            <td style="font-size:.8rem;">
+              {% for dfd in p.dfds %}
+                <span class="font-monospace">{{ dfd.numero_dfd|default:"—" }}</span>{% if not forloop.last %}, {% endif %}
+              {% empty %}—{% endfor %}
+            </td>
+            <td class="text-center">
+              {% if p.equipe %}
+                <span class="badge rounded-pill bg-success" style="font-size:.68rem;"><i class="bi bi-check-lg"></i> Definida</span>
+              {% else %}
+                <a href="/admin/planejamento/equipeplanejamentoti/add/" class="badge rounded-pill bg-light text-dark border text-decoration-none" style="font-size:.68rem;">Pendente</a>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if p.etp %}
+                <span class="badge rounded-pill
+                  {% if p.etp.status == 'aprovado' %}bg-success{% elif p.etp.status == 'em_revisao' %}bg-warning text-dark{% else %}bg-light text-dark border{% endif %}
+                  " style="font-size:.68rem;">{{ p.etp.get_status_display }}</span>
+              {% else %}
+                <a href="/admin/planejamento/etp/add/" class="badge rounded-pill bg-light text-dark border text-decoration-none" style="font-size:.68rem;">Pendente</a>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if p.matriz_risco %}
+                <span class="badge rounded-pill bg-success" style="font-size:.68rem;"><i class="bi bi-check-lg"></i> Definida</span>
+              {% else %}
+                <a href="/admin/planejamento/matrizrisco/add/" class="badge rounded-pill bg-light text-dark border text-decoration-none" style="font-size:.68rem;">Pendente</a>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if p.termo_referencia %}
+                <span class="badge rounded-pill
+                  {% if p.termo_referencia.status == 'publicado' or p.termo_referencia.status == 'aprovado' %}bg-success{% elif p.termo_referencia.status == 'em_revisao' or p.termo_referencia.status == 'appl' %}bg-warning text-dark{% else %}bg-light text-dark border{% endif %}
+                  " style="font-size:.68rem;">{{ p.termo_referencia.get_status_display }}</span>
+              {% else %}
+                <a href="/admin/planejamento/termorreferencia/add/" class="badge rounded-pill bg-light text-dark border text-decoration-none" style="font-size:.68rem;">Pendente</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">
+              <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+              Nenhum DOD aberto ainda{% if pca %} no PCA {{ pca.exercicio }}{% endif %}. Use o backlog acima pra iniciar o primeiro.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
