@@ -21,9 +21,70 @@ from django.views import View
 from apps.core.models import Perfil, UnidadeRequisitante
 from apps.pca.models import DocumentoFormalizacaoDemanda, ItemPCA, PlanoContratacaoAnual
 
-from .models import DocumentoOficializacaoDemanda, EquipePlanejamentoTI
+from .models import (
+    UO_ITEM_PARA_DOD,
+    DocumentoOficializacaoDemanda,
+    EquipePlanejamentoTI,
+    unidade_orcamentaria_dos_itens,
+)
 
 Usuario = get_user_model()
+
+_ROTULO_UO = dict(DocumentoOficializacaoDemanda.UNIDADE_ORCAMENTARIA)
+
+
+def _anotar_uo(itens):
+    """
+    Anota cada ItemPCA com a unidade orçamentária dele já traduzida para o
+    vocabulário do DOD (`uo_dod` + `uo_dod_label`), para o template mostrar a
+    fonte de recurso de cada item e o JS agrupar por ela.
+
+    Anotação em cima da instância (não é campo do model): é só apresentação,
+    não vale a pena um `annotate()` com Case/When só pra traduzir 3 códigos.
+    """
+    lista = list(itens)
+    for item in lista:
+        item.uo_dod = UO_ITEM_PARA_DOD.get(item.unidade_orcamentaria, "")
+        item.uo_dod_label = _ROTULO_UO.get(item.uo_dod, "—")
+    return lista
+
+
+def _validar_uo_unica(itens_ids):
+    """
+    Um DOD = uma fonte de recurso. Decidido com Thiago em 2026-08-18: o
+    modelo SEI tem UM campo de unidade orçamentária na seção 3, então juntar
+    itens de fundos diferentes no mesmo processo produziria um documento que
+    não fecha com o próprio dado.
+
+    Isso não é raro por acidente: 7 das 11 unidades com itens aprovados no
+    PCA 2026 têm demandas em mais de uma UO. Por isso a checagem é aqui no
+    servidor (o JS da tela só antecipa o aviso) e o backlog do checklist já
+    vem separado por fonte.
+
+    Devolve `(codigo_uo, mensagem_de_erro)` — mensagem vazia quando está ok.
+    """
+    itens = list(
+        ItemPCA.objects.filter(pk__in=itens_ids).only("pk", "codigo_pca", "unidade_orcamentaria")
+    )
+    codigo, encontrados = unidade_orcamentaria_dos_itens(itens)
+    if len(encontrados) <= 1:
+        return codigo, ""
+
+    por_uo = []
+    for uo in encontrados:
+        codigos = sorted(
+            i.codigo_pca or f"#{i.pk}"
+            for i in itens
+            if UO_ITEM_PARA_DOD.get(i.unidade_orcamentaria, "") == uo
+        )
+        por_uo.append(f"{_ROTULO_UO.get(uo, uo)}: {', '.join(codigos)}")
+    return "", (
+        "Um DOD só pode reunir itens de uma mesma unidade orçamentária, "
+        "porque o documento declara uma única fonte de recurso. Os itens "
+        "marcados estão divididos em " + str(len(encontrados)) + " fontes — "
+        + " | ".join(por_uo)
+        + ". Abra um DOD para cada fonte."
+    )
 
 
 def _unidades_do_usuario(user):
@@ -117,6 +178,12 @@ class DODCriarView(View):
 
         sem_unidade_vinculada = not request.user.is_superuser and not unidades_disponiveis.exists()
 
+        itens_elegiveis = _anotar_uo(_itens_elegiveis(pca, unidade)) if pca else []
+        # UO já vem decidida pelas demandas: só é mostrada, nunca digitada.
+        uo_derivada, _ = unidade_orcamentaria_dos_itens(
+            [i for i in itens_elegiveis if i.pk in itens_pre_selecionados]
+        )
+
         # Demandas (DFDs) da unidade/PCA escolhidos — alimenta a busca textual
         # do campo Identificador (ver dod_form.html): em vez de digitar um
         # rótulo do zero, o usuário busca a demanda de origem e o campo (e os
@@ -136,8 +203,10 @@ class DODCriarView(View):
             "unidades_disponiveis": unidades_disponiveis,
             "unidade": unidade,
             "precisa_escolher_unidade": unidade is None and unidades_disponiveis.count() > 1,
-            "itens_elegiveis": _itens_elegiveis(pca, unidade) if pca else ItemPCA.objects.none(),
+            "itens_elegiveis": itens_elegiveis,
             "itens_pre_selecionados": itens_pre_selecionados,
+            "unidade_orcamentaria_derivada": uo_derivada,
+            "unidade_orcamentaria_labels": _ROTULO_UO,
             "demandas_unidade": demandas_unidade,
             "usuarios": Usuario.objects.filter(is_active=True).order_by("first_name", "username"),
             "unidade_orcamentaria_choices": DocumentoOficializacaoDemanda.UNIDADE_ORCAMENTARIA,
@@ -191,6 +260,14 @@ class DODCriarView(View):
             )
             return redirect(f"/planejamento/dods/novo/?pca_id={pca_id}&unidade_id={unidade.pk}")
 
+        # A unidade orçamentária NÃO vem do POST: é derivada dos itens (cada
+        # ItemPCA já a traz do DFD). Se os itens marcados misturarem fontes,
+        # não há UO única possível e o DOD não é criado.
+        unidade_orcamentaria, erro_uo = _validar_uo_unica(itens_ids)
+        if erro_uo:
+            messages.error(request, erro_uo)
+            return redirect(f"/planejamento/dods/novo/?pca_id={pca_id}&unidade_id={unidade.pk}")
+
         pca = get_object_or_404(PlanoContratacaoAnual, pk=pca_id)
         natureza_objeto = request.POST.get("natureza_objeto", "").strip()
 
@@ -201,7 +278,7 @@ class DODCriarView(View):
                     identificador=identificador,
                     numero_sei=request.POST.get("numero_sei", "").strip(),
                     objeto=request.POST.get("objeto", "").strip(),
-                    unidade_orcamentaria=request.POST.get("unidade_orcamentaria", "").strip(),
+                    unidade_orcamentaria=unidade_orcamentaria,
                     natureza_objeto=natureza_objeto,
                     contratacao_correlata=request.POST.get("contratacao_correlata") == "1",
                     contratacao_correlata_qual=request.POST.get("contratacao_correlata_qual", "").strip(),
@@ -377,6 +454,14 @@ class DODEditarView(View):
             dod.indicador_resultado,
         ])
 
+        itens_elegiveis = _anotar_uo(
+            _itens_elegiveis(dod.pca, unidade, excluir_dod=dod)
+        ) if unidade else []
+        itens_pre_selecionados = set(dod.itens.values_list("pk", flat=True))
+        uo_derivada, _ = unidade_orcamentaria_dos_itens(
+            [i for i in itens_elegiveis if i.pk in itens_pre_selecionados]
+        )
+
         context = {
             "dod": dod,
             "equipe": equipe,
@@ -388,8 +473,10 @@ class DODEditarView(View):
             ),
             "unidade": unidade,
             "precisa_escolher_unidade": False,
-            "itens_elegiveis": _itens_elegiveis(dod.pca, unidade, excluir_dod=dod) if unidade else ItemPCA.objects.none(),
-            "itens_pre_selecionados": set(dod.itens.values_list("pk", flat=True)),
+            "itens_elegiveis": itens_elegiveis,
+            "itens_pre_selecionados": itens_pre_selecionados,
+            "unidade_orcamentaria_derivada": uo_derivada or dod.unidade_orcamentaria,
+            "unidade_orcamentaria_labels": _ROTULO_UO,
             "demandas_unidade": [],
             "usuarios": Usuario.objects.filter(is_active=True).order_by("first_name", "username"),
             "unidade_orcamentaria_choices": DocumentoOficializacaoDemanda.UNIDADE_ORCAMENTARIA,
@@ -425,6 +512,13 @@ class DODEditarView(View):
             )
             return redirect("planejamento:dod_editar", pk=dod.pk)
 
+        # Mesma derivação da criação: trocar os itens pode trocar a fonte de
+        # recurso do DOD, e misturar fontes continua barrado na edição.
+        unidade_orcamentaria, erro_uo = _validar_uo_unica(itens_ids)
+        if erro_uo:
+            messages.error(request, erro_uo)
+            return redirect("planejamento:dod_editar", pk=dod.pk)
+
         natureza_objeto = request.POST.get("natureza_objeto", "").strip()
 
         try:
@@ -432,7 +526,7 @@ class DODEditarView(View):
                 dod.identificador = identificador
                 dod.numero_sei = request.POST.get("numero_sei", "").strip()
                 dod.objeto = request.POST.get("objeto", "").strip()
-                dod.unidade_orcamentaria = request.POST.get("unidade_orcamentaria", "").strip()
+                dod.unidade_orcamentaria = unidade_orcamentaria
                 dod.natureza_objeto = natureza_objeto
                 dod.contratacao_correlata = request.POST.get("contratacao_correlata") == "1"
                 dod.contratacao_correlata_qual = request.POST.get("contratacao_correlata_qual", "").strip()

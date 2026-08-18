@@ -41,7 +41,8 @@
 <div class="card mb-4">
   <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
     <span><i class="bi bi-inboxes me-2 text-primary"></i>Backlog — itens aprovados sem processo aberto</span>
-    <span class="badge rounded-pill bg-light text-dark border">{{ total_itens_backlog }} item{{ total_itens_backlog|pluralize:"s" }}</span>
+    {# pluralize com dois sufixos (singular,plural): "item"/"itens" — com um sufixo so sairia "items". #}
+    <span class="badge rounded-pill bg-light text-dark border">{{ total_itens_backlog }} ite{{ total_itens_backlog|pluralize:"m,ns" }}</span>
   </div>
   <div class="card-body p-0">
     {% for grupo in backlog %}
@@ -50,7 +51,14 @@
         <div>
           <span class="fw-bold">{{ grupo.sigla }}</span>
           {% if grupo.unidade %}<span class="text-muted ms-1" style="font-size:.82rem;">{{ grupo.unidade.nome }}</span>{% endif %}
-          <span class="badge rounded-pill bg-light text-dark border ms-2" style="font-size:.7rem;">{{ grupo.qtd_itens }} item{{ grupo.qtd_itens|pluralize:"s" }}</span>
+          {% comment %}
+            O backlog é agrupado por unidade E por fonte de recurso: como o DOD declara uma
+            única unidade orçamentária, cada faixa destas é exatamente um futuro DOD. Por isso
+            a mesma sigla pode aparecer mais de uma vez aqui — uma por fundo.
+          {% endcomment %}
+          <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis border border-primary-subtle ms-2 text-uppercase"
+                style="font-size:.7rem;" title="{{ grupo.uo_label }}">{{ grupo.uo|default:"sem UO" }}</span>
+          <span class="badge rounded-pill bg-light text-dark border ms-1" style="font-size:.7rem;">{{ grupo.qtd_itens }} ite{{ grupo.qtd_itens|pluralize:"m,ns" }}</span>
           <span class="text-muted ms-2" style="font-size:.8rem;">R$ {{ grupo.valor_total|brl }}</span>
         </div>
         {% if pca and grupo.unidade %}

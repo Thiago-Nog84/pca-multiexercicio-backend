@@ -133,14 +133,25 @@
         <div class="col-md-4">
           <label class="form-label small fw-semibold">Unidade orçamentária
             <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
-               title="Fundo/fonte de recurso responsável pela despesa (PGJ, FMMPI ou FPDC)."></i>
+               title="Não se digita aqui: vem da unidade orçamentária já cadastrada em cada demanda (item do PCA, via DFD de origem). Marque os itens abaixo e este campo se preenche sozinho."></i>
           </label>
-          <select name="unidade_orcamentaria" class="form-select form-select-sm">
-            <option value="">—</option>
-            {% for val, label in unidade_orcamentaria_choices %}
-              <option value="{{ val }}" {% if dod and dod.unidade_orcamentaria == val %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
+          {% comment %}
+            Campo DERIVADO, não digitado (decidido com Thiago em 2026-08-18): a fonte de
+            recurso já está cadastrada em cada ItemPCA. Sem <select> e sem <input> — o valor
+            NÃO é enviado no POST; a view recalcula a partir dos itens marcados, então não
+            adianta forjar nada aqui. O JS abaixo mantém este bloco em dia conforme o usuário
+            marca/desmarca itens.
+          {% endcomment %}
+          <div id="uoDerivada" class="form-control form-control-sm bg-light d-flex align-items-center"
+               style="min-height:31px; font-size:.82rem;"
+               data-vazio="Marque os itens abaixo"
+               data-labels="{% for val, label in unidade_orcamentaria_choices %}{{ val }}={{ label }}{% if not forloop.last %}|{% endif %}{% endfor %}">
+            <span class="text-muted">Marque os itens abaixo</span>
+          </div>
+          <div id="uoAlerta" class="alert alert-warning py-1 px-2 mt-1 mb-0 d-none" style="font-size:.75rem;">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+            <span id="uoAlertaTexto"></span>
+          </div>
         </div>
         <div class="col-12">
           <label class="form-label small fw-semibold mb-1">Responsável(is) pela demanda
@@ -202,6 +213,7 @@
               <th style="width:36px;"></th>
               <th>Código</th>
               <th>Descrição</th>
+              <th>Un. orçamentária</th>
               <th>Categoria</th>
               <th class="text-end">Qtd</th>
               <th class="text-end">Valor Est.</th>
@@ -209,7 +221,7 @@
           </thead>
           <tbody>
             {% for item in itens_elegiveis %}
-            <tr class="linha-item" data-busca="{{ item.codigo_pca|lower }} {{ item.descricao|lower }}">
+            <tr class="linha-item" data-busca="{{ item.codigo_pca|lower }} {{ item.descricao|lower }} {{ item.uo_dod }}">
               <td>
                 {% comment %}
                   firstof, e não |default: — o ARGUMENTO de um filtro é resolvido de forma estrita, então
@@ -224,6 +236,7 @@
                        data-dfd-numero="{{ item.dfd.numero_dfd|default:'' }}"
                        data-responsavel="{% firstof item.dfd.requisitante.get_full_name item.dfd.requisitante.username %}"
                        data-email="{{ item.dfd.requisitante.email|default:'' }}"
+                       data-uo="{{ item.uo_dod }}"
                        {% if item.pk in itens_pre_selecionados %}checked{% endif %}>
               </td>
               <td class="font-monospace fw-bold text-primary" style="font-size:.8rem;">{{ item.codigo_pca }}</td>
@@ -231,6 +244,14 @@
                 <div class="text-truncate" style="max-width:310px;" title="{{ item.descricao }}">
                   {{ item.descricao|truncatechars:70 }}
                 </div>
+              </td>
+              <td style="font-size:.8rem;">
+                {% comment %}
+                  Mostrado por item porque é ele quem DEFINE a UO do DOD — e porque é aqui que
+                  o usuário enxerga por que dois itens não podem entrar no mesmo documento.
+                {% endcomment %}
+                <span class="badge rounded-pill badge-uo bg-light text-dark border text-uppercase"
+                      style="font-size:.66rem;" title="{{ item.uo_dod_label }}">{{ item.uo_dod|default:"—" }}</span>
               </td>
               <td style="font-size:.8rem;">
                 <span class="badge bg-light text-dark border" style="font-size:.68rem;">{{ item.get_categoria_display }}</span>
@@ -571,16 +592,83 @@
     }
   }
 
+  // Unidade orçamentária DERIVADA dos itens marcados (Thiago, 2026-08-18).
+  // A fonte de recurso já está cadastrada em cada demanda; aqui só se mostra.
+  // Como o DOD tem UM campo de UO, misturar fontes é barrado — e barrado de
+  // novo no servidor (_validar_uo_unica), este JS só antecipa o aviso.
+  var uoBox = document.getElementById('uoDerivada');
+  var uoAlerta = document.getElementById('uoAlerta');
+  var uoAlertaTexto = document.getElementById('uoAlertaTexto');
+  var UO_LABELS = {};
+  if (uoBox) {
+    (uoBox.getAttribute('data-labels') || '').split('|').forEach(function (par) {
+      var i = par.indexOf('=');
+      if (i > 0) { UO_LABELS[par.slice(0, i)] = par.slice(i + 1); }
+    });
+  }
+
+  // Códigos de UO distintos entre os itens marcados. 0 = nada marcado,
+  // 1 = ok, 2+ = mistura de fontes.
+  function uosSelecionadas() {
+    var vistos = {};
+    document.querySelectorAll('.chk-item:checked').forEach(function (chk) {
+      var uo = chk.getAttribute('data-uo');
+      if (uo) { (vistos[uo] = vistos[uo] || []).push(chk); }
+    });
+    return vistos;
+  }
+
+  function atualizarUO() {
+    if (!uoBox) { return; }
+    var vistos = uosSelecionadas();
+    var codigos = Object.keys(vistos);
+
+    // Destaca as badges das linhas em conflito, para o usuário ver QUAIS itens
+    // destoam em vez de só ler que "há mistura".
+    document.querySelectorAll('.badge-uo').forEach(function (b) {
+      b.classList.remove('bg-warning', 'text-dark', 'border-warning');
+      b.classList.add('bg-light', 'border');
+    });
+
+    if (codigos.length === 0) {
+      uoBox.innerHTML = '<span class="text-muted">' + (uoBox.getAttribute('data-vazio') || '—') + '</span>';
+      uoAlerta.classList.add('d-none');
+    } else if (codigos.length === 1) {
+      uoBox.innerHTML = '<i class="bi bi-check-circle-fill text-success me-1"></i>'
+        + '<span class="fw-semibold">' + (UO_LABELS[codigos[0]] || codigos[0]) + '</span>';
+      uoAlerta.classList.add('d-none');
+    } else {
+      uoBox.innerHTML = '<i class="bi bi-exclamation-triangle-fill text-warning me-1"></i>'
+        + '<span class="text-warning-emphasis">Fontes misturadas</span>';
+      var partes = codigos.map(function (uo) {
+        vistos[uo].forEach(function (chk) {
+          var badge = chk.closest('tr').querySelector('.badge-uo');
+          if (badge) {
+            badge.classList.remove('bg-light', 'border');
+            badge.classList.add('bg-warning', 'text-dark', 'border-warning');
+          }
+        });
+        return (UO_LABELS[uo] || uo).split(' - ')[0] + ' (' + vistos[uo].length + ')';
+      });
+      uoAlertaTexto.textContent = 'Um DOD declara uma única fonte de recurso. '
+        + 'Os itens marcados são de ' + codigos.length + ' fontes: ' + partes.join(', ')
+        + '. Desmarque os que destoam e abra um DOD separado para eles.';
+      uoAlerta.classList.remove('d-none');
+    }
+  }
+
   document.querySelectorAll('.chk-item').forEach(function (chk) {
     atualizarDestaque(chk);
     chk.addEventListener('change', function () {
       atualizarDestaque(chk);
       atualizarContador();
       atualizarResponsaveis();
+      atualizarUO();
     });
   });
   atualizarContador();
   atualizarResponsaveis();
+  atualizarUO();
 
   // Marcar todos / Limpar seleção — só afeta as linhas visíveis (respeita o filtro).
   var btnTodos = document.getElementById('btnSelecionarTodos');
@@ -598,6 +686,7 @@
       });
       atualizarContador();
       atualizarResponsaveis();
+      atualizarUO();
     });
   }
   if (btnLimpar) {
@@ -608,6 +697,7 @@
       });
       atualizarContador();
       atualizarResponsaveis();
+      atualizarUO();
     });
   }
 
@@ -751,13 +841,22 @@
     });
   });
 
-  // Bloqueio simples no submit: exige ao menos 1 item marcado.
+  // Bloqueios no submit. Ambos são revalidados no servidor — aqui é só para
+  // o usuário não perder o formulário preenchido num round-trip evitável.
   var form = document.getElementById('dodForm');
   if (form) {
     form.addEventListener('submit', function (e) {
       if (document.querySelectorAll('.chk-item:checked').length === 0) {
         e.preventDefault();
         alert('Selecione ao menos um item do PCA para compor o DOD.');
+        return;
+      }
+      if (Object.keys(uosSelecionadas()).length > 1) {
+        e.preventDefault();
+        alert('Os itens marcados são de unidades orçamentárias diferentes.\n\n'
+          + 'Um DOD declara uma única fonte de recurso — abra um documento por fonte. '
+          + 'As linhas em conflito estão destacadas em amarelo na lista de itens.');
+        if (uoAlerta) { uoAlerta.scrollIntoView({behavior: 'smooth', block: 'center'}); }
       }
     });
   }

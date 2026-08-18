@@ -27,18 +27,35 @@ usuario = User.objects.get(id=1)
 
 # Pega 3 itens aprovados da mesma unidade, incluindo um parcial se houver,
 # para exercitar a coluna "de X" e o badge de parcial na tela.
-parcial = (
+
+def acompanhantes(item):
+    """
+    Itens que podem entrar no MESMO DOD que `item`: mesma unidade
+    requisitante e mesma unidade orcamentaria. A trava de fonte unica entrou
+    em 2026-08-18 (um DOD declara uma so fonte de recurso, e a UO do DOD e
+    derivada dos itens - ver _validar_uo_unica em views_dod.py); antes disso
+    bastava "mesma unidade", e o teste pegava 3 itens quaisquer.
+    """
+    return list(
+        ItemPCA.objects.filter(
+            dfd__pca=pca,
+            dfd__unidade=item.dfd.unidade,
+            unidade_orcamentaria=item.unidade_orcamentaria,
+            status_aprovacao__in=["aprovada_integral", "aprovada_parcial"],
+        ).exclude(pk=item.pk)[:2]
+    )
+
+
+# Entre os parciais, prefere um que tenha companheiros na mesma fonte - senao
+# o DOD sai com 1 item so e o teste perde a comparacao entre varios itens.
+parciais = list(
     ItemPCA.objects.filter(dfd__pca=pca, status_aprovacao="aprovada_parcial")
-    .select_related("dfd__unidade").first()
+    .select_related("dfd__unidade")
 )
+assert parciais, "nenhum item aprovado parcialmente no PCA 2026"
+parcial = max(parciais, key=lambda i: len(acompanhantes(i)))
 unidade = parcial.dfd.unidade
-itens = list(
-    ItemPCA.objects.filter(
-        dfd__pca=pca,
-        dfd__unidade=unidade,
-        status_aprovacao__in=["aprovada_integral", "aprovada_parcial"],
-    ).exclude(pk=parcial.pk)[:2]
-) + [parcial]
+itens = acompanhantes(parcial) + [parcial]
 print(f"unidade: {unidade.sigla} | itens: {[i.codigo_pca for i in itens]}")
 
 client = Client()
@@ -50,7 +67,7 @@ resp = client.post("/planejamento/dods/novo/", {
     "identificador": "TESTE — apagar",
     "numero_sei": "19.21.0001.0000000/2026-99",
     "objeto": "DOD de teste automatizado da tela de detalhe.",
-    "unidade_orcamentaria": "pgj",
+    # unidade_orcamentaria NAO vai mais no POST: e derivada dos itens.
     "natureza_objeto": "fornecimento_nao_continuado",
     "grau_prioridade": "medio",
     "necessidade_contratacao": "Verificar a renderizacao da secao de fundamentacao.",

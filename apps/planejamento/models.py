@@ -5,6 +5,44 @@ from django.db.models.signals import m2m_changed
 from django.dispatch import receiver
 
 
+# Tradução do código de unidade orçamentária do ItemPCA (apps.pca) para o
+# código usado aqui no DOD. São os MESMOS três fundos, gravados com códigos
+# diferentes por um acidente histórico já registrado nos comentários de
+# `UNIDADE_ORCAMENTARIA` abaixo: o DOD nasceu com "fmmpi"/"fpdc" e o resto do
+# sistema (ItemPCA, contratos, srp) usa "fmmp"/"fepdc", com ~1.100 ItemPCA já
+# gravados. Enquanto essa padronização cross-app não acontece, toda travessia
+# entre os dois vocabulários passa por aqui — não espalhar o de/para pelo
+# código.
+UO_ITEM_PARA_DOD = {
+    "pgj": "pgj",
+    "fmmp": "fmmpi",
+    "fepdc": "fpdc",
+}
+
+
+def unidade_orcamentaria_dos_itens(itens):
+    """
+    Deriva a unidade orçamentária do DOD a partir dos ItemPCA que o compõem.
+
+    A UO não é digitada no DOD: ela já está cadastrada em cada demanda
+    (`ItemPCA.unidade_orcamentaria`, vinda do DFD de origem). Decidido com
+    Thiago em 2026-08-18 — o campo da seção 3 do modelo SEI passa a ser
+    derivado, e um DOD não pode misturar fontes de recurso (o documento tem
+    UM campo de UO, logo UM processo = UMA fonte).
+
+    Devolve `(codigo, codigos_encontrados)`:
+      - `codigo`: código no vocabulário do DOD quando todos os itens
+        concordam; string vazia se não houver itens OU se houver mistura
+        (nesse caso quem chama decide como reclamar).
+      - `codigos_encontrados`: lista ordenada de todos os códigos achados —
+        `len() > 1` é exatamente o caso de mistura.
+    """
+    codigos = sorted(
+        {UO_ITEM_PARA_DOD.get(i.unidade_orcamentaria, "") for i in itens} - {""}
+    )
+    return (codigos[0] if len(codigos) == 1 else ""), codigos
+
+
 class DocumentoOficializacaoDemanda(models.Model):
     """
     DOD — Documento de Oficialização da Demanda.

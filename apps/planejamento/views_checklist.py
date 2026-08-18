@@ -4,7 +4,9 @@ Tela combinada (decidido com Thiago em 2026-08-17, "as duas visões na mesma
 tela"), com duas seções na mesma página:
 
 1. Backlog: itens já aprovados no PCA que ainda não têm um DOD "aberto"
-   vinculado, agrupados por unidade requisitante — cada grupo tem um atalho
+   vinculado, agrupados por unidade requisitante E por unidade orçamentária
+   (desde 2026-08-18: um DOD declara uma única fonte de recurso, então cada
+   grupo do backlog corresponde a exatamente um futuro DOD) — cada grupo tem um atalho
    "Iniciar DOD" que já leva os itens pré-selecionados pra
    `planejamento:dod_novo` (mesmo padrão de querystring usado em
    dfd_detalhe.html: ?pca_id=&unidade_id=&itens=1,2,3).
@@ -33,7 +35,7 @@ from django.shortcuts import render
 
 from apps.pca.models import ItemPCA, PlanoContratacaoAnual
 
-from .models import DocumentoOficializacaoDemanda
+from .models import UO_ITEM_PARA_DOD, DocumentoOficializacaoDemanda
 from .views_dfd import _resolver_pca
 
 
@@ -70,13 +72,24 @@ class ChecklistInstrucaoView(View):
             .order_by("dfd__unidade__sigla", "codigo_pca")
         )
 
+        # Agrupa por unidade requisitante E por unidade orçamentária. Cada
+        # grupo aqui é exatamente UM futuro DOD: o documento declara uma só
+        # fonte de recurso (ver `_validar_uo_unica` em views_dod.py), então
+        # agrupar só por unidade — como era até 2026-08-18 — fazia o botão
+        # "Iniciar DOD" pré-marcar itens de fontes diferentes e cair direto na
+        # trava. Não é caso raro: 7 das 11 unidades com itens aprovados no PCA
+        # 2026 têm demandas em mais de uma UO.
+        rotulos_uo = dict(DocumentoOficializacaoDemanda.UNIDADE_ORCAMENTARIA)
         grupos = {}
         for item in itens:
             unidade = item.dfd.unidade if item.dfd_id else None
             sigla = unidade.sigla if unidade else "—"
-            grupo = grupos.setdefault(sigla, {
+            uo = UO_ITEM_PARA_DOD.get(item.unidade_orcamentaria, "")
+            grupo = grupos.setdefault((sigla, uo), {
                 "unidade": unidade,
                 "sigla": sigla,
+                "uo": uo,
+                "uo_label": rotulos_uo.get(uo, "sem unidade orçamentária"),
                 "itens": [],
                 "valor_total": Decimal("0"),
             })
@@ -87,7 +100,7 @@ class ChecklistInstrucaoView(View):
             grupo["qtd_itens"] = len(grupo["itens"])
             grupo["itens_ids_csv"] = ",".join(str(i.pk) for i in grupo["itens"])
 
-        return sorted(grupos.values(), key=lambda g: g["sigla"])
+        return sorted(grupos.values(), key=lambda g: (g["sigla"], g["uo"]))
 
     def _montar_processos(self, pca):
         if not pca:

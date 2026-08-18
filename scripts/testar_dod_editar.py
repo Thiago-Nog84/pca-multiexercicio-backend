@@ -16,22 +16,27 @@ if "testserver" not in settings.ALLOWED_HOSTS:
     settings.ALLOWED_HOSTS = list(settings.ALLOWED_HOSTS) + ["testserver"]
 
 from apps.pca.models import ItemPCA, PlanoContratacaoAnual
-from apps.planejamento.models import DocumentoOficializacaoDemanda
+from apps.planejamento.models import UO_ITEM_PARA_DOD, DocumentoOficializacaoDemanda
 
 pca = PlanoContratacaoAnual.objects.get(exercicio=2026)
 usuario = User.objects.get(id=1)
 
-# precisa de uma unidade com pelo menos 3 itens elegiveis (2 pra criar, 1
-# reserva pra entrar na edicao no lugar do que vai ser removido)
+# Precisa de 3 itens elegiveis da MESMA unidade requisitante E da MESMA
+# unidade orcamentaria (2 pra criar, 1 reserva pra entrar na edicao no lugar
+# do que vai ser removido). O agrupamento por UO entrou em 2026-08-18: um DOD
+# declara uma unica fonte de recurso, entao pegar "os 3 primeiros itens da
+# unidade" passou a esbarrar na trava quando a unidade tem varias fontes -
+# que e o caso de 7 das 11 unidades.
 candidatos = {}
 for item in (
     ItemPCA.objects.filter(dfd__pca=pca, status_aprovacao__in=["aprovada_integral", "aprovada_parcial"])
     .exclude(documentos_oficializacao__status="aberto")
     .select_related("dfd__unidade")
 ):
-    candidatos.setdefault(item.dfd.unidade_id, []).append(item)
-unidade_id, itens_disponiveis = max(candidatos.items(), key=lambda kv: len(kv[1]))
-assert len(itens_disponiveis) >= 3, "nao achei unidade com 3+ itens elegiveis pro teste"
+    chave = (item.dfd.unidade_id, UO_ITEM_PARA_DOD.get(item.unidade_orcamentaria, ""))
+    candidatos.setdefault(chave, []).append(item)
+(unidade_id, uo), itens_disponiveis = max(candidatos.items(), key=lambda kv: len(kv[1]))
+assert len(itens_disponiveis) >= 3, "nao achei unidade/fonte com 3+ itens elegiveis pro teste"
 item_a, item_b, item_c = itens_disponiveis[:3]
 unidade = item_a.dfd.unidade
 print(f"unidade: {unidade.sigla} | itens: {item_a.codigo_pca}, {item_b.codigo_pca} (sai), {item_c.codigo_pca} (entra)")
