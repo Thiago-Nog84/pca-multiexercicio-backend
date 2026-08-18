@@ -88,6 +88,16 @@ try:
     )
     print("OK: form nao tem campo de UO digitavel e expoe a UO de cada item")
 
+    # Filtro por fonte: so aparece quando ha mais de uma fonte na lista, com
+    # uma opcao por fonte + "Todas". O comportamento de travar a lista na
+    # fonte do 1o item marcado e JS puro - verificado a parte com Chromium
+    # headless (nao da pra exercitar pelo test Client, que nao roda script).
+    assert 'id="filtroUO"' in html, "filtro de unidade orcamentaria ausente"
+    assert 'id="uoTravaAviso"' in html, "aviso de lista travada ausente"
+    for uo in (uo_a, uo_b):
+        assert f'<option value="{uo}">' in html, f"filtro sem a opcao {uo}"
+    print("OK: filtro por fonte presente, com uma opcao por fonte da unidade")
+
     # --- 2) Criar com itens de UMA UO: grava sozinho -----------------------
     payload_ok = {
         "pca_id": pca.pk,

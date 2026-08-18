@@ -49,6 +49,23 @@ def _anotar_uo(itens):
     return lista
 
 
+def _uos_disponiveis(itens):
+    """
+    Fontes de recurso presentes na lista de itens elegíveis, com a contagem de
+    cada uma — alimenta o filtro "Unidade orçamentária" da tela.
+
+    Espera itens já passados por `_anotar_uo`.
+    """
+    contagem = {}
+    for item in itens:
+        if item.uo_dod:
+            contagem[item.uo_dod] = contagem.get(item.uo_dod, 0) + 1
+    return [
+        {"codigo": uo, "label": _ROTULO_UO.get(uo, uo), "qtd": qtd}
+        for uo, qtd in sorted(contagem.items(), key=lambda kv: (-kv[1], kv[0]))
+    ]
+
+
 def _validar_uo_unica(itens_ids):
     """
     Um DOD = uma fonte de recurso. Decidido com Thiago em 2026-08-18: o
@@ -207,6 +224,7 @@ class DODCriarView(View):
             "itens_pre_selecionados": itens_pre_selecionados,
             "unidade_orcamentaria_derivada": uo_derivada,
             "unidade_orcamentaria_labels": _ROTULO_UO,
+            "uos_disponiveis": _uos_disponiveis(itens_elegiveis),
             "demandas_unidade": demandas_unidade,
             "usuarios": Usuario.objects.filter(is_active=True).order_by("first_name", "username"),
             "unidade_orcamentaria_choices": DocumentoOficializacaoDemanda.UNIDADE_ORCAMENTARIA,
@@ -477,6 +495,7 @@ class DODEditarView(View):
             "itens_pre_selecionados": itens_pre_selecionados,
             "unidade_orcamentaria_derivada": uo_derivada or dod.unidade_orcamentaria,
             "unidade_orcamentaria_labels": _ROTULO_UO,
+            "uos_disponiveis": _uos_disponiveis(itens_elegiveis),
             "demandas_unidade": [],
             "usuarios": Usuario.objects.filter(is_active=True).order_by("first_name", "username"),
             "unidade_orcamentaria_choices": DocumentoOficializacaoDemanda.UNIDADE_ORCAMENTARIA,

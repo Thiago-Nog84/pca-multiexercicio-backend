@@ -194,9 +194,25 @@
         <span class="badge rounded-pill bg-primary" style="font-size:.75rem;">
           <span id="qtdSelecionados">0</span> selecionado(s)
         </span>
-        <input type="search" id="filtroItens" class="form-control form-control-sm" style="width:220px;"
+        {% comment %}
+          Filtro por fonte de recurso (sugestão do Thiago, 2026-08-18): em vez de deixar
+          marcar de tudo e só reclamar no fim, a lista se restringe a uma fonte. O JS ainda
+          TRAVA nesta fonte assim que o primeiro item é marcado — os itens das outras ficam
+          disabled, então misturar deixa de ser possível em vez de ser apenas recusado.
+        {% endcomment %}
+        {% if uos_disponiveis|length > 1 %}
+        <select id="filtroUO" class="form-select form-select-sm" style="width:250px;"
+                title="Um DOD declara uma única fonte de recurso">
+          <option value="">Todas as fontes ({{ itens_elegiveis|length }})</option>
+          {% for u in uos_disponiveis %}
+            <option value="{{ u.codigo }}">{{ u.label }} ({{ u.qtd }})</option>
+          {% endfor %}
+        </select>
+        {% endif %}
+        <input type="search" id="filtroItens" class="form-control form-control-sm" style="width:200px;"
                placeholder="Filtrar por código ou descrição…">
       </div>
+      <div id="uoTravaAviso" class="w-100 text-primary-emphasis d-none" style="font-size:.72rem;"></div>
     </div>
     <div class="card-body p-0">
       {% if not itens_elegiveis %}
@@ -538,15 +554,75 @@
 {% block extra_js %}
 <script>
 (function () {
-  // Filtro client-side da lista de itens (sem reload, preserva marcações).
+  // Filtros client-side da lista de itens (sem reload, preserva marcações):
+  // texto livre + fonte de recurso. Declarados aqui em cima porque
+  // `aplicarFiltros` é chamada por vários handlers mais abaixo.
   var filtro = document.getElementById('filtroItens');
+  var filtroUO = document.getElementById('filtroUO');
+  var avisoTrava = document.getElementById('uoTravaAviso');
+
+  // Fonte "travada": a do que já está marcado. Enquanto houver item marcado,
+  // ela manda no filtro e desabilita os itens das outras fontes — é o que
+  // torna a mistura IMPOSSÍVEL, em vez de só recusada no submit.
+  function fonteTravada() {
+    var uos = Object.keys(uosSelecionadas());
+    return uos.length === 1 ? uos[0] : '';
+  }
+
+  function aplicarFiltros() {
+    var termo = filtro ? filtro.value.trim().toLowerCase() : '';
+    var travada = fonteTravada();
+    var alvo = travada || (filtroUO ? filtroUO.value : '');
+
+    if (filtroUO && travada && filtroUO.value !== travada) {
+      filtroUO.value = travada;
+    }
+    if (avisoTrava) {
+      avisoTrava.classList.toggle('d-none', !travada);
+      if (travada) {
+        avisoTrava.textContent = 'Lista travada em ' + (UO_LABELS[travada] || travada).split(' - ')[0]
+          + ' — use "Limpar" para trocar de fonte.';
+      }
+    }
+
+    document.querySelectorAll('.linha-item').forEach(function (tr) {
+      var chk = tr.querySelector('.chk-item');
+      var uo = chk ? (chk.getAttribute('data-uo') || '') : '';
+      var casaTexto = (tr.getAttribute('data-busca') || '').indexOf(termo) !== -1;
+      var casaUO = !alvo || uo === alvo;
+      tr.style.display = (casaTexto && casaUO) ? '' : 'none';
+      // Só desabilita o que NÃO está marcado: desabilitar um checked o
+      // excluiria do POST e o item sumiria do DOD sem o usuário pedir.
+      if (chk && !chk.checked) {
+        chk.disabled = !!alvo && uo !== alvo;
+      }
+    });
+  }
+
   if (filtro) {
-    filtro.addEventListener('input', function () {
-      var termo = filtro.value.trim().toLowerCase();
-      document.querySelectorAll('.linha-item').forEach(function (tr) {
-        var busca = tr.getAttribute('data-busca') || '';
-        tr.style.display = busca.indexOf(termo) === -1 ? 'none' : '';
-      });
+    filtro.addEventListener('input', aplicarFiltros);
+  }
+  if (filtroUO) {
+    filtroUO.addEventListener('change', function () {
+      // Trocar de fonte com itens marcados: desmarca os que não pertencem à
+      // fonte escolhida (foi uma escolha explícita do usuário) e avisa quantos.
+      var alvo = filtroUO.value;
+      var desmarcados = 0;
+      if (alvo) {
+        document.querySelectorAll('.chk-item:checked').forEach(function (chk) {
+          if (chk.getAttribute('data-uo') !== alvo) {
+            chk.checked = false;
+            atualizarDestaque(chk);
+            desmarcados++;
+          }
+        });
+      }
+      if (desmarcados) {
+        atualizarContador();
+        atualizarResponsaveis();
+        atualizarUO();
+      }
+      aplicarFiltros();
     });
   }
 
@@ -664,11 +740,15 @@
       atualizarContador();
       atualizarResponsaveis();
       atualizarUO();
+      // Marcar o primeiro item TRAVA a lista naquela fonte; desmarcar o
+      // último destrava. Por isso os filtros são reavaliados a cada clique.
+      aplicarFiltros();
     });
   });
   atualizarContador();
   atualizarResponsaveis();
   atualizarUO();
+  aplicarFiltros();
 
   // Marcar todos / Limpar seleção — só afeta as linhas visíveis (respeita o filtro).
   var btnTodos = document.getElementById('btnSelecionarTodos');
@@ -687,17 +767,23 @@
       atualizarContador();
       atualizarResponsaveis();
       atualizarUO();
+      aplicarFiltros();
     });
   }
   if (btnLimpar) {
     btnLimpar.addEventListener('click', function () {
-      linhasVisiveis().forEach(function (tr) {
-        var chk = tr.querySelector('.chk-item');
-        if (chk) { chk.checked = false; atualizarDestaque(chk); }
+      // Limpar destrava a fonte, então desmarca TUDO (não só o visível): com a
+      // lista travada, "só o visível" deixaria itens marcados fora de vista e o
+      // usuário não conseguiria trocar de fonte.
+      document.querySelectorAll('.chk-item:checked').forEach(function (chk) {
+        chk.checked = false;
+        atualizarDestaque(chk);
       });
+      if (filtroUO) { filtroUO.value = ''; }
       atualizarContador();
       atualizarResponsaveis();
       atualizarUO();
+      aplicarFiltros();
     });
   }
 
@@ -765,12 +851,40 @@
         idInput.value = btn.getAttribute('data-rotulo');
         idSugestoes.style.display = 'none';
         var dfdId = btn.getAttribute('data-dfd-id');
-        document.querySelectorAll('.chk-item[data-dfd="' + dfdId + '"]').forEach(function (chk) {
+        // Um DFD pode ter itens de fontes diferentes, e o DOD só aceita uma.
+        // Marca os da fonte já travada; se nada estiver travado ainda, escolhe
+        // a fonte mais numerosa DESTE DFD. Nunca marca um checkbox disabled:
+        // input desabilitado nao vai no POST, e o item sumiria em silencio.
+        var doDfd = Array.prototype.slice.call(
+          document.querySelectorAll('.chk-item[data-dfd="' + dfdId + '"]'));
+        var porFonte = {};
+        doDfd.forEach(function (chk) {
+          var uo = chk.getAttribute('data-uo') || '';
+          (porFonte[uo] = porFonte[uo] || []).push(chk);
+        });
+        var alvo = fonteTravada();
+        if (!alvo) {
+          alvo = Object.keys(porFonte).sort(function (a, b) {
+            return porFonte[b].length - porFonte[a].length;
+          })[0] || '';
+        }
+        var forasteiros = 0;
+        doDfd.forEach(function (chk) {
+          if ((chk.getAttribute('data-uo') || '') !== alvo) {
+            if (!chk.checked) { forasteiros++; }
+            return;
+          }
           if (!chk.checked) {
+            chk.disabled = false;
             chk.checked = true;
             chk.dispatchEvent(new Event('change'));
           }
         });
+        if (forasteiros && avisoTrava) {
+          avisoTrava.classList.remove('d-none');
+          avisoTrava.textContent = avisoTrava.textContent + ' ' + forasteiros
+            + ' item(ns) deste DFD são de outra fonte e ficaram de fora — precisam de um DOD próprio.';
+        }
       });
     });
   }
