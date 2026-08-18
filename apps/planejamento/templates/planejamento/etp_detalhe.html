@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% load core_extras %}
+
+{% block title %}ETP {{ etp.numero_etp }}{% endblock %}
+{% block nav_planejamento %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div class="page-header">
+    <h1>
+      <i class="bi bi-file-earmark-bar-graph text-primary me-2"></i>ETP {{ etp.numero_etp }}
+      <span class="badge rounded-pill ms-2
+        {% if etp.status == 'aprovado' %}bg-success
+        {% elif etp.status == 'em_revisao' %}bg-warning text-dark
+        {% else %}bg-light text-dark border{% endif %}
+        " style="font-size:.62rem; vertical-align:middle;">{{ etp.get_status_display }}</span>
+      {% if etp.is_ti %}
+        <span class="badge bg-info text-dark ms-1" style="font-size:.62rem; vertical-align:middle;">Solução de TI</span>
+      {% endif %}
+      {% if etp.etp_dispensado %}
+        <span class="badge bg-secondary ms-1" style="font-size:.62rem; vertical-align:middle;">Dispensado</span>
+      {% endif %}
+    </h1>
+    <p>DOD <a href="{% url 'planejamento:dod_detalhe' dod.pk %}">{{ dod.identificador }}</a> · {{ dod.pca }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'planejamento:dod_detalhe' dod.pk %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Voltar ao DOD
+    </a>
+    <a href="/admin/planejamento/etp/{{ etp.pk }}/change/" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-pencil me-1"></i>Editar
+    </a>
+  </div>
+</div>
+
+<!-- Trilha: Matriz de Risco e Termo de Referência dependem deste ETP -->
+<div class="card mb-4">
+  <div class="card-header bg-white border-bottom py-3">
+    <i class="bi bi-diagram-3 me-2 text-primary"></i>Instrução do processo
+  </div>
+  <div class="card-body">
+    <div class="row g-3 text-center">
+      <div class="col-6 col-md-4">
+        <div class="border rounded p-3 h-100">
+          <div class="text-muted mb-2" style="font-size:.75rem;">Matriz de Risco</div>
+          {% if matriz_risco %}
+            <span class="badge rounded-pill bg-success mb-2" style="font-size:.7rem;">
+              <i class="bi bi-check-lg"></i> {{ matriz_risco.get_fase_atual_display }}
+            </span>
+            <div>
+              <a href="{% url 'planejamento:matriz_risco_detalhe' matriz_risco.pk %}" class="btn btn-outline-primary btn-sm py-0" style="font-size:.72rem;">Abrir</a>
+            </div>
+          {% else %}
+            <span class="badge rounded-pill bg-light text-dark border mb-2" style="font-size:.7rem;">Pendente</span>
+            <div>
+              <a href="{% url 'planejamento:matriz_risco_novo' %}?etp={{ etp.pk }}" class="btn btn-outline-primary btn-sm py-0" style="font-size:.72rem;">Iniciar</a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="col-6 col-md-4">
+        <div class="border rounded p-3 h-100">
+          <div class="text-muted mb-2" style="font-size:.75rem;">Termo de Referência</div>
+          {% if termo_referencia %}
+            <span class="badge rounded-pill mb-2
+              {% if termo_referencia.status == 'publicado' or termo_referencia.status == 'aprovado' %}bg-success
+              {% elif termo_referencia.status == 'em_revisao' or termo_referencia.status == 'appl' %}bg-warning text-dark
+              {% else %}bg-light text-dark border{% endif %}
+              " style="font-size:.7rem;">{{ termo_referencia.get_status_display }}</span>
+            <div>
+              <a href="{% url 'planejamento:tr_detalhe' termo_referencia.pk %}" class="btn btn-outline-primary btn-sm py-0" style="font-size:.72rem;">Abrir</a>
+            </div>
+          {% else %}
+            <span class="badge rounded-pill bg-light text-dark border mb-2" style="font-size:.7rem;">Pendente</span>
+            <div>
+              <a href="{% url 'planejamento:tr_novo' %}?etp={{ etp.pk }}" class="btn btn-outline-primary btn-sm py-0" style="font-size:.72rem;">Iniciar</a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-md-5">
+    <div class="card h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-card-list me-2 text-primary"></i>Identificação
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0" style="font-size:.85rem;">
+          <dt class="col-5 text-muted">Nº SEI</dt>
+          <dd class="col-7">{{ etp.numero_sei|default:"—" }}</dd>
+          <dt class="col-5 text-muted">Estimativa de custo</dt>
+          <dd class="col-7">{% if etp.estimativa_custo %}R$ {{ etp.estimativa_custo|brl }}{% else %}—{% endif %}</dd>
+          <dt class="col-5 text-muted">TCO total</dt>
+          <dd class="col-7">{% if etp.tco_total %}R$ {{ etp.tco_total|brl }}{% else %}—{% endif %}</dd>
+          <dt class="col-5 text-muted">Software livre avaliado</dt>
+          <dd class="col-7">{% if etp.software_livre_avaliado %}Sim{% else %}Não{% endif %}</dd>
+          <dt class="col-5 text-muted">Declaração de viabilidade</dt>
+          <dd class="col-7">{% if etp.declaracao_viabilidade %}Sim{% else %}Não{% endif %}</dd>
+          {% if etp.etp_dispensado %}
+          <dt class="col-5 text-muted">Fundamento da dispensa</dt>
+          <dd class="col-7">{{ etp.fundamento_dispensa_etp|default:"—" }}</dd>
+          {% endif %}
+          <dt class="col-5 text-muted">Gerado por IA</dt>
+          <dd class="col-7">
+            {% if etp.gerado_por_ia %}
+              Sim{% if etp.ia_modelo_utilizado %} — {{ etp.ia_modelo_utilizado }}{% endif %}
+              {% if etp.ia_revisado_por %}<div class="text-muted" style="font-size:.75rem;">Revisado por {{ etp.ia_revisado_por.get_full_name|default:etp.ia_revisado_por.username }}</div>{% endif %}
+            {% else %}Não{% endif %}
+          </dd>
+          <dt class="col-5 text-muted">Atualizado em</dt>
+          <dd class="col-7">{{ etp.atualizado_em|date:"d/m/Y H:i" }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-7">
+    <div class="card h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-file-text me-2 text-primary"></i>Estudo
+      </div>
+      <div class="card-body" style="font-size:.85rem;">
+        {% for rotulo, texto in campos_texto %}
+          {% if texto %}
+          <div class="mb-3">
+            <div class="text-muted small mb-1">{{ rotulo }}</div>
+            <p class="mb-0" style="white-space:pre-wrap;">{{ texto }}</p>
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

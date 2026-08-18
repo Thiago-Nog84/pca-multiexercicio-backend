@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% load core_extras %}
+
+{% block title %}Nova Matriz de Risco{% endblock %}
+{% block nav_planejamento %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div class="page-header">
+    <h1><i class="bi bi-exclamation-diamond text-primary me-2"></i>Nova Matriz de Risco</h1>
+    <p>ETP <strong>{{ etp.numero_etp }}</strong> — DOD {{ etp.dod.identificador }}.</p>
+  </div>
+  <a href="{% url 'planejamento:etp_detalhe' etp.pk %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Voltar ao ETP
+  </a>
+</div>
+
+<div class="card mb-4" style="max-width:520px;">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="etp" value="{{ etp.pk }}">
+      <label class="form-label small fw-semibold">Fase atual do processo</label>
+      <select name="fase_atual" class="form-select form-select-sm mb-3">
+        {% for val, label in fase_choices %}
+          <option value="{{ val }}" {% if val == "planejamento" %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <div class="text-muted mb-3" style="font-size:.78rem;">
+        <i class="bi bi-info-circle me-1"></i>Depois de criada, os riscos são adicionados um a um na tela da matriz.
+      </div>
+      <div class="d-flex justify-content-end gap-2">
+        <a href="{% url 'planejamento:etp_detalhe' etp.pk %}" class="btn btn-outline-secondary btn-sm">Cancelar</a>
+        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check-lg me-1"></i>Criar matriz</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

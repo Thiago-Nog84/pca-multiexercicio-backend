@@ -236,11 +236,9 @@
   </div>
   <div class="col-6 col-md-3">
     <div class="card kpi-card h-100 p-3 d-flex align-items-center justify-content-center text-center">
-      <a href="/admin/planejamento/etp/add/" class="btn btn-primary btn-sm w-100 mb-2">
-        <i class="bi bi-plus-lg me-1"></i>Novo ETP
-      </a>
-      <a href="/admin/planejamento/termorreferencia/add/" class="btn btn-outline-primary btn-sm w-100">
-        <i class="bi bi-plus-lg me-1"></i>Novo TR
+      <a href="{% url 'planejamento:checklist_instrucao' %}" class="btn btn-primary btn-sm w-100"
+         title="ETP e TR são abertos a partir de um DOD/ETP específico — comece pelo checklist de instrução.">
+        <i class="bi bi-list-check me-1"></i>Iniciar ETP/TR
       </a>
     </div>
   </div>
@@ -299,6 +297,7 @@
                 <th class="text-center">TI?</th>
                 <th class="text-center">Status</th>
                 <th class="text-end">Custo Est.</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -327,10 +326,15 @@
                 <td class="text-end" style="font-size:.8rem;">
                   {% if etp.estimativa_custo %}R$ {{ etp.estimativa_custo|brl }}{% else %}—{% endif %}
                 </td>
+                <td class="text-end" style="min-width:60px;">
+                  <a href="{% url 'planejamento:etp_detalhe' etp.pk %}" class="btn btn-ghost btn-sm p-1" title="Ver detalhe">
+                    <i class="bi bi-eye text-secondary"></i>
+                  </a>
+                </td>
               </tr>
               {% empty %}
               <tr>
-                <td colspan="5" class="text-center text-muted py-4">
+                <td colspan="6" class="text-center text-muted py-4">
                   <i class="bi bi-inbox fs-3 d-block mb-2"></i>
                   Nenhum ETP cadastrado.
                 </td>

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% load core_extras %}
+
+{% block title %}Matriz de Risco — {{ etp.numero_etp }}{% endblock %}
+{% block nav_planejamento %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div class="page-header">
+    <h1>
+      <i class="bi bi-exclamation-diamond text-primary me-2"></i>Matriz de Risco
+      <span class="badge rounded-pill bg-light text-dark border ms-2" style="font-size:.62rem; vertical-align:middle;">
+        {{ matriz.get_fase_atual_display }}
+      </span>
+    </h1>
+    <p>ETP <a href="{% url 'planejamento:etp_detalhe' etp.pk %}">{{ etp.numero_etp }}</a> — DOD {{ etp.dod.identificador }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'planejamento:etp_detalhe' etp.pk %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Voltar ao ETP
+    </a>
+    <a href="{% url 'planejamento:risco_item_novo' matriz.pk %}" class="btn btn-primary btn-sm">
+      <i class="bi bi-plus-lg me-1"></i>Adicionar risco
+    </a>
+  </div>
+</div>
+
+{% if criticos %}
+<div class="alert alert-danger" style="font-size:.85rem;">
+  <i class="bi bi-exclamation-triangle me-1"></i>
+  {{ criticos }} risco{{ criticos|pluralize:"s" }} com nível alto (probabilidade × impacto ≥ 15) — atenção redobrada no plano de ação.
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
+    <span><i class="bi bi-list-ul me-2 text-primary"></i>Riscos identificados</span>
+    <span class="badge rounded-pill bg-light text-dark border">{{ itens|length }} risco{{ itens|length|pluralize:"s" }}</span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Risco</th>
+            <th class="text-center">Prob.</th>
+            <th class="text-center">Impacto</th>
+            <th class="text-center">Nível</th>
+            <th>Responsável</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in itens %}
+          <tr>
+            <td style="max-width:340px; font-size:.82rem;">
+              <div class="text-truncate" style="max-width:330px;" title="{{ item.descricao_risco }}">{{ item.descricao_risco }}</div>
+            </td>
+            <td class="text-center" style="font-size:.8rem;">{{ item.get_probabilidade_display }}</td>
+            <td class="text-center" style="font-size:.8rem;">{{ item.get_impacto_display }}</td>
+            <td class="text-center">
+              <span class="badge rounded-pill
+                {% if item.nivel_risco >= 15 %}bg-danger
+                {% elif item.nivel_risco >= 8 %}bg-warning text-dark
+                {% else %}bg-success{% endif %}
+                " style="font-size:.7rem;">{{ item.nivel_risco }}</span>
+            </td>
+            <td style="font-size:.8rem;">{{ item.get_responsavel_display }}</td>
+            <td class="text-end" style="min-width:90px;">
+              <a href="{% url 'planejamento:risco_item_editar' matriz.pk item.pk %}" class="btn btn-ghost btn-sm p-1" title="Editar">
+                <i class="bi bi-pencil text-secondary"></i>
+              </a>
+              <form method="post" action="{% url 'planejamento:risco_item_excluir' matriz.pk item.pk %}" class="d-inline"
+                    onsubmit="return confirm('Remover este risco da matriz?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-ghost btn-sm p-1" title="Remover">
+                  <i class="bi bi-trash text-danger"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">
+              <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+              Nenhum risco identificado ainda.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

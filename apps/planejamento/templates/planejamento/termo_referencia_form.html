@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% load core_extras %}
+
+{% block title %}Novo Termo de Referência{% endblock %}
+{% block nav_planejamento %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div class="page-header">
+    <h1><i class="bi bi-file-earmark-ruled text-primary me-2"></i>Novo Termo de Referência</h1>
+    <p>ETP <strong>{{ etp.numero_etp }}</strong> — DOD {{ etp.dod.identificador }}.</p>
+  </div>
+  <a href="{% url 'planejamento:etp_detalhe' etp.pk %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Voltar ao ETP
+  </a>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="etp" value="{{ etp.pk }}">
+
+  <div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+      <i class="bi bi-card-list me-2 text-primary"></i>Identificação
+    </div>
+    <div class="card-body row g-3">
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">Nº SEI</label>
+        <input type="text" name="numero_sei" class="form-control form-control-sm" placeholder="00000.000000/2026-00">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">Status</label>
+        <select name="status" class="form-select form-select-sm">
+          {% for val, label in status_choices %}
+            <option value="{{ val }}" {% if val == "rascunho" %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">Critério de julgamento *</label>
+        <select name="criterio_julgamento" class="form-select form-select-sm" required>
+          <option value="">—</option>
+          {% for val, label in criterio_choices %}
+            <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12">
+        <label class="form-label small fw-semibold">Objeto *</label>
+        <textarea name="objeto" class="form-control form-control-sm" rows="2" required></textarea>
+      </div>
+      <div class="col-12">
+        <label class="form-label small fw-semibold">Fundamentação legal *</label>
+        <textarea name="fundamentacao_legal" class="form-control form-control-sm" rows="2" required></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+      <i class="bi bi-gear me-2 text-primary"></i>Solução e execução
+    </div>
+    <div class="card-body row g-3">
+      <div class="col-12">
+        <label class="form-label small fw-semibold">Descrição da solução *</label>
+        <textarea name="descricao_solucao" class="form-control form-control-sm" rows="2" required></textarea>
+      </div>
+      <div class="col-12">
+        <label class="form-label small fw-semibold">Requisitos de habilitação *</label>
+        <textarea name="requisitos_habilitacao" class="form-control form-control-sm" rows="2" required></textarea>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">Prazo de execução (dias) *</label>
+        <input type="number" name="prazo_execucao" class="form-control form-control-sm" min="1" required>
+      </div>
+      <div class="col-md-8">
+        <label class="form-label small fw-semibold">Local de execução *</label>
+        <input type="text" name="local_execucao" class="form-control form-control-sm" required>
+      </div>
+      <div class="col-12">
+        <label class="form-label small fw-semibold">Critérios de medição *</label>
+        <textarea name="criterios_medicao" class="form-control form-control-sm" rows="2" required></textarea>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label small fw-semibold">Obrigações do contratante *</label>
+        <textarea name="obrigacoes_contratante" class="form-control form-control-sm" rows="2" required></textarea>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label small fw-semibold">Obrigações do contratado *</label>
+        <textarea name="obrigacoes_contratado" class="form-control form-control-sm" rows="2" required></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+      <i class="bi bi-arrow-repeat me-2 text-primary"></i>Continuidade e Registro de Preços
+    </div>
+    <div class="card-body row g-3">
+      <div class="col-md-4">
+        <div class="form-check mt-2">
+          <input type="checkbox" name="is_servico_continuo" value="1" class="form-check-input" id="continuoCheck">
+          <label class="form-check-label small" for="continuoCheck">Serviço contínuo</label>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">Prazo inicial (meses)</label>
+        <input type="number" name="prazo_inicial_meses" class="form-control form-control-sm" min="1">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">Prazo máximo (meses)</label>
+        <input type="number" name="prazo_maximo_meses" class="form-control form-control-sm" min="1">
+      </div>
+      <div class="col-md-4">
+        <div class="form-check mt-2">
+          <input type="checkbox" name="is_srp" value="1" class="form-check-input" id="srpCheck">
+          <label class="form-check-label small" for="srpCheck">Sistema de Registro de Preços (SRP)</label>
+        </div>
+      </div>
+      <div class="col-md-8">
+        <label class="form-label small fw-semibold">Justificativa do SRP</label>
+        <input type="text" name="justificativa_srp" class="form-control form-control-sm">
+      </div>
+    </div>
+  </div>
+
+  {% if etp.is_ti %}
+  <div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+      <i class="bi bi-cpu me-2 text-primary"></i>Remuneração de TI
+      <span class="badge bg-info text-dark ms-1" style="font-size:.65rem;">ETP de Solução de TI</span>
+    </div>
+    <div class="card-body row g-3">
+      <div class="col-md-6">
+        <label class="form-label small fw-semibold">Modalidade de remuneração</label>
+        <select name="modalidade_remuneracao_ti" class="form-select form-select-sm">
+          <option value="">—</option>
+          {% for val, label in modalidade_ti_choices %}
+            <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-6">
+        <div class="form-check mt-4">
+          <input type="checkbox" name="vedacoes_ti_observadas" value="1" class="form-check-input" id="vedacoesCheck">
+          <label class="form-check-label small" for="vedacoesCheck">Vedações da Res. CNMP 283/2024 observadas</label>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+      <i class="bi bi-stars me-2 text-primary"></i>Elaboração assistida por IA
+    </div>
+    <div class="card-body row g-3">
+      <div class="col-md-6">
+        <div class="form-check mt-2">
+          <input type="checkbox" name="gerado_por_ia" value="1" class="form-check-input" id="geradoIaCheck">
+          <label class="form-check-label small" for="geradoIaCheck">Conteúdo gerado com apoio de IA</label>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label small fw-semibold">Modelo AGU base (se aplicável)</label>
+        <input type="text" name="modelo_agu_base" class="form-control form-control-sm">
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2 mb-5">
+    <a href="{% url 'planejamento:etp_detalhe' etp.pk %}" class="btn btn-outline-secondary">Cancelar</a>
+    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Salvar Termo de Referência</button>
+  </div>
+</form>
+{% endblock %}

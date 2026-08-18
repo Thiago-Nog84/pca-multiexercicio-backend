@@ -75,7 +75,7 @@
               {% else %}bg-light text-dark border{% endif %}
               " style="font-size:.7rem;">{{ etp.get_status_display }}</span>
             <div>
-              <a href="/admin/planejamento/etp/{{ etp.pk }}/change/"
+              <a href="{% url 'planejamento:etp_detalhe' etp.pk %}"
                  class="btn btn-outline-primary btn-sm py-0" style="font-size:.72rem;">
                 {{ etp.numero_etp|default:"Abrir" }}
               </a>
@@ -83,7 +83,7 @@
           {% else %}
             <span class="badge rounded-pill bg-light text-dark border mb-2" style="font-size:.7rem;">Pendente</span>
             <div>
-              <a href="/admin/planejamento/etp/add/?dod={{ dod.pk }}"
+              <a href="{% url 'planejamento:etp_novo' %}?dod={{ dod.pk }}"
                  class="btn btn-outline-primary btn-sm py-0" style="font-size:.72rem;">Iniciar</a>
             </div>
           {% endif %}
@@ -98,13 +98,13 @@
               <i class="bi bi-check-lg"></i> {{ matriz_risco.get_fase_atual_display }}
             </span>
             <div>
-              <a href="/admin/planejamento/matrizrisco/{{ matriz_risco.pk }}/change/"
+              <a href="{% url 'planejamento:matriz_risco_detalhe' matriz_risco.pk %}"
                  class="btn btn-outline-primary btn-sm py-0" style="font-size:.72rem;">Abrir</a>
             </div>
           {% elif etp %}
             <span class="badge rounded-pill bg-light text-dark border mb-2" style="font-size:.7rem;">Pendente</span>
             <div>
-              <a href="/admin/planejamento/matrizrisco/add/?etp={{ etp.pk }}"
+              <a href="{% url 'planejamento:matriz_risco_novo' %}?etp={{ etp.pk }}"
                  class="btn btn-outline-primary btn-sm py-0" style="font-size:.72rem;">Iniciar</a>
             </div>
           {% else %}
@@ -123,13 +123,13 @@
               {% else %}bg-light text-dark border{% endif %}
               " style="font-size:.7rem;">{{ termo_referencia.get_status_display }}</span>
             <div>
-              <a href="/admin/planejamento/termoreferencia/{{ termo_referencia.pk }}/change/"
+              <a href="{% url 'planejamento:tr_detalhe' termo_referencia.pk %}"
                  class="btn btn-outline-primary btn-sm py-0" style="font-size:.72rem;">Abrir</a>
             </div>
           {% elif etp %}
             <span class="badge rounded-pill bg-light text-dark border mb-2" style="font-size:.7rem;">Pendente</span>
             <div>
-              <a href="/admin/planejamento/termoreferencia/add/?etp={{ etp.pk }}"
+              <a href="{% url 'planejamento:tr_novo' %}?etp={{ etp.pk }}"
                  class="btn btn-outline-primary btn-sm py-0" style="font-size:.72rem;">Iniciar</a>
             </div>
           {% else %}

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% load core_extras %}
+
+{% block title %}Termo de Referência — {{ etp.numero_etp }}{% endblock %}
+{% block nav_planejamento %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div class="page-header">
+    <h1>
+      <i class="bi bi-file-earmark-ruled text-primary me-2"></i>Termo de Referência
+      <span class="badge rounded-pill ms-2
+        {% if tr.status == 'publicado' or tr.status == 'aprovado' %}bg-success
+        {% elif tr.status == 'em_revisao' or tr.status == 'appl' %}bg-warning text-dark
+        {% else %}bg-light text-dark border{% endif %}
+        " style="font-size:.62rem; vertical-align:middle;">{{ tr.get_status_display }}</span>
+      {% if tr.is_srp %}<span class="badge bg-info text-dark ms-1" style="font-size:.62rem; vertical-align:middle;">SRP</span>{% endif %}
+    </h1>
+    <p>ETP <a href="{% url 'planejamento:etp_detalhe' etp.pk %}">{{ etp.numero_etp }}</a> — DOD {{ dod.identificador }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{% url 'planejamento:etp_detalhe' etp.pk %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Voltar ao ETP
+    </a>
+    <a href="/admin/planejamento/termoreferencia/{{ tr.pk }}/change/" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-pencil me-1"></i>Editar
+    </a>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-md-5">
+    <div class="card h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-card-list me-2 text-primary"></i>Identificação
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0" style="font-size:.85rem;">
+          <dt class="col-6 text-muted">Nº SEI</dt>
+          <dd class="col-6">{{ tr.numero_sei|default:"—" }}</dd>
+          <dt class="col-6 text-muted">Critério de julgamento</dt>
+          <dd class="col-6">{{ tr.get_criterio_julgamento_display }}</dd>
+          <dt class="col-6 text-muted">Prazo de execução</dt>
+          <dd class="col-6">{{ tr.prazo_execucao }} dia{{ tr.prazo_execucao|pluralize:"s" }}</dd>
+          <dt class="col-6 text-muted">Local de execução</dt>
+          <dd class="col-6">{{ tr.local_execucao }}</dd>
+          <dt class="col-6 text-muted">Serviço contínuo</dt>
+          <dd class="col-6">
+            {% if tr.is_servico_continuo %}
+              Sim{% if tr.prazo_inicial_meses %} — inicial {{ tr.prazo_inicial_meses }}m{% endif %}{% if tr.prazo_maximo_meses %}, máx. {{ tr.prazo_maximo_meses }}m{% endif %}
+            {% else %}Não{% endif %}
+          </dd>
+          <dt class="col-6 text-muted">SRP</dt>
+          <dd class="col-6">{% if tr.is_srp %}Sim{% if tr.justificativa_srp %} — {{ tr.justificativa_srp }}{% endif %}{% else %}Não{% endif %}</dd>
+          {% if etp.is_ti %}
+          <dt class="col-6 text-muted">Modalidade de remuneração</dt>
+          <dd class="col-6">{{ tr.get_modalidade_remuneracao_ti_display|default:"—" }}</dd>
+          <dt class="col-6 text-muted">Vedações de TI observadas</dt>
+          <dd class="col-6">{% if tr.vedacoes_ti_observadas %}Sim{% else %}Não{% endif %}</dd>
+          {% endif %}
+          <dt class="col-6 text-muted">Gerado por IA</dt>
+          <dd class="col-6">{% if tr.gerado_por_ia %}Sim{% else %}Não{% endif %}</dd>
+          <dt class="col-6 text-muted">Modelo AGU base</dt>
+          <dd class="col-6">{{ tr.modelo_agu_base|default:"—" }}</dd>
+          <dt class="col-6 text-muted">Atualizado em</dt>
+          <dd class="col-6">{{ tr.atualizado_em|date:"d/m/Y H:i" }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-7">
+    <div class="card h-100">
+      <div class="card-header bg-white border-bottom py-3">
+        <i class="bi bi-file-text me-2 text-primary"></i>Conteúdo
+      </div>
+      <div class="card-body" style="font-size:.85rem;">
+        {% for rotulo, texto in campos_texto %}
+          {% if texto %}
+          <div class="mb-3">
+            <div class="text-muted small mb-1">{{ rotulo }}</div>
+            <p class="mb-0" style="white-space:pre-wrap;">{{ texto }}</p>
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

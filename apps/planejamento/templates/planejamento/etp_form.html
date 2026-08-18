@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% load core_extras %}
+
+{% block title %}Novo ETP{% endblock %}
+{% block nav_planejamento %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div class="page-header">
+    <h1><i class="bi bi-file-earmark-bar-graph text-primary me-2"></i>Novo ETP
+      <span class="fs-6 text-muted ms-1">— Estudo Técnico Preliminar</span>
+    </h1>
+    <p>Art. 18 da Lei 14.133/2021 e IN SEGES 58/2022, para o DOD <strong>{{ dod.identificador }}</strong>.</p>
+  </div>
+  <a href="{% url 'planejamento:dod_detalhe' dod.pk %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Voltar ao DOD
+  </a>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="dod" value="{{ dod.pk }}">
+
+  <div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+      <i class="bi bi-card-list me-2 text-primary"></i>Identificação
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Nº do ETP *</label>
+          <input type="text" name="numero_etp" class="form-control form-control-sm" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Nº SEI</label>
+          <input type="text" name="numero_sei" class="form-control form-control-sm" placeholder="00000.000000/2026-00">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Status</label>
+          <select name="status" class="form-select form-select-sm">
+            {% for val, label in status_choices %}
+              <option value="{{ val }}" {% if val == "rascunho" %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <div class="form-check mt-2">
+            <input type="checkbox" name="is_ti" value="1" class="form-check-input" id="isTiCheck">
+            <label class="form-check-label small" for="isTiCheck">
+              Contratação de Solução de Tecnologia da Informação (Res. CNMP 283/2024)
+            </label>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-check mt-2">
+            <input type="checkbox" name="declaracao_viabilidade" value="1" class="form-check-input" id="viavelCheck">
+            <label class="form-check-label small" for="viavelCheck">Declaração de viabilidade da contratação</label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+      <i class="bi bi-question-circle me-2 text-primary"></i>Dispensa do ETP
+    </div>
+    <div class="card-body">
+      <div class="form-check mb-2">
+        <input type="checkbox" name="etp_dispensado" value="1" class="form-check-input" id="dispensadoCheck">
+        <label class="form-check-label small" for="dispensadoCheck">Elaboração do ETP dispensada (art. 14 da IN SEGES 58/2022)</label>
+      </div>
+      <label class="form-label small fw-semibold">Fundamento da dispensa</label>
+      <input type="text" name="fundamento_dispensa_etp" class="form-control form-control-sm">
+      <div class="text-muted mt-2" style="font-size:.75rem;">
+        <i class="bi bi-info-circle me-1"></i>Mesmo com a dispensa marcada, os campos abaixo continuam sendo pedidos —
+        o model ainda não tem uma regra que os torne opcionais nesse caso.
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+      <i class="bi bi-clipboard-check me-2 text-primary"></i>Necessidade e requisitos
+    </div>
+    <div class="card-body row g-3">
+      <div class="col-12">
+        <label class="form-label small fw-semibold">Necessidade da contratação *</label>
+        <textarea name="necessidade_contratacao" class="form-control form-control-sm" rows="3" required></textarea>
+      </div>
+      <div class="col-12">
+        <label class="form-label small fw-semibold">Requisitos da contratação *</label>
+        <textarea name="requisitos_contratacao" class="form-control form-control-sm" rows="3" required></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+      <i class="bi bi-search me-2 text-primary"></i>Mercado e solução
+    </div>
+    <div class="card-body row g-3">
+      <div class="col-12">
+        <label class="form-label small fw-semibold">Levantamento de mercado *</label>
+        <textarea name="levantamento_mercado" class="form-control form-control-sm" rows="3" required></textarea>
+      </div>
+      <div class="col-12">
+        <label class="form-label small fw-semibold">Descrição da solução *</label>
+        <textarea name="descricao_solucao" class="form-control form-control-sm" rows="3" required></textarea>
+      </div>
+      <div class="col-md-8">
+        <label class="form-label small fw-semibold">Solução em outros órgãos</label>
+        <textarea name="solucao_em_outros_orgaos" class="form-control form-control-sm" rows="2"></textarea>
+      </div>
+      <div class="col-md-4">
+        <div class="form-check mt-4">
+          <input type="checkbox" name="software_livre_avaliado" value="1" class="form-check-input" id="softwareLivreCheck">
+          <label class="form-check-label small" for="softwareLivreCheck">Avaliada alternativa de software livre</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+      <i class="bi bi-cash-coin me-2 text-primary"></i>Quantitativos e custos
+    </div>
+    <div class="card-body row g-3">
+      <div class="col-12">
+        <label class="form-label small fw-semibold">Estimativa de quantidade *</label>
+        <textarea name="estimativa_quantidade" class="form-control form-control-sm" rows="2" required></textarea>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label small fw-semibold">Estimativa de custo (R$)</label>
+        <input type="text" name="estimativa_custo" class="form-control form-control-sm" placeholder="0,00">
+      </div>
+      <div class="col-md-6">
+        <label class="form-label small fw-semibold">TCO total (R$)
+          <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+             title="Custo total de propriedade — soma de aquisição, operação e manutenção ao longo do ciclo de vida."></i>
+        </label>
+        <input type="text" name="tco_total" class="form-control form-control-sm" placeholder="0,00">
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+      <i class="bi bi-diagram-2 me-2 text-primary"></i>Parcelamento e contratações correlatas
+    </div>
+    <div class="card-body row g-3">
+      <div class="col-12">
+        <label class="form-label small fw-semibold">Justificativa do parcelamento (ou não) *</label>
+        <textarea name="justificativa_parcelamento" class="form-control form-control-sm" rows="2" required></textarea>
+      </div>
+      <div class="col-12">
+        <label class="form-label small fw-semibold">Contratações correlatas e/ou interdependentes</label>
+        <textarea name="contratacoes_correlatas" class="form-control form-control-sm" rows="2"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+      <i class="bi bi-bullseye me-2 text-primary"></i>Alinhamento e resultados
+    </div>
+    <div class="card-body row g-3">
+      <div class="col-12">
+        <label class="form-label small fw-semibold">Alinhamento ao PCA *</label>
+        <textarea name="alinhamento_pca" class="form-control form-control-sm" rows="2" required></textarea>
+      </div>
+      <div class="col-12">
+        <label class="form-label small fw-semibold">Resultados pretendidos *</label>
+        <textarea name="resultados_pretendidos" class="form-control form-control-sm" rows="2" required></textarea>
+      </div>
+      <div class="col-12">
+        <label class="form-label small fw-semibold">Providências prévias</label>
+        <textarea name="providencias_previas" class="form-control form-control-sm" rows="2"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+      <i class="bi bi-tree me-2 text-primary"></i>Impactos ambientais
+    </div>
+    <div class="card-body">
+      <label class="form-label small fw-semibold">Impactos ambientais *</label>
+      <textarea name="impactos_ambientais" class="form-control form-control-sm" rows="2" required></textarea>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header bg-white border-bottom py-3">
+      <i class="bi bi-stars me-2 text-primary"></i>Elaboração assistida por IA
+    </div>
+    <div class="card-body row g-3">
+      <div class="col-md-4">
+        <div class="form-check mt-4">
+          <input type="checkbox" name="gerado_por_ia" value="1" class="form-check-input" id="geradoIaCheck">
+          <label class="form-check-label small" for="geradoIaCheck">Conteúdo gerado com apoio de IA</label>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">Modelo de IA utilizado</label>
+        <input type="text" name="ia_modelo_utilizado" class="form-control form-control-sm" placeholder="Ex.: Claude Opus 4.5">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label small fw-semibold">Revisado por</label>
+        <select name="ia_revisado_por" class="form-select form-select-sm">
+          <option value="">—</option>
+          {% for u in usuarios %}
+            <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-end gap-2 mb-5">
+    <a href="{% url 'planejamento:dod_detalhe' dod.pk %}" class="btn btn-outline-secondary">Cancelar</a>
+    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Salvar ETP</button>
+  </div>
+</form>
+{% endblock %}
