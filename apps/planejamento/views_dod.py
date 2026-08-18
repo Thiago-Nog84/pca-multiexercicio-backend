@@ -13,6 +13,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -52,32 +53,40 @@ def _unidades_permitidas(user):
     return qs.filter(pk__in=_unidades_do_usuario(user))
 
 
-def _itens_elegiveis(pca, unidade):
+def _itens_elegiveis(pca, unidade, excluir_dod=None):
     """
-    Itens que podem entrar num DOD NOVO deste PCA e desta unidade: já
-    aprovados (integral ou parcial no PCA) e ainda não vinculados a outro
-    DOD com status "aberto".
+    Itens que podem entrar num DOD deste PCA e desta unidade: já aprovados
+    (integral ou parcial no PCA) e ainda não vinculados a OUTRO DOD com
+    status "aberto".
 
     Replica aqui, para não oferecer na tela algo que o signal
     `validar_itens_dod` (planejamento/models.py) recusaria ao salvar — mas a
     validação de verdade continua no signal, disparado no dod.itens.add().
     A restrição de unidade, por ser regra de permissão (depende de quem está
     pedindo, não do dado em si), é checada aqui e de novo em
-    `DODCriarView.post`, não no signal do model.
+    `DODCriarView.post`/`DODEditarView.post`, não no signal do model.
+
+    `excluir_dod`: usado por `DODEditarView` — os itens já vinculados a ESTE
+    DOD não podem ficar de fora da lista só porque o próprio DOD está
+    "aberto" (a exclusão de "outro DOD aberto" não deve contar o DOD que
+    está sendo editado).
     """
     if unidade is None:
         return ItemPCA.objects.none()
-    return (
+    qs = (
         ItemPCA.objects
         .filter(
             dfd__pca=pca,
             dfd__unidade=unidade,
             status_aprovacao__in=["aprovada_integral", "aprovada_parcial"],
         )
-        .exclude(documentos_oficializacao__status="aberto")
         .select_related("dfd", "dfd__unidade", "dfd__requisitante")
         .order_by("codigo_pca")
     )
+    bloqueados = Q(documentos_oficializacao__status="aberto")
+    if excluir_dod is not None:
+        bloqueados &= ~Q(documentos_oficializacao=excluir_dod)
+    return qs.exclude(bloqueados).distinct()
 
 
 @method_decorator(login_required, name="dispatch")
@@ -136,6 +145,7 @@ class DODCriarView(View):
             "grau_prioridade_choices": DocumentoOficializacaoDemanda.GRAU_PRIORIDADE,
             "natureza_ti": DocumentoOficializacaoDemanda.NATUREZA_TI,
             "sem_unidade_vinculada": sem_unidade_vinculada,
+            "tem_detalhamento": False,
         }
         return render(request, self.template_name, context)
 
@@ -330,3 +340,165 @@ class DODDetalheView(View):
             ),
         }
         return render(request, self.template_name, context)
+
+
+@method_decorator(login_required, name="dispatch")
+class DODEditarView(View):
+    """
+    GET/POST /planejamento/dods/<pk>/editar/ — edita um DOD já cadastrado.
+
+    Reaproveita o MESMO template de criação (dod_form.html) em "modo
+    edição" (contexto tem `dod` preenchido) — evita duplicar um formulário
+    de ~20 campos. Unidade e PCA ficam FIXOS, derivados dos itens já
+    vinculados: trocar unidade no meio do caminho invalidaria os itens já
+    escolhidos (cada DOD é de uma unidade só, mesma regra da criação).
+    Todo o resto — identificação, itens vinculados, informações gerais,
+    equipe de planejamento, alinhamento/fundamentação — continua editável.
+
+    A busca de demandas (DFD) que alimenta o autocomplete do Identificador
+    na criação não faz sentido aqui (o identificador já existe) — o
+    template esconde essa caixa quando `dod` está no contexto.
+    """
+
+    template_name = "planejamento/dod_form.html"
+
+    def get(self, request, pk):
+        dod = get_object_or_404(
+            DocumentoOficializacaoDemanda.objects.select_related("pca")
+            .prefetch_related("itens__dfd__unidade"),
+            pk=pk,
+        )
+        unidade = self._unidade_do_dod(dod)
+        equipe = getattr(dod, "equipe_planejamento_ti", None)
+
+        tem_detalhamento = any([
+            dod.objetivos_estrategicos, dod.alinhamento_pdtic, dod.necessidade_contratacao,
+            dod.motivacao_justificativa, dod.objetivo_contratacao, dod.meta_contratacao,
+            dod.indicador_resultado,
+        ])
+
+        context = {
+            "dod": dod,
+            "equipe": equipe,
+            "tem_detalhamento": tem_detalhamento,
+            "pca": dod.pca,
+            "todos_pcas": PlanoContratacaoAnual.objects.order_by("-exercicio"),
+            "unidades_disponiveis": (
+                UnidadeRequisitante.objects.filter(pk=unidade.pk) if unidade else UnidadeRequisitante.objects.none()
+            ),
+            "unidade": unidade,
+            "precisa_escolher_unidade": False,
+            "itens_elegiveis": _itens_elegiveis(dod.pca, unidade, excluir_dod=dod) if unidade else ItemPCA.objects.none(),
+            "itens_pre_selecionados": set(dod.itens.values_list("pk", flat=True)),
+            "demandas_unidade": [],
+            "usuarios": Usuario.objects.filter(is_active=True).order_by("first_name", "username"),
+            "unidade_orcamentaria_choices": DocumentoOficializacaoDemanda.UNIDADE_ORCAMENTARIA,
+            "natureza_objeto_choices": DocumentoOficializacaoDemanda.NATUREZA_OBJETO,
+            "grau_prioridade_choices": DocumentoOficializacaoDemanda.GRAU_PRIORIDADE,
+            "natureza_ti": DocumentoOficializacaoDemanda.NATUREZA_TI,
+            "sem_unidade_vinculada": False,
+        }
+        return render(request, self.template_name, context)
+
+    def post(self, request, pk):
+        dod = get_object_or_404(DocumentoOficializacaoDemanda, pk=pk)
+        unidade = self._unidade_do_dod(dod)
+        itens_ids = [i for i in request.POST.getlist("itens") if i.isdigit()]
+
+        identificador = request.POST.get("identificador", "").strip()
+        if not identificador:
+            messages.error(request, "Informe o identificador do DOD.")
+            return redirect("planejamento:dod_editar", pk=dod.pk)
+        if not itens_ids:
+            messages.error(request, "Selecione ao menos um item do PCA para compor o DOD.")
+            return redirect("planejamento:dod_editar", pk=dod.pk)
+
+        # Mesma trava de permissão da criação: nenhum item fora da unidade
+        # do DOD, mesmo que alguém force um pk pelo POST.
+        fora_da_unidade = ItemPCA.objects.filter(pk__in=itens_ids).exclude(dfd__unidade=unidade)
+        if fora_da_unidade.exists():
+            nomes = ", ".join(i.codigo_pca or f"#{i.pk}" for i in fora_da_unidade)
+            messages.error(
+                request,
+                f"Todos os itens do DOD precisam ser da unidade {unidade.sigla}. "
+                f"Fora dessa unidade: {nomes}.",
+            )
+            return redirect("planejamento:dod_editar", pk=dod.pk)
+
+        natureza_objeto = request.POST.get("natureza_objeto", "").strip()
+
+        try:
+            with transaction.atomic():
+                dod.identificador = identificador
+                dod.numero_sei = request.POST.get("numero_sei", "").strip()
+                dod.objeto = request.POST.get("objeto", "").strip()
+                dod.unidade_orcamentaria = request.POST.get("unidade_orcamentaria", "").strip()
+                dod.natureza_objeto = natureza_objeto
+                dod.contratacao_correlata = request.POST.get("contratacao_correlata") == "1"
+                dod.contratacao_correlata_qual = request.POST.get("contratacao_correlata_qual", "").strip()
+                dod.grau_prioridade = request.POST.get("grau_prioridade", "").strip()
+                dod.previsao_inicio_execucao = request.POST.get("previsao_inicio_execucao") or None
+                dod.previsao_termino_execucao = request.POST.get("previsao_termino_execucao") or None
+                dod.objetivos_estrategicos = request.POST.get("objetivos_estrategicos", "").strip()
+                dod.alinhamento_pdtic = request.POST.get("alinhamento_pdtic", "").strip()
+                dod.necessidade_contratacao = request.POST.get("necessidade_contratacao", "").strip()
+                dod.motivacao_justificativa = request.POST.get("motivacao_justificativa", "").strip()
+                dod.objetivo_contratacao = request.POST.get("objetivo_contratacao", "").strip()
+                dod.meta_contratacao = request.POST.get("meta_contratacao", "").strip()
+                dod.indicador_resultado = request.POST.get("indicador_resultado", "").strip()
+                dod.full_clean()
+                dod.save()
+
+                # Reconcilia a lista de itens em vez de recriar o M2M do zero:
+                # remove() não passa pelo signal (não precisa — tirar item de
+                # um DOD não quebra nenhuma regra), add() dispara
+                # validar_itens_dod de novo para os que entraram agora.
+                atuais = set(dod.itens.values_list("pk", flat=True))
+                novos = {int(i) for i in itens_ids}
+                a_remover = atuais - novos
+                a_adicionar = novos - atuais
+                if a_remover:
+                    dod.itens.remove(*a_remover)
+                if a_adicionar:
+                    dod.itens.add(*a_adicionar)
+
+                self._salvar_equipe(request, dod, natureza_objeto)
+
+        except ValidationError as e:
+            detalhe = "; ".join(e.messages) if hasattr(e, "messages") else str(e)
+            messages.error(request, f"DOD não salvo: {detalhe}")
+            return redirect("planejamento:dod_editar", pk=dod.pk)
+
+        messages.success(request, f"DOD \"{dod.identificador}\" atualizado.")
+        return redirect("planejamento:dod_detalhe", pk=dod.pk)
+
+    @staticmethod
+    def _salvar_equipe(request, dod, natureza_objeto):
+        equipe_preenchida = any(
+            request.POST.get(campo)
+            for campo in ("integrante_requisitante", "integrante_tecnico", "integrante_administrativo")
+        )
+        equipe = getattr(dod, "equipe_planejamento_ti", None)
+
+        if not equipe_preenchida and natureza_objeto != DocumentoOficializacaoDemanda.NATUREZA_TI:
+            # Campos todos vazios e a natureza não exige equipe: se havia
+            # uma equipe de uma edição anterior, ela fica órfã de sentido —
+            # remove em vez de deixar dado morto no banco.
+            if equipe is not None:
+                equipe.delete()
+            return
+
+        if equipe is None:
+            equipe = EquipePlanejamentoTI(dod=dod)
+        equipe.integrante_requisitante_id = request.POST.get("integrante_requisitante") or None
+        equipe.integrante_tecnico_id = request.POST.get("integrante_tecnico") or None
+        equipe.integrante_administrativo_id = request.POST.get("integrante_administrativo") or None
+        equipe.lider = request.POST.get("lider", "requisitante")
+        equipe.ato_designacao_sei = request.POST.get("ato_designacao_sei", "").strip()
+        equipe.full_clean()
+        equipe.save()
+
+    @staticmethod
+    def _unidade_do_dod(dod):
+        item = next((i for i in dod.itens.all() if i.dfd_id and i.dfd.unidade_id), None)
+        return item.dfd.unidade if item else None

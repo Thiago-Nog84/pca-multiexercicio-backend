@@ -2,25 +2,44 @@
 {% load humanize %}
 {% load core_extras %}
 
-{% block title %}Novo DOD{% endblock %}
+{% block title %}{% if dod %}Editar DOD{% else %}Novo DOD{% endif %}{% endblock %}
 {% block nav_planejamento %}active{% endblock %}
 
 {% block content %}
 <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
   <div class="page-header">
-    <h1><i class="bi bi-signpost-split text-primary me-2"></i>Novo DOD
+    <h1><i class="bi bi-signpost-split text-primary me-2"></i>{% if dod %}Editar DOD{% else %}Novo DOD{% endif %}
       <span class="fs-6 text-muted ms-1">— Documento de Oficialização da Demanda</span>
     </h1>
-    <p>Abre o processo de contratação para itens já aprovados no PCA (modelo SEI 1465317).</p>
+    <p>
+      {% if dod %}{{ dod.identificador }} — {{ dod.pca }}
+      {% else %}Abre o processo de contratação para itens já aprovados no PCA (modelo SEI 1465317).{% endif %}
+    </p>
   </div>
+  {% if dod %}
+  <a href="{% url 'planejamento:dod_detalhe' dod.pk %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Voltar ao DOD
+  </a>
+  {% else %}
   <a href="{% url 'planejamento:dashboard' %}" class="btn btn-outline-secondary btn-sm">
     <i class="bi bi-arrow-left me-1"></i>Voltar a Artefatos
   </a>
+  {% endif %}
 </div>
 
 <!-- Unidade + PCA — sempre visível no topo, pra deixar claro pra quem esta demanda está sendo aberta -->
 <div class="card mb-3 border-0 text-white" style="background: linear-gradient(135deg, var(--mppi-vermelho) 0%, var(--mppi-vermelho-escuro) 100%);">
   <div class="card-body py-3 px-4">
+    {% if dod %}
+      <!-- Modo edição: unidade e PCA ficam fixos — trocar invalidaria os itens já vinculados (cada DOD é de uma unidade só). -->
+      <div class="text-white-50 text-uppercase" style="font-size:.66rem; letter-spacing:.06em;">
+        <i class="bi bi-building me-1"></i>Editando DOD da unidade
+      </div>
+      <div class="fs-5 fw-bold mt-1">
+        {% if unidade %}{{ unidade.sigla }}<span class="fw-normal fs-6" style="opacity:.85;">— {{ unidade.nome }}</span>{% else %}—{% endif %}
+        <span class="fw-normal fs-6 ms-2" style="opacity:.85;">· PCA {{ pca.exercicio }}</span>
+      </div>
+    {% else %}
     <form method="get" class="row g-3 align-items-end">
       <div class="col-auto">
         <div class="text-white-50 text-uppercase" style="font-size:.66rem; letter-spacing:.06em;">
@@ -59,6 +78,7 @@
         </select>
       </div>
     </form>
+    {% endif %}
   </div>
 </div>
 
@@ -77,7 +97,7 @@
   <div class="alert alert-warning">Nenhum PCA cadastrado ainda.</div>
 {% elif unidade %}
 
-<form method="post" id="dodForm">
+<form method="post" id="dodForm" action="{% if dod %}{% url 'planejamento:dod_editar' dod.pk %}{% else %}{% url 'planejamento:dod_novo' %}{% endif %}">
   {% csrf_token %}
   <input type="hidden" name="pca_id" value="{{ pca.pk }}">
   <input type="hidden" name="unidade_id" value="{{ unidade.pk }}">
@@ -92,18 +112,23 @@
       <div class="row g-3">
         <div class="col-md-5 position-relative">
           <label class="form-label small fw-semibold">Identificador *
+            {% if not dod %}
             <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
                title="Busque pela demanda (DFD) de origem — o texto e os itens dela são preenchidos automaticamente — ou digite um identificador livre."></i>
+            {% endif %}
           </label>
           <input type="text" name="identificador" id="identificadorInput" class="form-control form-control-sm" required
-                 autocomplete="off"
+                 autocomplete="off" value="{{ dod.identificador|default:'' }}"
                  placeholder="Buscar demanda da unidade ({{ unidade.sigla }}) ou digitar um identificador livre…">
+          {% if not dod %}
           <div id="identificadorSugestoes" class="list-group position-absolute w-100 shadow-sm"
                style="z-index:1055; max-height:260px; overflow-y:auto; display:none;"></div>
+          {% endif %}
         </div>
         <div class="col-md-3">
           <label class="form-label small fw-semibold">Nº SEI</label>
-          <input type="text" name="numero_sei" class="form-control form-control-sm" placeholder="00000.000000/2026-00">
+          <input type="text" name="numero_sei" class="form-control form-control-sm" placeholder="00000.000000/2026-00"
+                 value="{{ dod.numero_sei|default:'' }}">
         </div>
         <div class="col-md-4">
           <label class="form-label small fw-semibold">Unidade orçamentária
@@ -113,7 +138,7 @@
           <select name="unidade_orcamentaria" class="form-select form-select-sm">
             <option value="">—</option>
             {% for val, label in unidade_orcamentaria_choices %}
-              <option value="{{ val }}">{{ label }}</option>
+              <option value="{{ val }}" {% if dod and dod.unidade_orcamentaria == val %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
           </select>
         </div>
@@ -134,7 +159,7 @@
             </button>
           </div>
           <textarea name="objeto" class="form-control form-control-sm" rows="2"
-                    placeholder="Descrição resumida do objeto da contratação"></textarea>
+                    placeholder="Descrição resumida do objeto da contratação">{{ dod.objeto|default:"" }}</textarea>
         </div>
       </div>
     </div>
@@ -236,7 +261,7 @@
           <select name="natureza_objeto" id="naturezaObjeto" class="form-select form-select-sm">
             <option value="">—</option>
             {% for val, label in natureza_objeto_choices %}
-              <option value="{{ val }}">{{ label }}</option>
+              <option value="{{ val }}" {% if dod and dod.natureza_objeto == val %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
           </select>
           <div id="avisoTI" class="alert alert-info py-2 px-3 mt-2 mb-0" style="font-size:.78rem; display:none;">
@@ -251,22 +276,26 @@
           </label>
           <div class="btn-group w-100" role="group" aria-label="Grau de prioridade">
             {% for val, label in grau_prioridade_choices %}
-            <input type="radio" class="btn-check" name="grau_prioridade" id="prio_{{ val }}" value="{{ val }}" autocomplete="off">
+            <input type="radio" class="btn-check" name="grau_prioridade" id="prio_{{ val }}" value="{{ val }}" autocomplete="off"
+                   {% if dod and dod.grau_prioridade == val %}checked{% endif %}>
             <label class="btn btn-outline-secondary btn-sm" for="prio_{{ val }}">{{ label }}</label>
             {% endfor %}
           </div>
         </div>
         <div class="col-md-3">
           <label class="form-label small fw-semibold">Previsão início execução</label>
-          <input type="date" name="previsao_inicio_execucao" class="form-control form-control-sm">
+          <input type="date" name="previsao_inicio_execucao" class="form-control form-control-sm"
+                 value="{{ dod.previsao_inicio_execucao|date:'Y-m-d'|default:'' }}">
         </div>
         <div class="col-md-3">
           <label class="form-label small fw-semibold">Previsão término execução</label>
-          <input type="date" name="previsao_termino_execucao" class="form-control form-control-sm">
+          <input type="date" name="previsao_termino_execucao" class="form-control form-control-sm"
+                 value="{{ dod.previsao_termino_execucao|date:'Y-m-d'|default:'' }}">
         </div>
         <div class="col-md-6 d-flex align-items-end">
           <div class="form-check form-switch">
-            <input type="checkbox" name="contratacao_correlata" value="1" class="form-check-input" id="contratacaoCorrelata" role="switch">
+            <input type="checkbox" name="contratacao_correlata" value="1" class="form-check-input" id="contratacaoCorrelata" role="switch"
+                   {% if dod.contratacao_correlata %}checked{% endif %}>
             <label class="form-check-label small" for="contratacaoCorrelata">
               Há contratação correlata (providência prévia)?
               <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
@@ -274,9 +303,9 @@
             </label>
           </div>
         </div>
-        <div class="col-12" id="contratacaoCorrelataQualWrap" style="display:none;">
+        <div class="col-12" id="contratacaoCorrelataQualWrap" style="display:{% if dod.contratacao_correlata %}block{% else %}none{% endif %};">
           <label class="form-label small fw-semibold">Se sim, qual?</label>
-          <textarea name="contratacao_correlata_qual" class="form-control form-control-sm" rows="2"></textarea>
+          <textarea name="contratacao_correlata_qual" class="form-control form-control-sm" rows="2">{{ dod.contratacao_correlata_qual|default:"" }}</textarea>
         </div>
       </div>
     </div>
@@ -300,7 +329,7 @@
             <select name="integrante_requisitante" id="selRequisitante" class="form-select form-select-sm">
               <option value="">—</option>
               {% for u in usuarios %}
-                <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+                <option value="{{ u.pk }}" {% if equipe and equipe.integrante_requisitante_id == u.pk %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
               {% endfor %}
             </select>
             <button type="button" class="btn btn-outline-secondary btn-sm btn-sou-eu" data-target="selRequisitante"
@@ -313,7 +342,7 @@
             <select name="integrante_tecnico" id="selTecnico" class="form-select form-select-sm">
               <option value="">—</option>
               {% for u in usuarios %}
-                <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+                <option value="{{ u.pk }}" {% if equipe and equipe.integrante_tecnico_id == u.pk %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
               {% endfor %}
             </select>
             <button type="button" class="btn btn-outline-secondary btn-sm btn-sou-eu" data-target="selTecnico"
@@ -326,7 +355,7 @@
             <select name="integrante_administrativo" id="selAdministrativo" class="form-select form-select-sm">
               <option value="">—</option>
               {% for u in usuarios %}
-                <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>
+                <option value="{{ u.pk }}" {% if equipe and equipe.integrante_administrativo_id == u.pk %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
               {% endfor %}
             </select>
             <button type="button" class="btn btn-outline-secondary btn-sm btn-sou-eu" data-target="selAdministrativo"
@@ -336,17 +365,20 @@
         <div class="col-md-8">
           <label class="form-label small fw-semibold d-block">Líder da equipe</label>
           <div class="btn-group" role="group" aria-label="Líder da equipe">
-            <input type="radio" class="btn-check" name="lider" id="lider_requisitante" value="requisitante" checked autocomplete="off">
+            <input type="radio" class="btn-check" name="lider" id="lider_requisitante" value="requisitante" autocomplete="off"
+                   {% if not equipe or equipe.lider == 'requisitante' %}checked{% endif %}>
             <label class="btn btn-outline-secondary btn-sm" for="lider_requisitante">Requisitante</label>
-            <input type="radio" class="btn-check" name="lider" id="lider_tecnico" value="tecnico" autocomplete="off">
+            <input type="radio" class="btn-check" name="lider" id="lider_tecnico" value="tecnico" autocomplete="off"
+                   {% if equipe.lider == 'tecnico' %}checked{% endif %}>
             <label class="btn btn-outline-secondary btn-sm" for="lider_tecnico">Técnico</label>
-            <input type="radio" class="btn-check" name="lider" id="lider_administrativo" value="administrativo" autocomplete="off">
+            <input type="radio" class="btn-check" name="lider" id="lider_administrativo" value="administrativo" autocomplete="off"
+                   {% if equipe.lider == 'administrativo' %}checked{% endif %}>
             <label class="btn btn-outline-secondary btn-sm" for="lider_administrativo">Administrativo</label>
           </div>
         </div>
         <div class="col-md-4">
           <label class="form-label small fw-semibold">Ato de designação (SEI)</label>
-          <input type="text" name="ato_designacao_sei" class="form-control form-control-sm">
+          <input type="text" name="ato_designacao_sei" class="form-control form-control-sm" value="{{ equipe.ato_designacao_sei|default:'' }}">
         </div>
       </div>
     </div>
@@ -355,11 +387,11 @@
   <!-- Alinhamento estratégico + Fundamentação (opcionais, colapsados) -->
   <div class="card mb-4">
     <div class="card-header bg-white border-bottom py-3" role="button" data-bs-toggle="collapse"
-         data-bs-target="#secDetalhamento" aria-expanded="false">
+         data-bs-target="#secDetalhamento" aria-expanded="{% if tem_detalhamento %}true{% else %}false{% endif %}">
       <i class="bi bi-chevron-down me-2 text-primary"></i>Alinhamento estratégico e fundamentação
       <span class="text-muted small">(opcional)</span>
     </div>
-    <div id="secDetalhamento" class="collapse">
+    <div id="secDetalhamento" class="collapse{% if tem_detalhamento %} show{% endif %}">
       <div class="card-body">
         <div class="row g-3">
           <div class="col-md-6">
@@ -372,7 +404,7 @@
                 <i class="bi bi-stars me-1"></i>Sugerir com IA
               </button>
             </div>
-            <textarea name="objetivos_estrategicos" class="form-control form-control-sm" rows="2"></textarea>
+            <textarea name="objetivos_estrategicos" class="form-control form-control-sm" rows="2">{{ dod.objetivos_estrategicos|default:"" }}</textarea>
           </div>
           <div class="col-md-6">
             <div class="d-flex align-items-center justify-content-between">
@@ -385,7 +417,7 @@
               </button>
             </div>
             <textarea name="alinhamento_pdtic" class="form-control form-control-sm" rows="2"
-                      placeholder="Ex.: Ação 3 — Meta 5"></textarea>
+                      placeholder="Ex.: Ação 3 — Meta 5">{{ dod.alinhamento_pdtic|default:"" }}</textarea>
           </div>
           <div class="col-md-6">
             <div class="d-flex align-items-center justify-content-between">
@@ -397,7 +429,7 @@
                 <i class="bi bi-stars me-1"></i>Sugerir com IA
               </button>
             </div>
-            <textarea name="necessidade_contratacao" class="form-control form-control-sm" rows="2"></textarea>
+            <textarea name="necessidade_contratacao" class="form-control form-control-sm" rows="2">{{ dod.necessidade_contratacao|default:"" }}</textarea>
           </div>
           <div class="col-md-6">
             <div class="d-flex align-items-center justify-content-between">
@@ -409,7 +441,7 @@
                 <i class="bi bi-stars me-1"></i>Sugerir com IA
               </button>
             </div>
-            <textarea name="motivacao_justificativa" class="form-control form-control-sm" rows="2"></textarea>
+            <textarea name="motivacao_justificativa" class="form-control form-control-sm" rows="2">{{ dod.motivacao_justificativa|default:"" }}</textarea>
           </div>
           <div class="col-md-6">
             <div class="d-flex align-items-center justify-content-between">
@@ -421,7 +453,7 @@
                 <i class="bi bi-stars me-1"></i>Sugerir com IA
               </button>
             </div>
-            <textarea name="objetivo_contratacao" class="form-control form-control-sm" rows="2"></textarea>
+            <textarea name="objetivo_contratacao" class="form-control form-control-sm" rows="2">{{ dod.objetivo_contratacao|default:"" }}</textarea>
           </div>
           <div class="col-md-6">
             <div class="d-flex align-items-center justify-content-between">
@@ -433,7 +465,7 @@
                 <i class="bi bi-stars me-1"></i>Sugerir com IA
               </button>
             </div>
-            <textarea name="meta_contratacao" class="form-control form-control-sm" rows="2"></textarea>
+            <textarea name="meta_contratacao" class="form-control form-control-sm" rows="2">{{ dod.meta_contratacao|default:"" }}</textarea>
           </div>
           <div class="col-md-6">
             <div class="d-flex align-items-center justify-content-between">
@@ -445,7 +477,7 @@
                 <i class="bi bi-stars me-1"></i>Sugerir com IA
               </button>
             </div>
-            <textarea name="indicador_resultado" class="form-control form-control-sm" rows="2"></textarea>
+            <textarea name="indicador_resultado" class="form-control form-control-sm" rows="2">{{ dod.indicador_resultado|default:"" }}</textarea>
           </div>
         </div>
       </div>
@@ -453,9 +485,13 @@
   </div>
 
   <div class="d-flex justify-content-end gap-2 mb-5">
+    {% if dod %}
+    <a href="{% url 'planejamento:dod_detalhe' dod.pk %}" class="btn btn-outline-secondary">Cancelar</a>
+    {% else %}
     <a href="{% url 'planejamento:dashboard' %}" class="btn btn-outline-secondary">Cancelar</a>
+    {% endif %}
     <button type="submit" class="btn btn-primary">
-      <i class="bi bi-check-lg me-1"></i>Salvar DOD
+      <i class="bi bi-check-lg me-1"></i>{% if dod %}Salvar alterações{% else %}Salvar DOD{% endif %}
     </button>
   </div>
 </form>

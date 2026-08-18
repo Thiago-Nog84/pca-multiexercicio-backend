@@ -31,7 +31,7 @@
     <a href="{% url 'planejamento:checklist_instrucao' %}?pca_id={{ dod.pca_id }}" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-arrow-left me-1"></i>Voltar ao checklist
     </a>
-    <a href="/admin/planejamento/documentooficializacaodemanda/{{ dod.pk }}/change/" class="btn btn-outline-primary btn-sm">
+    <a href="{% url 'planejamento:dod_editar' dod.pk %}" class="btn btn-outline-primary btn-sm">
       <i class="bi bi-pencil me-1"></i>Editar
     </a>
   </div>
@@ -208,7 +208,12 @@
           </dd>
 
           <dt class="col-5 text-muted">Responsável</dt>
-          <dd class="col-7">{{ dod.responsavel_preenchimento.get_full_name|default:dod.responsavel_preenchimento.username|default:"—" }}</dd>
+          <dd class="col-7">
+            {# firstof (não |default:) — o ARGUMENTO de um filtro resolve estrito, então .username
+               em cima de responsavel_preenchimento=None estoura VariableDoesNotExist. Mesmo motivo
+               documentado em dod_form.html para o campo "responsável" dos itens. #}
+            {% firstof dod.responsavel_preenchimento.get_full_name dod.responsavel_preenchimento.username "—" %}
+          </dd>
 
           <dt class="col-5 text-muted">Criado em</dt>
           <dd class="col-7">{{ dod.criado_em|date:"d/m/Y H:i" }}</dd>
@@ -243,7 +248,7 @@
             <i class="bi bi-pencil-square fs-3 d-block mb-2"></i>
             Nenhum campo de fundamentação preenchido ainda.
             <div class="mt-2">
-              <a href="/admin/planejamento/documentooficializacaodemanda/{{ dod.pk }}/change/" class="btn btn-outline-primary btn-sm">Preencher</a>
+              <a href="{% url 'planejamento:dod_editar' dod.pk %}" class="btn btn-outline-primary btn-sm">Preencher</a>
             </div>
           </div>
         {% endif %}
@@ -266,19 +271,19 @@
         <div class="text-muted small mb-1">
           Requisitante {% if equipe.lider == 'requisitante' %}<i class="bi bi-star-fill text-warning" title="Líder"></i>{% endif %}
         </div>
-        {{ equipe.integrante_requisitante.get_full_name|default:equipe.integrante_requisitante.username|default:"—" }}
+        {% firstof equipe.integrante_requisitante.get_full_name equipe.integrante_requisitante.username "—" %}
       </div>
       <div class="col-md-4">
         <div class="text-muted small mb-1">
           Técnico {% if equipe.lider == 'tecnico' %}<i class="bi bi-star-fill text-warning" title="Líder"></i>{% endif %}
         </div>
-        {{ equipe.integrante_tecnico.get_full_name|default:equipe.integrante_tecnico.username|default:"—" }}
+        {% firstof equipe.integrante_tecnico.get_full_name equipe.integrante_tecnico.username "—" %}
       </div>
       <div class="col-md-4">
         <div class="text-muted small mb-1">
           Administrativo {% if equipe.lider == 'administrativo' %}<i class="bi bi-star-fill text-warning" title="Líder"></i>{% endif %}
         </div>
-        {{ equipe.integrante_administrativo.get_full_name|default:equipe.integrante_administrativo.username|default:"—" }}
+        {% firstof equipe.integrante_administrativo.get_full_name equipe.integrante_administrativo.username "—" %}
       </div>
     </div>
     {% if equipe.ato_designacao_sei %}
