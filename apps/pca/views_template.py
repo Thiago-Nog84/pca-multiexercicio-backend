@@ -184,8 +184,10 @@ def filtrar_demandas(request, pca):
 
     Retorna (queryset, dicionario_de_filtros_aplicados).
     """
+    # item_catalogo entra no select_related porque a listagem exibe o nome
+    # curto do catálogo — sem isso seria uma query extra por linha da tabela.
     itens_qs = ItemPCA.objects.select_related(
-        "dfd", "dfd__pca", "dfd__unidade"
+        "dfd", "dfd__pca", "dfd__unidade", "item_catalogo"
     ).order_by("dfd__pca__exercicio", "numero_lote_pca", "dfd__numero_dfd", "numero_item")
 
     if pca:

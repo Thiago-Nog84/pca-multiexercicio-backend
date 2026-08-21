@@ -204,9 +204,19 @@
                 {% endif %}
               </td>
               <td style="max-width:260px;">
+                {% if item.item_catalogo %}
+                {# Nome curto do catálogo — a descrição completa fica no tooltip. #}
                 <div class="text-truncate" style="max-width:250px;" title="{{ item.descricao }}">
+                  {{ item.item_catalogo.descricao_padrao }}
+                </div>
+                {% else %}
+                {# Sem vínculo com o catálogo: cai para a descrição, em itálico
+                   e esmaecida, para sinalizar que o item ainda precisa de curadoria. #}
+                <div class="text-truncate fst-italic text-muted" style="max-width:250px;"
+                     title="Sem vínculo com o catálogo — {{ item.descricao }}">
                   {{ item.descricao|truncatechars:60 }}
                 </div>
+                {% endif %}
               </td>
               <td style="font-size:.8rem;">
                 {{ item.dfd.numero_dfd|default:"-" }}<br>
