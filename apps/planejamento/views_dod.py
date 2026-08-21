@@ -49,6 +49,31 @@ def _anotar_uo(itens):
     return lista
 
 
+def _marcadores_natureza(request):
+    """
+    Lê do POST os 3 marcadores que acompanham a natureza do objeto
+    (reestruturação de 2026-08-18 — ver `NATUREZA_OBJETO` no model).
+
+    `com_demo` é zerado fora de Serviços em vez de virar erro: a caixa fica
+    desabilitada na tela nesse caso, então um "com_demo" chegando junto de
+    fornecimento significa que o usuário marcou DEMO e DEPOIS trocou a
+    natureza — a intenção final é a natureza nova. Recusar o formulário
+    inteiro por isso seria implicância. O `clean()` do model continua
+    barrando a combinação para quem vier por fora da tela (script, admin,
+    POST forjado).
+    """
+    natureza = request.POST.get("natureza_objeto", "").strip()
+    return {
+        "natureza_objeto": natureza,
+        "solucao_tic": request.POST.get("solucao_tic") == "1",
+        "item_continuado": request.POST.get("item_continuado") == "1",
+        "com_demo": (
+            request.POST.get("com_demo") == "1"
+            and natureza == DocumentoOficializacaoDemanda.NATUREZA_SERVICOS
+        ),
+    }
+
+
 def _uos_disponiveis(itens):
     """
     Fontes de recurso presentes na lista de itens elegíveis, com a contagem de
@@ -230,7 +255,7 @@ class DODCriarView(View):
             "unidade_orcamentaria_choices": DocumentoOficializacaoDemanda.UNIDADE_ORCAMENTARIA,
             "natureza_objeto_choices": DocumentoOficializacaoDemanda.NATUREZA_OBJETO,
             "grau_prioridade_choices": DocumentoOficializacaoDemanda.GRAU_PRIORIDADE,
-            "natureza_ti": DocumentoOficializacaoDemanda.NATUREZA_TI,
+            "natureza_servicos": DocumentoOficializacaoDemanda.NATUREZA_SERVICOS,
             "sem_unidade_vinculada": sem_unidade_vinculada,
             "tem_detalhamento": False,
         }
@@ -287,7 +312,7 @@ class DODCriarView(View):
             return redirect(f"/planejamento/dods/novo/?pca_id={pca_id}&unidade_id={unidade.pk}")
 
         pca = get_object_or_404(PlanoContratacaoAnual, pk=pca_id)
-        natureza_objeto = request.POST.get("natureza_objeto", "").strip()
+        natureza = _marcadores_natureza(request)
 
         try:
             with transaction.atomic():
@@ -297,7 +322,7 @@ class DODCriarView(View):
                     numero_sei=request.POST.get("numero_sei", "").strip(),
                     objeto=request.POST.get("objeto", "").strip(),
                     unidade_orcamentaria=unidade_orcamentaria,
-                    natureza_objeto=natureza_objeto,
+                    **natureza,
                     contratacao_correlata=request.POST.get("contratacao_correlata") == "1",
                     contratacao_correlata_qual=request.POST.get("contratacao_correlata_qual", "").strip(),
                     grau_prioridade=request.POST.get("grau_prioridade", "").strip(),
@@ -326,7 +351,7 @@ class DODCriarView(View):
                     request.POST.get(campo)
                     for campo in ("integrante_requisitante", "integrante_tecnico", "integrante_administrativo")
                 )
-                if equipe_preenchida or natureza_objeto == DocumentoOficializacaoDemanda.NATUREZA_TI:
+                if equipe_preenchida or dod.exige_equipe_ti:
                     equipe = EquipePlanejamentoTI(
                         dod=dod,
                         integrante_requisitante_id=request.POST.get("integrante_requisitante") or None,
@@ -336,7 +361,7 @@ class DODCriarView(View):
                         ato_designacao_sei=request.POST.get("ato_designacao_sei", "").strip(),
                     )
                     # EquipePlanejamentoTI.clean() é quem decide (via
-                    # dod.natureza_objeto) se os 3 papéis distintos são
+                    # dod.exige_equipe_ti) se os 3 papéis distintos são
                     # obrigatórios aqui — regra condicional implementada em
                     # 2026-08-17 a pedido do Thiago.
                     equipe.full_clean()
@@ -501,7 +526,7 @@ class DODEditarView(View):
             "unidade_orcamentaria_choices": DocumentoOficializacaoDemanda.UNIDADE_ORCAMENTARIA,
             "natureza_objeto_choices": DocumentoOficializacaoDemanda.NATUREZA_OBJETO,
             "grau_prioridade_choices": DocumentoOficializacaoDemanda.GRAU_PRIORIDADE,
-            "natureza_ti": DocumentoOficializacaoDemanda.NATUREZA_TI,
+            "natureza_servicos": DocumentoOficializacaoDemanda.NATUREZA_SERVICOS,
             "sem_unidade_vinculada": False,
         }
         return render(request, self.template_name, context)
@@ -538,7 +563,7 @@ class DODEditarView(View):
             messages.error(request, erro_uo)
             return redirect("planejamento:dod_editar", pk=dod.pk)
 
-        natureza_objeto = request.POST.get("natureza_objeto", "").strip()
+        natureza = _marcadores_natureza(request)
 
         try:
             with transaction.atomic():
@@ -546,7 +571,8 @@ class DODEditarView(View):
                 dod.numero_sei = request.POST.get("numero_sei", "").strip()
                 dod.objeto = request.POST.get("objeto", "").strip()
                 dod.unidade_orcamentaria = unidade_orcamentaria
-                dod.natureza_objeto = natureza_objeto
+                for campo, valor in natureza.items():
+                    setattr(dod, campo, valor)
                 dod.contratacao_correlata = request.POST.get("contratacao_correlata") == "1"
                 dod.contratacao_correlata_qual = request.POST.get("contratacao_correlata_qual", "").strip()
                 dod.grau_prioridade = request.POST.get("grau_prioridade", "").strip()
@@ -575,7 +601,7 @@ class DODEditarView(View):
                 if a_adicionar:
                     dod.itens.add(*a_adicionar)
 
-                self._salvar_equipe(request, dod, natureza_objeto)
+                self._salvar_equipe(request, dod)
 
         except ValidationError as e:
             detalhe = "; ".join(e.messages) if hasattr(e, "messages") else str(e)
@@ -586,15 +612,18 @@ class DODEditarView(View):
         return redirect("planejamento:dod_detalhe", pk=dod.pk)
 
     @staticmethod
-    def _salvar_equipe(request, dod, natureza_objeto):
+    def _salvar_equipe(request, dod):
         equipe_preenchida = any(
             request.POST.get(campo)
             for campo in ("integrante_requisitante", "integrante_tecnico", "integrante_administrativo")
         )
         equipe = getattr(dod, "equipe_planejamento_ti", None)
 
-        if not equipe_preenchida and natureza_objeto != DocumentoOficializacaoDemanda.NATUREZA_TI:
-            # Campos todos vazios e a natureza não exige equipe: se havia
+        # `dod` já vem com os marcadores desta edição atribuídos, então
+        # `exige_equipe_ti` reflete o que o usuário acabou de marcar — não o
+        # que estava salvo antes.
+        if not equipe_preenchida and not dod.exige_equipe_ti:
+            # Campos todos vazios e o DOD não exige equipe: se havia
             # uma equipe de uma edição anterior, ela fica órfã de sentido —
             # remove em vez de deixar dado morto no banco.
             if equipe is not None:

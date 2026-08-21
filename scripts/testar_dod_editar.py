@@ -49,7 +49,7 @@ resp = client.post("/planejamento/dods/novo/", {
     "unidade_id": unidade.pk,
     "identificador": "TESTE editar DOD — apagar",
     "numero_sei": "19.21.0001.0000002/2026-22",
-    "natureza_objeto": "fornecimento_nao_continuado",
+    "natureza_objeto": "fornecimento",
     "itens": [str(item_a.pk), str(item_b.pk)],
 })
 assert resp.status_code == 302, (resp.status_code, resp.content[:500])
@@ -71,7 +71,7 @@ try:
     resp = client.post(f"/planejamento/dods/{dod.pk}/editar/", {
         "identificador": "TESTE editar DOD (editado) — apagar",
         "numero_sei": "19.21.0001.0000002/2026-22",
-        "natureza_objeto": "fornecimento_nao_continuado",
+        "natureza_objeto": "fornecimento",
         "itens": [str(item_a.pk), str(item_c.pk)],
         "integrante_requisitante": str(usuario.pk),
         "lider": "requisitante",
@@ -99,11 +99,14 @@ try:
     print("OK: dod_detalhe reflete a edicao (identificador, item novo, item removido sumiu)")
 
     # ---- validacao de equipe continua valendo na edicao ---------------
-    # muda pra natureza TI sem preencher os 3 papeis -> tem que barrar, sem
-    # quebrar nada que ja estava salvo (transaction.atomic reverte tudo)
+    # marca "Solucao de TIC" sem preencher os 3 papeis -> tem que barrar, sem
+    # quebrar nada que ja estava salvo (transaction.atomic reverte tudo).
+    # Desde 2026-08-18 quem dispara a exigencia e o marcador solucao_tic, e
+    # nao mais natureza_objeto == "solucao_ti" (TIC deixou de ser natureza).
     resp_invalido = client.post(f"/planejamento/dods/{dod.pk}/editar/", {
         "identificador": "NAO DEVERIA SALVAR",
-        "natureza_objeto": "solucao_ti",
+        "natureza_objeto": "fornecimento",
+        "solucao_tic": "1",
         "itens": [str(item_a.pk), str(item_c.pk)],
         "integrante_requisitante": str(usuario.pk),
         "lider": "requisitante",
@@ -114,7 +117,54 @@ try:
     assert dod.identificador == "TESTE editar DOD (editado) — apagar", (
         f"a validacao de equipe falhou mas o resto foi salvo mesmo assim: {dod.identificador!r}"
     )
-    print("OK: equipe incompleta em natureza TI barra a edicao inteira (atomic reverte tudo)")
+    assert not dod.solucao_tic, "solucao_tic vazou numa edicao que deveria ter sido revertida"
+    print("OK: equipe incompleta com TIC marcado barra a edicao inteira (atomic reverte tudo)")
+
+    # ---- os 3 marcadores da natureza ----------------------------------
+    # com_demo + fornecimento: a view zera o marcador (a caixa fica
+    # desabilitada na tela), entao salva sem DEMO em vez de recusar o form.
+    resp = client.post(f"/planejamento/dods/{dod.pk}/editar/", {
+        "identificador": dod.identificador,
+        "natureza_objeto": "fornecimento",
+        "com_demo": "1",
+        "item_continuado": "1",
+        "itens": [str(item_a.pk), str(item_c.pk)],
+    })
+    assert resp.status_code == 302 and "/editar/" not in resp.headers["Location"]
+    dod.refresh_from_db()
+    assert not dod.com_demo, "DEMO nao pode sobreviver fora da natureza Servicos"
+    assert dod.item_continuado, "item_continuado deveria ter sido salvo"
+    print("OK: DEMO e ignorado fora de Servicos; item_continuado salva normal")
+
+    # ja em Servicos, o mesmo POST grava o DEMO -- e desmarcar de fato desmarca
+    resp = client.post(f"/planejamento/dods/{dod.pk}/editar/", {
+        "identificador": dod.identificador,
+        "natureza_objeto": "servicos",
+        "com_demo": "1",
+        "itens": [str(item_a.pk), str(item_c.pk)],
+    })
+    assert resp.status_code == 302 and "/editar/" not in resp.headers["Location"]
+    dod.refresh_from_db()
+    assert dod.natureza_objeto == "servicos" and dod.com_demo, (dod.natureza_objeto, dod.com_demo)
+    assert not dod.item_continuado, "item_continuado devia ter sido desmarcado nesta edicao"
+    print("OK: DEMO grava em Servicos, e desmarcar um checkbox realmente desmarca")
+
+    # a tela de detalhe mostra os marcadores como etiquetas
+    detalhe_html = client.get(f"/planejamento/dods/{dod.pk}/").content.decode()
+    assert "Servi" in detalhe_html and ">DEMO<" in detalhe_html
+    print("OK: dod_detalhe mostra a etiqueta DEMO ao lado da natureza")
+
+    # o model barra a combinacao invalida para quem vier por fora da tela
+    from django.core.exceptions import ValidationError as VE
+    dod.natureza_objeto = "obra_engenharia"
+    dod.com_demo = True
+    try:
+        dod.full_clean()
+        raise AssertionError("full_clean deveria recusar DEMO em obra de engenharia")
+    except VE as e:
+        assert "com_demo" in e.message_dict, e.message_dict
+    dod.refresh_from_db()
+    print("OK: model.clean() barra DEMO fora de Servicos (script/admin/POST forjado)")
 
     print("\nTUDO OK: edicao do DOD funciona ponta a ponta.")
 finally:

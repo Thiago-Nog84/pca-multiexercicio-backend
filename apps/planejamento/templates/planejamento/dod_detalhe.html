@@ -180,7 +180,26 @@
           <dd class="col-7">{{ dod.get_unidade_orcamentaria_display|default:"—" }}</dd>
 
           <dt class="col-5 text-muted">Natureza do objeto</dt>
-          <dd class="col-7">{{ dod.get_natureza_objeto_display|default:"—" }}</dd>
+          <dd class="col-7">
+            {{ dod.get_natureza_objeto_display|default:"—" }}
+            {% comment %}
+              Os 3 marcadores viram etiquetas ao lado da natureza: juntos eles recompõem o
+              rótulo completo que antes era uma única opção do formulário SEI (ex.: "Serviços"
+              + Continuado + DEMO = "serviços continuados com dedicação de mão de obra").
+            {% endcomment %}
+            {% if dod.solucao_tic %}
+              <span class="badge rounded-pill bg-info-subtle text-info-emphasis border border-info-subtle ms-1"
+                    style="font-size:.65rem;" title="Res. CNMP 283/2024">TIC</span>
+            {% endif %}
+            {% if dod.item_continuado %}
+              <span class="badge rounded-pill bg-light text-dark border ms-1"
+                    style="font-size:.65rem;" title="Ato PGJ 1415/2024">Continuado</span>
+            {% endif %}
+            {% if dod.com_demo %}
+              <span class="badge rounded-pill bg-light text-dark border ms-1"
+                    style="font-size:.65rem;" title="Com dedicação exclusiva de mão de obra">DEMO</span>
+            {% endif %}
+          </dd>
 
           <dt class="col-5 text-muted">Prioridade</dt>
           <dd class="col-7">
@@ -261,8 +280,8 @@
 <div class="card mb-4">
   <div class="card-header bg-white border-bottom py-3">
     <i class="bi bi-people me-2 text-primary"></i>Equipe de Planejamento
-    {% if dod.natureza_objeto == 'solucao_ti' %}
-      <span class="badge bg-info text-dark ms-2" style="font-size:.65rem;" title="Res. CNMP 283/2024 exige os 3 papéis distintos">Solução de TI</span>
+    {% if dod.solucao_tic %}
+      <span class="badge bg-info text-dark ms-2" style="font-size:.65rem;" title="Res. CNMP 283/2024 exige os 3 papéis distintos">Solução de TIC</span>
     {% endif %}
   </div>
   <div class="card-body">

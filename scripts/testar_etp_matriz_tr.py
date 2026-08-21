@@ -179,11 +179,11 @@ resp = client.post("/planejamento/dods/novo/", {
     "pca_id": pca.pk,
     "unidade_id": unidade.pk,
     "identificador": "TESTE ETP/Matriz/TR — apagar",
-    # natureza_objeto do DOD fica fora de TI de proposito: is_ti mora no
-    # ETP (campo independente), e natureza_objeto == solucao_ti exigiria
-    # preencher os 3 papeis da EquipePlanejamentoTI (Res. CNMP 283/2024)
-    # so pra este teste passar, sem relacao com o que estamos testando.
-    "natureza_objeto": "fornecimento_nao_continuado",
+    # O DOD fica SEM o marcador solucao_tic de proposito: is_ti mora no ETP
+    # (campo independente), e marcar TIC no DOD exigiria preencher os 3
+    # papeis da EquipePlanejamentoTI (Res. CNMP 283/2024) so pra este teste
+    # passar, sem relacao com o que estamos testando.
+    "natureza_objeto": "fornecimento",
     "itens": [str(item.pk)],
 })
 assert resp.status_code == 302, (resp.status_code, resp.content[:500])

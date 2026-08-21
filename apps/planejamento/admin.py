@@ -84,12 +84,12 @@ class EquipePlanejamentoTIInline(admin.StackedInline):
     ]
 
     def get_fields(self, request, obj=None):
-        # "Integrante Administrativo" só é relevante em contratação de TI
-        # (Res. CNMP 283/2024) — some do formulário nas demais naturezas
-        # pra não sugerir que é sempre exigido. A regra de fato (bloquear
-        # save incompleto) mora em EquipePlanejamentoTI.clean().
+        # "Integrante Administrativo" só é relevante em contratação de TIC
+        # (Res. CNMP 283/2024) — some do formulário nos demais casos pra não
+        # sugerir que é sempre exigido. A regra de fato (bloquear save
+        # incompleto) mora em EquipePlanejamentoTI.clean().
         fields = list(super().get_fields(request, obj))
-        if obj is not None and obj.natureza_objeto != DocumentoOficializacaoDemanda.NATUREZA_TI:
+        if obj is not None and not obj.exige_equipe_ti:
             fields = [f for f in fields if f != "integrante_administrativo"]
         return fields
 
@@ -100,7 +100,10 @@ class DocumentoOficializacaoDemandaAdmin(admin.ModelAdmin):
         "identificador", "pca", "status", "grau_prioridade",
         "qtd_itens", "valor_total_estimado", "criado_em",
     ]
-    list_filter = ["pca", "status", "grau_prioridade", "unidade_orcamentaria"]
+    list_filter = [
+        "pca", "status", "grau_prioridade", "unidade_orcamentaria",
+        "natureza_objeto", "solucao_tic", "item_continuado", "com_demo",
+    ]
     search_fields = ["identificador", "numero_sei", "objeto"]
     filter_horizontal = ["itens"]
     inlines = [EquipePlanejamentoTIInline]
@@ -112,6 +115,7 @@ class DocumentoOficializacaoDemandaAdmin(admin.ModelAdmin):
         ("Informações gerais da contratação", {
             "fields": [
                 "unidade_orcamentaria", "natureza_objeto",
+                "solucao_tic", "item_continuado", "com_demo",
                 "contratacao_correlata", "contratacao_correlata_qual",
                 "grau_prioridade", "previsao_inicio_execucao", "previsao_termino_execucao",
             ],

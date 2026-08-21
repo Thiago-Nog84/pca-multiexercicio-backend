@@ -68,7 +68,7 @@ resp = client.post("/planejamento/dods/novo/", {
     "numero_sei": "19.21.0001.0000000/2026-99",
     "objeto": "DOD de teste automatizado da tela de detalhe.",
     # unidade_orcamentaria NAO vai mais no POST: e derivada dos itens.
-    "natureza_objeto": "fornecimento_nao_continuado",
+    "natureza_objeto": "fornecimento",
     "grau_prioridade": "medio",
     "necessidade_contratacao": "Verificar a renderizacao da secao de fundamentacao.",
     "motivacao_justificativa": "Segunda secao preenchida, para conferir o loop de campos_texto.",

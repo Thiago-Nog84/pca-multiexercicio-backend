@@ -5,6 +5,52 @@
 {% block title %}PCA — Visão Geral{% endblock %}
 {% block nav_pca %}active{% endblock %}
 
+{% block extra_style %}
+<style>
+  /* ── Painel de gráficos: um gráfico por vez (cards + descrição + gráfico) ── */
+  .chart-switcher-top { margin-bottom: .75rem; }
+  .chart-card-btn {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .35rem;
+    padding: .65rem .5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+    color: #475569;
+    font-size: .74rem;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.25;
+    min-height: 78px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, color .15s, box-shadow .15s;
+  }
+  .chart-card-btn i { font-size: 1.1rem; color: #9ca3af; transition: color .15s; }
+  .chart-card-btn:hover { border-color: var(--mppi-vermelho, #9B2335); color: var(--mppi-vermelho-escuro, #7A1B28); }
+  .chart-card-btn.active {
+    border-color: var(--mppi-vermelho, #9B2335);
+    background: rgba(155, 35, 53, .06);
+    color: var(--mppi-vermelho-escuro, #7A1B28);
+    box-shadow: 0 2px 8px rgba(155, 35, 53, .12);
+  }
+  .chart-card-btn.active i { color: var(--mppi-vermelho, #9B2335); }
+  .chart-desc-box {
+    border-left: 3px solid var(--mppi-vermelho, #9B2335);
+    background: #f8fafc;
+    border-radius: 0 8px 8px 0;
+    padding: .6rem .9rem;
+  }
+  .chart-desc-title { font-size: .85rem; font-weight: 700; color: #1e293b; margin-bottom: .15rem; }
+  .chart-desc-text { font-size: .78rem; color: #64748b; }
+  .chart-switcher-bottom { border-top: 1px solid #eef1f4; padding-top: .9rem; margin-top: .9rem; }
+  .chart-panel .chart-metric-toggle { margin-bottom: .35rem; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
   <div>
@@ -118,82 +164,83 @@
 </div>
 {% endif %}
 
-<!-- KPIs PRINCIPAIS — visão macro (ativas), sem centavos, formato consistente entre os 4 -->
+<!-- KPIs PRINCIPAIS — dois blocos verticais: demandas (contagem) à esquerda, valores (R$) à direita -->
 <div class="row g-3 mb-4">
-  <div class="col-6 col-md-3">
-    <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
-      <div class="d-flex align-items-start justify-content-between">
-        <div>
-          <div class="kpi-label">Total de Demandas (Ativas)
-            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
-               title="Quantidade ativa no PCA (exclui um total de {{ suspensos }} processo{{ suspensos|pluralize:"s" }} suspenso{{ suspensos|pluralize:"s" }})."></i>
+  <div class="col-12 col-md-6">
+    <div class="d-flex flex-column gap-3 h-100">
+      <div class="card kpi-card p-3 border-0 shadow-sm">
+        <div class="d-flex align-items-start justify-content-between">
+          <div>
+            <div class="kpi-label">Total de Demandas (Ativas)
+              <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                 title="Quantidade ativa no PCA (exclui um total de {{ suspensos }} processo{{ suspensos|pluralize:"s" }} suspenso{{ suspensos|pluralize:"s" }})."></i>
+            </div>
+            <div class="kpi-value mt-1" data-countup="{{ total_ativas }}">{{ total_ativas|intcomma }}</div>
+            <div class="kpi-sub">{{ total_dfds }} DFD{{ total_dfds|pluralize:"s" }}</div>
           </div>
-          <div class="kpi-value mt-1" data-countup="{{ total_ativas }}">{{ total_ativas|intcomma }}</div>
-          <div class="kpi-sub">{{ total_dfds }} DFD{{ total_dfds|pluralize:"s" }}</div>
+          <div class="kpi-icon" style="background:#e8f0fb;">
+            <i class="bi bi-file-text text-primary"></i>
+          </div>
         </div>
-        <div class="kpi-icon" style="background:#e8f0fb;">
-          <i class="bi bi-file-text text-primary"></i>
+      </div>
+      <div class="card kpi-card p-3 border-0 shadow-sm">
+        <div class="d-flex align-items-start justify-content-between">
+          <div>
+            <div class="kpi-label">Demandas Concluídas
+              <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                 title="Quantidade de processos de contratação que já foram totalmente finalizados."></i>
+            </div>
+            <div class="kpi-value mt-1" data-countup="{{ concluidos }}">{{ concluidos }}</div>
+            <div class="kpi-sub">{{ em_andamento }} em andamento · {{ suspensos }} suspenso{{ suspensos|pluralize:"s" }}</div>
+          </div>
+          <div class="kpi-icon" style="background:#dcfce7;">
+            <i class="bi bi-check-circle text-success"></i>
+          </div>
         </div>
+        {% if total_itens %}
+        <div class="progress mt-2" style="height:4px;">
+          <div class="progress-bar bg-success" style="width:{% widthratio concluidos total_itens 100 %}%"></div>
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>
-  <div class="col-6 col-md-3">
-    <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
-      <div class="d-flex align-items-start justify-content-between">
-        <div>
-          <div class="kpi-label">Valor PCA Ativo
-            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
-               title="Soma dos valores estimados para as demandas ativas (exclui processos concluídos e suspensos)."></i>
+  <div class="col-12 col-md-6">
+    <div class="d-flex flex-column gap-3 h-100">
+      <div class="card kpi-card p-3 border-0 shadow-sm">
+        <div class="d-flex align-items-start justify-content-between">
+          <div>
+            <div class="kpi-label">Valor PCA Ativo
+              <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                 title="Soma dos valores estimados para as demandas do exercício, incluindo as já concluídas (exclui apenas as suspensas)."></i>
+            </div>
+            <div class="kpi-value mt-1" data-countup="{{ valor_pca_ativo }}" data-countup-prefix="R$ ">R$&nbsp;{{ valor_pca_ativo|brl:0 }}</div>
+            <div class="kpi-sub text-muted">estimadas + concluídas, sem suspensas</div>
           </div>
-          <div class="kpi-value mt-1" data-countup="{{ valor_pca_ativo }}" data-countup-prefix="R$ ">R$&nbsp;{{ valor_pca_ativo|brl:0 }}</div>
-          <div class="kpi-sub text-muted">demandas ativas, sem concluídas/suspensas</div>
-        </div>
-        <div class="kpi-icon" style="background:#dcfce7;">
-          <i class="bi bi-cash-coin text-success"></i>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
-      <div class="d-flex align-items-start justify-content-between">
-        <div>
-          <div class="kpi-label">Valor Executado
-            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
-               title="Soma dos valores que já foram empenhados e estão em execução."></i>
+          <div class="kpi-icon" style="background:#dcfce7;">
+            <i class="bi bi-cash-coin text-success"></i>
           </div>
-          <div class="kpi-value mt-1" data-countup="{{ valor_empenhado }}" data-countup-prefix="R$ ">R$&nbsp;{{ valor_empenhado|brl:0 }}</div>
-          <div class="kpi-sub">{{ pct_executado }}% do estimado</div>
-        </div>
-        <div class="kpi-icon" style="background:#fef9c3;">
-          <i class="bi bi-graph-up-arrow text-warning"></i>
         </div>
       </div>
-      <div class="progress mt-2" style="height:4px;">
-        <div class="progress-bar bg-warning" style="width:{{ pct_executado }}%"></div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="card kpi-card h-100 p-3 border-0 shadow-sm">
-      <div class="d-flex align-items-start justify-content-between">
-        <div>
-          <div class="kpi-label">Demandas Concluídas
-            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
-               title="Quantidade de processos de contratação que já foram totalmente finalizados."></i>
+      <div class="card kpi-card p-3 border-0 shadow-sm">
+        <div class="d-flex align-items-start justify-content-between">
+          <div>
+            <div class="kpi-label">Valor Executado
+              <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                 title="Soma dos valores que já foram empenhados e estão em execução. A cor indica o percentual atingido: vermelho até 49%, amarelo de 50% a 80%, verde a partir de 81%."></i>
+            </div>
+            <div class="kpi-value mt-1" data-countup="{{ valor_empenhado }}" data-countup-prefix="R$ ">R$&nbsp;{{ valor_empenhado|brl:0 }}</div>
+            <div class="kpi-sub fw-semibold {% if pct_executado <= 49 %}text-danger{% elif pct_executado <= 80 %}text-warning{% else %}text-success{% endif %}">{{ pct_executado }}% do estimado</div>
           </div>
-          <div class="kpi-value mt-1" data-countup="{{ concluidos }}">{{ concluidos }}</div>
-          <div class="kpi-sub">{{ em_andamento }} em andamento · {{ suspensos }} suspenso{{ suspensos|pluralize:"s" }}</div>
+          <div class="kpi-icon" style="background:{% if pct_executado <= 49 %}#fee2e2{% elif pct_executado <= 80 %}#fef9c3{% else %}#dcfce7{% endif %};">
+            <i class="bi bi-graph-up-arrow {% if pct_executado <= 49 %}text-danger{% elif pct_executado <= 80 %}text-warning{% else %}text-success{% endif %}"></i>
+          </div>
         </div>
-        <div class="kpi-icon" style="background:#dcfce7;">
-          <i class="bi bi-check-circle text-success"></i>
+        <div class="progress mt-2" style="height:4px;">
+          <div class="progress-bar {% if pct_executado <= 49 %}bg-danger{% elif pct_executado <= 80 %}bg-warning{% else %}bg-success{% endif %}"
+               style="width:{% if pct_executado > 100 %}100{% else %}{{ pct_executado }}{% endif %}%"></div>
         </div>
       </div>
-      {% if total_itens %}
-      <div class="progress mt-2" style="height:4px;">
-        <div class="progress-bar bg-success" style="width:{% widthratio concluidos total_itens 100 %}%"></div>
-      </div>
-      {% endif %}
     </div>
   </div>
 </div>
@@ -234,115 +281,137 @@
     <!-- chips de filtros ativos -->
     <div id="expl-chips" class="d-flex flex-wrap gap-1 mb-3"></div>
     <!-- mini KPIs reativos ao filtro -->
-    <div class="row g-2 mb-3">
-      <div class="col-4"><div class="p-2 rounded text-center" style="background:#f8fafc;border:1px solid #e2e8f0;">
-        <div class="fs-5 fw-bold text-primary" id="k-qtd">0</div><div class="small text-muted">demandas no recorte</div></div></div>
-      <div class="col-4"><div class="p-2 rounded text-center" style="background:#f0fdf4;border:1px solid #bbf7d0;">
-        <div class="fw-bold text-success" style="font-size:1rem;" id="k-valor">R$ 0</div><div class="small text-muted">valor estimado</div></div></div>
-      <div class="col-4"><div class="p-2 rounded text-center" style="background:#fef9c3;border:1px solid #fde68a;">
-        <div class="fw-bold text-warning" style="font-size:1rem;" id="k-emp">R$ 0</div><div class="small text-muted">empenhado</div></div></div>
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      <div class="p-2 px-3 rounded text-center" style="background:#f8fafc;border:1px solid #e2e8f0;">
+        <div class="fs-5 fw-bold text-primary" id="k-qtd">0</div><div class="small text-muted">demandas no recorte</div></div>
+      <div class="p-2 px-3 rounded text-center" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+        <div class="fw-bold text-success" style="font-size:1rem;" id="k-valor">R$ 0</div><div class="small text-muted">valor estimado</div></div>
+      <div class="p-2 px-3 rounded text-center" style="background:#fef9c3;border:1px solid #fde68a;">
+        <div class="fw-bold text-warning" style="font-size:1rem;">
+          <span id="k-emp">R$ 0</span> <span class="fw-semibold" style="font-size:.82rem;" id="k-emp-pct"></span>
+        </div>
+        <div class="small text-muted">empenhado</div>
+      </div>
     </div>
-    <!-- gráficos interativos (clique numa barra p/ filtrar) — ordenados do mais macro (poucas
-         categorias, visão estratégica) ao mais granular (muitas categorias, visão operacional) -->
-    <div class="row g-3">
-      <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
-          <div class="small fw-semibold text-muted">Por unidade orçamentária
-            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
-               title="Demandas agrupadas pela fonte orçamentária (PGJ, FMMP ou FEPDC)."></i>
+    <!-- gráficos interativos (clique numa barra p/ filtrar) — exibição de um gráfico
+         por vez: painel dividido verticalmente em cards de seleção + descrição (topo)
+         e o gráfico selecionado (base). -->
+    <div class="chart-switcher mt-4">
+      <div class="chart-switcher-top">
+        <div class="row g-2" id="chart-cards">
+          <div class="col-6 col-md-4 col-lg-2">
+            <button type="button" class="chart-card-btn active" data-chart="uo">
+              <i class="bi bi-cash-stack"></i>
+              <span>Por unidade orçamentária</span>
+            </button>
           </div>
-          <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
-            <button type="button" class="btn btn-outline-secondary active" data-dim="uo" data-metric="valor">Valores estimados</button>
-            <button type="button" class="btn btn-outline-secondary" data-dim="uo" data-metric="qtd">Número de processos</button>
+          <div class="col-6 col-md-4 col-lg-2">
+            <button type="button" class="chart-card-btn" data-chart="tipo">
+              <i class="bi bi-diagram-3"></i>
+              <span>Distribuição por Tipo de Contratação</span>
+            </button>
           </div>
-        </div>
-        <div style="position:relative;height:190px;"><canvas id="ch-uo"></canvas></div></div></div>
-      <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
-          <div class="small fw-semibold text-muted">Distribuição por Tipo de Contratação
-            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
-               title="Demandas agrupadas pela natureza da contratação (nova, renovação, aditivo, repactuação ou apostilamento)."></i>
+          <div class="col-6 col-md-4 col-lg-2">
+            <button type="button" class="chart-card-btn" data-chart="status">
+              <i class="bi bi-signpost-split"></i>
+              <span>Por status</span>
+            </button>
           </div>
-          <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
-            <button type="button" class="btn btn-outline-secondary" data-dim="tipo" data-metric="valor">Valores estimados</button>
-            <button type="button" class="btn btn-outline-secondary active" data-dim="tipo" data-metric="qtd">Número de processos</button>
+          <div class="col-6 col-md-4 col-lg-2">
+            <button type="button" class="chart-card-btn" data-chart="modalidade">
+              <i class="bi bi-hammer"></i>
+              <span>Por modalidade</span>
+            </button>
           </div>
-        </div>
-        <div style="position:relative;height:190px;"><canvas id="ch-tipo"></canvas></div></div></div>
-      <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
-          <div class="small fw-semibold text-muted">Por status
-            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
-               title="Demandas agrupadas pela fase atual do processo de contratação."></i>
+          <div class="col-6 col-md-4 col-lg-2">
+            <button type="button" class="chart-card-btn" data-chart="categoria">
+              <i class="bi bi-tags"></i>
+              <span>Por categoria</span>
+            </button>
           </div>
-          <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
-            <button type="button" class="btn btn-outline-secondary" data-dim="status" data-metric="valor">Valores estimados</button>
-            <button type="button" class="btn btn-outline-secondary active" data-dim="status" data-metric="qtd">Número de processos</button>
-          </div>
-        </div>
-        <div style="position:relative;height:190px;"><canvas id="ch-status"></canvas></div></div></div>
-      <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
-          <div class="small fw-semibold text-muted">Por modalidade
-            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
-               title="Demandas agrupadas pela modalidade de contratação prevista (pregão, dispensa, ARP etc.)."></i>
-          </div>
-          <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
-            <button type="button" class="btn btn-outline-secondary" data-dim="modalidade" data-metric="valor">Valores estimados</button>
-            <button type="button" class="btn btn-outline-secondary active" data-dim="modalidade" data-metric="qtd">Número de processos</button>
+          <div class="col-6 col-md-4 col-lg-2">
+            <button type="button" class="chart-card-btn" data-chart="unidade">
+              <i class="bi bi-building"></i>
+              <span>Distribuição por Setor</span>
+            </button>
           </div>
         </div>
-        <div style="position:relative;height:190px;"><canvas id="ch-modalidade"></canvas></div></div></div>
-      <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
-          <div class="small fw-semibold text-muted">Por categoria
-            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
-               title="Demandas agrupadas pela categoria do item (material, serviço, obra etc.). Clique numa barra para filtrar."></i>
-          </div>
-          <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
-            <button type="button" class="btn btn-outline-secondary active" data-dim="categoria" data-metric="valor">Valores estimados</button>
-            <button type="button" class="btn btn-outline-secondary" data-dim="categoria" data-metric="qtd">Número de processos</button>
-          </div>
+        <div id="chart-desc" class="chart-desc-box mt-2">
+          <div class="chart-desc-title" id="chart-desc-title">Por unidade orçamentária</div>
+          <div class="chart-desc-text" id="chart-desc-text">Demandas agrupadas pela fonte orçamentária (PGJ, FMMP ou FEPDC).</div>
         </div>
-        <div style="position:relative;height:190px;"><canvas id="ch-categoria"></canvas></div></div></div>
-      <div class="col-12 col-lg-6"><div class="border rounded p-2 h-100">
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-1 mb-1">
-          <div class="small fw-semibold text-muted">Distribuição por Setor
-            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
-               title="Demandas agrupadas pela unidade requisitante (setor) responsável pelo processo."></i>
+      </div>
+      <div class="chart-switcher-bottom">
+        <div class="chart-panel" data-panel="uo">
+          <div class="d-flex align-items-center justify-content-end flex-wrap gap-1 mb-1">
+            <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
+              <button type="button" class="btn btn-outline-secondary active" data-dim="uo" data-metric="valor">Valores estimados</button>
+              <button type="button" class="btn btn-outline-secondary" data-dim="uo" data-metric="qtd">Número de processos</button>
+            </div>
           </div>
-          <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
-            <button type="button" class="btn btn-outline-secondary" data-dim="unidade" data-metric="valor">Valores estimados</button>
-            <button type="button" class="btn btn-outline-secondary active" data-dim="unidade" data-metric="qtd">Número de processos</button>
-          </div>
+          <div style="position:relative;height:320px;"><canvas id="ch-uo"></canvas></div>
         </div>
-        <div style="position:relative;height:190px;"><canvas id="ch-setor"></canvas></div></div></div>
+        <div class="chart-panel" data-panel="tipo" style="display:none;">
+          <div class="d-flex align-items-center justify-content-end flex-wrap gap-1 mb-1">
+            <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
+              <button type="button" class="btn btn-outline-secondary" data-dim="tipo" data-metric="valor">Valores estimados</button>
+              <button type="button" class="btn btn-outline-secondary active" data-dim="tipo" data-metric="qtd">Número de processos</button>
+            </div>
+          </div>
+          <div style="position:relative;height:320px;"><canvas id="ch-tipo"></canvas></div>
+        </div>
+        <div class="chart-panel" data-panel="status" style="display:none;">
+          <div class="d-flex align-items-center justify-content-end flex-wrap gap-1 mb-1">
+            <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
+              <button type="button" class="btn btn-outline-secondary" data-dim="status" data-metric="valor">Valores estimados</button>
+              <button type="button" class="btn btn-outline-secondary active" data-dim="status" data-metric="qtd">Número de processos</button>
+            </div>
+          </div>
+          <div style="position:relative;height:320px;"><canvas id="ch-status"></canvas></div>
+        </div>
+        <div class="chart-panel" data-panel="modalidade" style="display:none;">
+          <div class="d-flex align-items-center justify-content-end flex-wrap gap-1 mb-1">
+            <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
+              <button type="button" class="btn btn-outline-secondary" data-dim="modalidade" data-metric="valor">Valores estimados</button>
+              <button type="button" class="btn btn-outline-secondary active" data-dim="modalidade" data-metric="qtd">Número de processos</button>
+            </div>
+          </div>
+          <div style="position:relative;height:320px;"><canvas id="ch-modalidade"></canvas></div>
+        </div>
+        <div class="chart-panel" data-panel="categoria" style="display:none;">
+          <div class="d-flex align-items-center justify-content-end flex-wrap gap-1 mb-1">
+            <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
+              <button type="button" class="btn btn-outline-secondary active" data-dim="categoria" data-metric="valor">Valores estimados</button>
+              <button type="button" class="btn btn-outline-secondary" data-dim="categoria" data-metric="qtd">Número de processos</button>
+            </div>
+          </div>
+          <div style="position:relative;height:320px;"><canvas id="ch-categoria"></canvas></div>
+        </div>
+        <div class="chart-panel" data-panel="unidade" style="display:none;">
+          <div class="d-flex align-items-center justify-content-end flex-wrap gap-1 mb-1">
+            <div class="btn-group btn-group-sm chart-metric-toggle" role="group">
+              <button type="button" class="btn btn-outline-secondary" data-dim="unidade" data-metric="valor">Valores estimados</button>
+              <button type="button" class="btn btn-outline-secondary active" data-dim="unidade" data-metric="qtd">Número de processos</button>
+            </div>
+          </div>
+          <div style="position:relative;height:320px;"><canvas id="ch-setor"></canvas></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- tabela interativa (busca + ordenação, reflete os filtros) -->
+<!-- link para a lista completa de demandas -->
 <div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-white border-bottom py-3">
-    <i class="bi bi-table me-2 text-primary"></i><strong>Demandas</strong>
-    <span class="text-muted small ms-2" id="tbl-resumo"></span>
+  <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-2 py-3">
+    <div>
+      <i class="bi bi-table me-2 text-primary"></i><strong>Demandas</strong>
+      <span class="text-muted small ms-2">veja a lista completa, com busca, filtros e ações de análise</span>
+    </div>
+    <a href="{% url 'pca:demandas' %}" class="btn btn-primary btn-sm">
+      <i class="bi bi-list-task me-1"></i>Ver todas as demandas
+    </a>
   </div>
-  <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0" style="font-size:.83rem;">
-      <thead class="table-light">
-        <tr>
-          <th class="expl-sort" data-k="codigo" role="button" style="cursor:pointer;">Código <i class="bi bi-arrow-down-up text-muted" style="font-size:.65rem;"></i></th>
-          <th class="expl-sort" data-k="unidade" role="button" style="cursor:pointer;">Unidade</th>
-          <th>Descrição</th>
-          <th class="expl-sort" data-k="categoria" role="button" style="cursor:pointer;">Categoria</th>
-          <th class="expl-sort text-end" data-k="valor" role="button" style="cursor:pointer;">Valor (R$)</th>
-          <th class="expl-sort" data-k="status" role="button" style="cursor:pointer;">Status</th>
-        </tr>
-      </thead>
-      <tbody id="tbl-body"></tbody>
-    </table>
-  </div>
-  <div class="px-3 py-2 border-top small text-muted" id="tbl-footer"></div>
 </div>
 
 <!-- FUNIL / PIPELINE DE INSTRUCAO CONTRATUAL -->
@@ -629,7 +698,6 @@
   const RED = '#9B2335', RED_SOFT = 'rgba(155,35,53,.28)';
 
   const F = {q:'', unidade:'', categoria:'', modalidade:'', status:'', uo:'', tipo:'', srp:false};
-  let sortK = 'valor', sortDir = -1;
 
   function filtered() {
     const q = F.q.trim().toLowerCase();
@@ -695,7 +763,7 @@
       data: {labels: [], datasets: [{data: [], backgroundColor: RED, borderRadius: 3, maxBarThickness: vertical ? 26 : 22}]},
       options: {
         indexAxis: vertical ? 'x' : 'y', responsive: true, maintainAspectRatio: false,
-        layout: {padding: vertical ? {top: 20} : {right: 40}},
+        layout: {padding: vertical ? {top: 30} : {right: 64}},
         plugins: {
           legend: {display: false},
           tooltip: {callbacks: {label: c => {
@@ -703,12 +771,24 @@
             return METRIC[dim] === 'valor' ? brl(raw) : fmtQtd(raw);
           }}},
           datalabels: {
-            anchor: 'end', align: vertical ? 'top' : 'end', clamp: true, clip: false,
-            color: '#334155', font: {size: 10, weight: '600'},
-            formatter: (v, ctx) => {
-              const pcts = charts[id]._pcts;
-              const pct = pcts ? pcts[ctx.dataIndex] : null;
-              return pct == null ? '' : fmtPct(pct);
+            clamp: true, clip: false,
+            labels: {
+              // porcentagem, centralizada dentro da própria barra
+              pct: {
+                anchor: 'center', align: 'center',
+                color: '#fff', font: {size: 10, weight: '700'},
+                formatter: (v, ctx) => {
+                  const pcts = charts[id]._pcts;
+                  const pct = pcts ? pcts[ctx.dataIndex] : null;
+                  return pct == null ? '' : fmtPct(pct);
+                }
+              },
+              // valor do item, ao final da barra
+              val: {
+                anchor: 'end', align: vertical ? 'top' : 'end',
+                color: '#334155', font: {size: 10, weight: '600'},
+                formatter: v => METRIC[dim] === 'valor' ? brl(v) : fmtQtd(v)
+              }
             }
           }
         },
@@ -732,6 +812,36 @@
   mkChart('ch-tipo', 'tipo');
   mkChart('ch-setor', 'unidade', true);
 
+  // painel "um gráfico por vez" — cards no topo selecionam qual gráfico aparece embaixo,
+  // com o nome + descrição do gráfico atualizados entre o bloco de cards e o gráfico.
+  const CHART_META = {
+    uo:         {title: 'Por unidade orçamentária', desc: 'Demandas agrupadas pela fonte orçamentária (PGJ, FMMP ou FEPDC).', canvas: 'ch-uo'},
+    tipo:       {title: 'Distribuição por Tipo de Contratação', desc: 'Demandas agrupadas pela natureza da contratação (nova, renovação, aditivo, repactuação ou apostilamento).', canvas: 'ch-tipo'},
+    status:     {title: 'Por status', desc: 'Demandas agrupadas pela fase atual do processo de contratação.', canvas: 'ch-status'},
+    modalidade: {title: 'Por modalidade', desc: 'Demandas agrupadas pela modalidade de contratação prevista (pregão, dispensa, ARP etc.).', canvas: 'ch-modalidade'},
+    categoria:  {title: 'Por categoria', desc: 'Demandas agrupadas pela categoria do item (material, serviço, obra etc.). Clique numa barra para filtrar.', canvas: 'ch-categoria'},
+    unidade:    {title: 'Distribuição por Setor', desc: 'Demandas agrupadas pela unidade requisitante (setor) responsável pelo processo.', canvas: 'ch-setor'}
+  };
+
+  function setActiveChart(key) {
+    const meta = CHART_META[key];
+    if (!meta) return;
+    document.querySelectorAll('.chart-card-btn').forEach(b => b.classList.toggle('active', b.dataset.chart === key));
+    document.querySelectorAll('.chart-panel').forEach(p => { p.style.display = (p.dataset.panel === key) ? '' : 'none'; });
+    document.getElementById('chart-desc-title').textContent = meta.title;
+    document.getElementById('chart-desc-text').textContent = meta.desc;
+    // canvas escondido (display:none) no momento da criação nasce com largura 0 —
+    // ao revelar o painel, força o Chart.js a recalcular o tamanho.
+    requestAnimationFrame(() => {
+      const ch = charts[meta.canvas];
+      if (ch) ch.resize();
+    });
+  }
+  document.querySelectorAll('.chart-card-btn').forEach(btn => {
+    btn.addEventListener('click', () => setActiveChart(btn.dataset.chart));
+  });
+  setActiveChart('uo');
+
   // botões "Valores estimados" / "Número de processos" — alternam a métrica de cada gráfico
   document.querySelectorAll('.chart-metric-toggle button').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -749,30 +859,10 @@
     const ch = charts[id];
     ch._keys = rows.map(r => r.k);
     ch._pcts = total ? rows.map(r => (r.v / total) * 100) : rows.map(() => 0);
-    ch.data.labels = rows.map(r => r.label);
+    ch.data.labels = rows.map(r => `${r.label} (${metric === 'valor' ? brl(r.v) : fmtQtd(r.v)})`);
     ch.data.datasets[0].data = rows.map(r => r.v);
     ch.data.datasets[0].backgroundColor = rows.map(r => (F[dim] && F[dim] !== r.k) ? RED_SOFT : RED);
     ch.update();
-  }
-
-  function updTable(arr) {
-    const rows = [...arr].sort((a, b) => {
-      let x = a[sortK], y = b[sortK];
-      if (typeof x === 'string') { x = x.toLowerCase(); y = String(y).toLowerCase(); }
-      return x < y ? -1 * sortDir : x > y ? 1 * sortDir : 0;
-    });
-    const LIMIT = 200, shown = rows.slice(0, LIMIT);
-    document.getElementById('tbl-body').innerHTML = shown.map(d => `<tr>
-      <td><a href="${d.url}" class="fw-semibold text-decoration-none">${esc(d.codigo)}</a></td>
-      <td>${esc(d.unidade)}</td>
-      <td class="text-muted" style="max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(d.desc)}">${esc(d.desc)}</td>
-      <td><span class="small">${esc(lab('categoria', d.categoria))}</span></td>
-      <td class="text-end">${d.valor.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-      <td><span class="badge bg-light text-dark border">${esc(lab('status', d.status))}</span></td></tr>`).join('')
-      || '<tr><td colspan="6" class="text-center text-muted py-4">Nenhuma demanda com os filtros atuais.</td></tr>';
-    document.getElementById('tbl-footer').textContent = rows.length > LIMIT
-      ? `Mostrando ${LIMIT} de ${rows.length} demandas — refine os filtros para ver o restante.`
-      : `${rows.length} demanda(s).`;
   }
 
   function updChips() {
@@ -795,9 +885,12 @@
 
   function render() {
     const arr = filtered();
+    const totalEstimado = arr.reduce((s, d) => s + d.valor, 0);
+    const totalEmpenhado = arr.reduce((s, d) => s + d.empenhado, 0);
     document.getElementById('k-qtd').textContent = arr.length.toLocaleString('pt-BR');
-    document.getElementById('k-valor').textContent = brl(arr.reduce((s, d) => s + d.valor, 0));
-    document.getElementById('k-emp').textContent = brl(arr.reduce((s, d) => s + d.empenhado, 0));
+    document.getElementById('k-valor').textContent = brl(totalEstimado);
+    document.getElementById('k-emp').textContent = brl(totalEmpenhado);
+    document.getElementById('k-emp-pct').textContent = totalEstimado ? '(' + fmtPct(totalEmpenhado / totalEstimado * 100) + ')' : '';
     updChart('ch-categoria', 'categoria', arr);
     updChart('ch-uo', 'uo', arr);
     updChart('ch-modalidade', 'modalidade', arr);
@@ -805,15 +898,7 @@
     updChart('ch-tipo', 'tipo', arr);
     updChart('ch-setor', 'unidade', arr);
     updChips();
-    updTable(arr);
-    document.getElementById('tbl-resumo').textContent = '· ' + arr.length + ' de ' + DADOS.length;
   }
-
-  document.querySelectorAll('.expl-sort').forEach(th => th.addEventListener('click', () => {
-    const k = th.dataset.k;
-    if (sortK === k) sortDir *= -1; else { sortK = k; sortDir = (k === 'valor' ? -1 : 1); }
-    render();
-  }));
 
   render();
 })();

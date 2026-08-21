@@ -290,20 +290,56 @@
     </div>
     <div class="card-body">
       <div class="row g-3">
+        {% comment %}
+          Reestruturado em 2026-08-18 (Thiago): as 7 opções planas do formulário SEI viraram
+          3 naturezas + 3 marcadores. "Continuado", "DEMO" e "TIC" eram sufixos de rótulo que
+          na verdade são eixos independentes da natureza — como marcadores, combinam livremente
+          (ex.: fornecimento continuado de solução de TIC, que antes era impossível registrar).
+        {% endcomment %}
         <div class="col-md-6">
-          <label class="form-label small fw-semibold">Natureza do objeto
-            <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
-               title="Define o tipo de contratação. Contratações de Solução de TI exigem equipe de planejamento com 3 papéis distintos (Res. CNMP 283/2024)."></i>
-          </label>
-          <select name="natureza_objeto" id="naturezaObjeto" class="form-select form-select-sm">
-            <option value="">—</option>
+          <label class="form-label small fw-semibold d-block">Natureza do objeto</label>
+          <div class="btn-group w-100" role="group" aria-label="Natureza do objeto">
             {% for val, label in natureza_objeto_choices %}
-              <option value="{{ val }}" {% if dod and dod.natureza_objeto == val %}selected{% endif %}>{{ label }}</option>
+            <input type="radio" class="btn-check natureza-radio" name="natureza_objeto"
+                   id="nat_{{ val }}" value="{{ val }}" autocomplete="off"
+                   {% if dod and dod.natureza_objeto == val %}checked{% endif %}>
+            <label class="btn btn-outline-secondary btn-sm" for="nat_{{ val }}">{{ label }}</label>
             {% endfor %}
-          </select>
+          </div>
+
+          <div class="d-flex flex-wrap gap-3 mt-2">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="solucao_tic" value="1" id="chkSolucaoTic"
+                     {% if dod.solucao_tic %}checked{% endif %}>
+              <label class="form-check-label small" for="chkSolucaoTic">
+                Solução de TIC
+                <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                   title="Tecnologia da Informação e Comunicação — exige equipe de planejamento com os 3 papéis distintos (Res. CNMP 283/2024). Vale para qualquer natureza."></i>
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="item_continuado" value="1" id="chkContinuado"
+                     {% if dod.item_continuado %}checked{% endif %}>
+              <label class="form-check-label small" for="chkContinuado">
+                Item continuado
+                <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                   title="Serviços e fornecimentos contínuos, nos termos do Ato PGJ 1415/2024."></i>
+              </label>
+            </div>
+            <div class="form-check" id="wrapDemo">
+              <input class="form-check-input" type="checkbox" name="com_demo" value="1" id="chkDemo"
+                     {% if dod.com_demo %}checked{% endif %}>
+              <label class="form-check-label small" for="chkDemo">
+                Com dedicação de mão de obra (DEMO)
+                <i class="bi bi-info-circle info-tip" data-bs-toggle="tooltip" data-bs-placement="bottom"
+                   title="Regime de execução exclusivo de serviços — só fica disponível quando a natureza é Serviços."></i>
+              </label>
+            </div>
+          </div>
+
           <div id="avisoTI" class="alert alert-info py-2 px-3 mt-2 mb-0" style="font-size:.78rem; display:none;">
             <i class="bi bi-info-circle me-1"></i>
-            Contratação de TI selecionada: preencha os 3 papéis distintos na Equipe de Planejamento abaixo.
+            Solução de TIC marcada: preencha os 3 papéis distintos na Equipe de Planejamento abaixo.
           </div>
         </div>
         <div class="col-md-6">
@@ -908,30 +944,60 @@
     });
   }
 
-  // Marca visualmente os 3 papéis da equipe como obrigatórios quando a
-  // natureza do objeto é "Solução de TI" — a validação de verdade roda no
-  // servidor (EquipePlanejamentoTI.clean()); isto é só uma pista pro usuário.
-  var naturezaObjeto = document.getElementById('naturezaObjeto');
+  // Natureza do objeto + marcadores (reestruturação de 2026-08-18):
+  //  - "Solução de TIC" marca os 3 papéis da equipe como obrigatórios;
+  //  - DEMO só existe em Serviços, então a caixa é desabilitada (e limpa)
+  //    nas outras naturezas.
+  // Ambas as regras são revalidadas no servidor — DEMO em
+  // DocumentoOficializacaoDemanda.clean(), equipe em
+  // EquipePlanejamentoTI.clean(). Aqui é só pista visual.
+  var NATUREZA_SERVICOS = "{{ natureza_servicos }}";
+  var chkSolucaoTic = document.getElementById('chkSolucaoTic');
+  var chkDemo = document.getElementById('chkDemo');
+  var wrapDemo = document.getElementById('wrapDemo');
   var avisoTI = document.getElementById('avisoTI');
-  var NATUREZA_TI = "{{ natureza_ti }}";
   var labels = [
     document.getElementById('lblRequisitante'),
     document.getElementById('lblTecnico'),
     document.getElementById('lblAdministrativo'),
   ];
+
+  function naturezaSelecionada() {
+    var marcado = document.querySelector('.natureza-radio:checked');
+    return marcado ? marcado.value : '';
+  }
+
   function atualizarObrigatoriedade() {
-    var isTI = naturezaObjeto.value === NATUREZA_TI;
+    var isTIC = !!(chkSolucaoTic && chkSolucaoTic.checked);
     labels.forEach(function (lbl) {
       if (!lbl) { return; }
       var base = lbl.textContent.replace(' *', '');
-      lbl.textContent = isTI ? base + ' *' : base;
+      lbl.textContent = isTIC ? base + ' *' : base;
     });
-    if (avisoTI) { avisoTI.style.display = isTI ? '' : 'none'; }
+    if (avisoTI) { avisoTI.style.display = isTIC ? '' : 'none'; }
   }
-  if (naturezaObjeto) {
-    naturezaObjeto.addEventListener('change', atualizarObrigatoriedade);
-    atualizarObrigatoriedade();
+
+  function atualizarDemo() {
+    if (!chkDemo) { return; }
+    var ehServico = naturezaSelecionada() === NATUREZA_SERVICOS;
+    chkDemo.disabled = !ehServico;
+    // Desmarca ao sair de Serviços: deixar marcado num campo desabilitado
+    // guardaria um "sim" invisível que nem seria enviado no POST.
+    if (!ehServico) { chkDemo.checked = false; }
+    if (wrapDemo) {
+      wrapDemo.classList.toggle('opacity-50', !ehServico);
+      wrapDemo.title = ehServico ? '' : 'Disponível apenas para a natureza Serviços';
+    }
   }
+
+  document.querySelectorAll('.natureza-radio').forEach(function (r) {
+    r.addEventListener('change', atualizarDemo);
+  });
+  if (chkSolucaoTic) {
+    chkSolucaoTic.addEventListener('change', atualizarObrigatoriedade);
+  }
+  atualizarObrigatoriedade();
+  atualizarDemo();
 
   // Botões "Sou eu" — preenche o select de integrante com o usuário logado.
   var MEU_USUARIO_ID = "{{ request.user.pk|default:'' }}";

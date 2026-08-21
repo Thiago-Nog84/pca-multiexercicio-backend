@@ -76,9 +76,13 @@ class DashboardPCAView(View):
         hoje = datetime.date.today()
         ativos = itens.exclude(status__in=["concluido", "suspenso"])
 
-        # ---------- cards macro do topo (demandas/valor ATIVOS, exclui concluído/suspenso) ----------
+        # ---------- cards macro do topo ----------
+        # "Total de Demandas (Ativas)": exclui concluído/suspenso (só o que ainda está em curso).
         total_ativas = ativos.count()
-        valor_pca_ativo = ativos.aggregate(total=Sum("valor_total_estimado"))["total"] or 0
+        # "Valor PCA Ativo": valor do exercício todo, incluindo as demandas já concluídas —
+        # só as suspensas ficam de fora (não fazem parte do planejamento vigente).
+        itens_valor_pca = itens.exclude(status="suspenso")
+        valor_pca_ativo = itens_valor_pca.aggregate(total=Sum("valor_total_estimado"))["total"] or 0
 
         atrasados   = ativos.filter(data_pretendida_conclusao__lt=hoje).count()
         vencendo_30 = ativos.filter(
@@ -193,6 +197,8 @@ def filtrar_demandas(request, pca):
         "modalidade": request.GET.get("modalidade", ""),
         "unidade": request.GET.get("unidade", ""),
         "aprovacao": request.GET.get("aprovacao", ""),
+        "uo": request.GET.get("uo", ""),
+        "srp": request.GET.get("srp", ""),
         "q": request.GET.get("q", "").strip(),
     }
 
@@ -206,6 +212,10 @@ def filtrar_demandas(request, pca):
         itens_qs = itens_qs.filter(modalidade=filtros["modalidade"])
     if filtros["unidade"]:
         itens_qs = itens_qs.filter(dfd__unidade_id=filtros["unidade"])
+    if filtros["uo"]:
+        itens_qs = itens_qs.filter(unidade_orcamentaria=filtros["uo"])
+    if filtros["srp"]:
+        itens_qs = itens_qs.filter(is_srp=True)
     if filtros["q"]:
         itens_qs = itens_qs.filter(descricao__unaccent__icontains=filtros["q"])
 
@@ -227,6 +237,8 @@ class DemandasPCAView(View):
         modalidade_filtro = filtros["modalidade"]
         unidade_filtro    = filtros["unidade"]
         aprovacao_filtro  = filtros["aprovacao"]
+        uo_filtro         = filtros["uo"]
+        srp_filtro        = filtros["srp"]
         busca             = filtros["q"]
 
         # So unidades que tem DFD no PCA exibido — evita opcoes que filtram para vazio
@@ -256,12 +268,15 @@ class DemandasPCAView(View):
             "modalidade_filtro": modalidade_filtro,
             "unidade_filtro": unidade_filtro,
             "aprovacao_filtro": aprovacao_filtro,
+            "uo_filtro": uo_filtro,
+            "srp_filtro": srp_filtro,
             "unidades": unidades_qs,
             "busca": busca,
             "status_choices": ItemPCA.STATUS,
             "categoria_choices": ItemPCA.CATEGORIAS,
             "modalidade_choices": ItemPCA.MODALIDADE,
             "aprovacao_choices": ItemPCA.STATUS_APROVACAO,
+            "uo_choices": ItemPCA.UNIDADE_ORCAMENTARIA,
             "resumo_aprovacao": resumo_aprovacao,
             "pode_analisar": pode_analisar(request.user),
         }

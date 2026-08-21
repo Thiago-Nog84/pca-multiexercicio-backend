@@ -97,19 +97,28 @@ class DocumentoOficializacaoDemanda(models.Model):
         ("fpdc", "FPDC — Fundo Estadual de Proteção e Defesa do Consumidor"),
     ]
 
-    # Código usado em NATUREZA_OBJETO abaixo e referenciado por
-    # EquipePlanejamentoTI.clean() para decidir se a regra dos 3 papéis
-    # distintos (Res. CNMP 283/2024) se aplica.
-    NATUREZA_TI = "solucao_ti"
+    # Reestruturado em 2026-08-18 a pedido de Thiago. Antes eram 7 opções
+    # planas (o texto literal do formulário SEI), que misturavam três eixos
+    # independentes num campo só e criavam combinações impossíveis de
+    # registrar — "fornecimento continuado de solução de TIC", por exemplo,
+    # não tinha como ser marcado. Agora: a natureza é UMA de três, e o que
+    # antes era sufixo do rótulo virou marcador booleano.
+    #
+    # As 7 opções antigas viram estas combinações:
+    #   servicos_nao_continuados      -> servicos                     (nada marcado)
+    #   servicos_continuados_sem_demo -> servicos      + item_continuado
+    #   servicos_continuados_com_demo -> servicos      + item_continuado + com_demo
+    #   fornecimento_nao_continuado   -> fornecimento                 (nada marcado)
+    #   fornecimento_continuado       -> fornecimento  + item_continuado
+    #   obras_servicos_engenharia     -> obra_engenharia
+    #   solucao_ti                    -> (natureza que couber) + solucao_tic
+    # Não houve migração de dados porque a tabela estava vazia (0 DODs).
+    NATUREZA_SERVICOS = "servicos"
 
     NATUREZA_OBJETO = [
-        ("servicos_nao_continuados", "Serviços não continuados"),
-        ("fornecimento_continuado", "Fornecimento continuado"),
-        ("fornecimento_nao_continuado", "Fornecimento não continuado"),
-        ("servicos_continuados_sem_demo", "Serviços continuados sem dedicação de mão de obra"),
-        ("servicos_continuados_com_demo", "Serviços continuados com dedicação de mão de obra (DEMO)"),
-        ("obras_servicos_engenharia", "Obras e serviços de engenharia"),
-        (NATUREZA_TI, "Aquisição de solução de Tecnologia da Informação"),
+        (NATUREZA_SERVICOS, "Serviços"),
+        ("fornecimento", "Fornecimentos"),
+        ("obra_engenharia", "Obras e serviços de engenharia"),
     ]
 
     GRAU_PRIORIDADE = [("baixo", "Baixo"), ("medio", "Médio"), ("alto", "Alto")]
@@ -130,6 +139,23 @@ class DocumentoOficializacaoDemanda(models.Model):
     # --- Informações gerais da contratação (seção 3) -------------------
     unidade_orcamentaria = models.CharField(max_length=10, choices=UNIDADE_ORCAMENTARIA, blank=True)
     natureza_objeto = models.CharField(max_length=30, choices=NATUREZA_OBJETO, blank=True)
+    # Marcadores independentes da natureza (ver comentário em NATUREZA_OBJETO).
+    solucao_tic = models.BooleanField(
+        default=False,
+        verbose_name="Solução de TIC",
+        help_text="Contratação de solução de Tecnologia da Informação e Comunicação "
+                  "(Res. CNMP 283/2024) — exige equipe de planejamento com os 3 papéis.",
+    )
+    item_continuado = models.BooleanField(
+        default=False,
+        verbose_name="Item continuado",
+        help_text="Serviço ou fornecimento contínuo, nos termos do Ato PGJ 1415/2024.",
+    )
+    com_demo = models.BooleanField(
+        default=False,
+        verbose_name="Com dedicação de mão de obra (DEMO)",
+        help_text="Só se aplica a serviços.",
+    )
     contratacao_correlata = models.BooleanField(
         default=False, help_text="Há necessidade de contratação correlata (providências prévias)?"
     )
@@ -174,6 +200,28 @@ class DocumentoOficializacaoDemanda(models.Model):
 
     def __str__(self):
         return self.identificador or f"DOD #{self.pk}"
+
+    def clean(self):
+        super().clean()
+        # DEMO (dedicação exclusiva de mão de obra) é um regime de execução
+        # de SERVIÇO — não existe fornecimento nem obra "com DEMO". A tela já
+        # desabilita a caixa fora de Serviços; isto garante a regra também em
+        # POST forjado, script e admin.
+        if self.com_demo and self.natureza_objeto != self.NATUREZA_SERVICOS:
+            raise ValidationError({
+                "com_demo": "Dedicação de mão de obra (DEMO) só se aplica a serviços.",
+            })
+
+    @property
+    def exige_equipe_ti(self):
+        """
+        Se este DOD exige equipe de planejamento com os 3 papéis distintos
+        (Res. CNMP 283/2024). Até 2026-08-18 isso era `natureza_objeto ==
+        "solucao_ti"`; agora é o marcador próprio, que pode conviver com
+        qualquer natureza. Ponto único da regra — `EquipePlanejamentoTI.clean()`,
+        as views e o admin consultam esta propriedade.
+        """
+        return self.solucao_tic
 
     @property
     def valor_total_estimado(self):
@@ -294,11 +342,14 @@ class EquipePlanejamentoTI(models.Model):
 
     Regra implementada em 2026-08-17 (Thiago): os 3 papéis distintos
     (Requisitante/Técnico/Administrativo) só são OBRIGATÓRIOS quando o DOD é
-    de contratação de Solução de TI (`dod.natureza_objeto ==
-    DocumentoOficializacaoDemanda.NATUREZA_TI` — exigência da Res. CNMP
-    283/2024). Para as demais naturezas, o campo `integrante_administrativo`
-    fica opcional e não há checagem de distinção entre os integrantes — ver
-    `clean()`.
+    de contratação de Solução de TIC — exigência da Res. CNMP 283/2024.
+    Nos demais casos o campo `integrante_administrativo` fica opcional e não
+    há checagem de distinção entre os integrantes — ver `clean()`.
+
+    Desde 2026-08-18 quem responde "é de TIC?" é `dod.exige_equipe_ti`
+    (marcador `dod.solucao_tic`), e não mais `natureza_objeto == "solucao_ti"`:
+    TIC deixou de ser uma das naturezas e virou marcador, justamente para
+    poder conviver com serviço, fornecimento ou obra.
 
     Nota (ainda não resolvida): o modelo SEI 1465317 mostra, para qualquer
     natureza, uma tabela repetível com só 2 papéis (Integrante Requisitante
@@ -333,8 +384,8 @@ class EquipePlanejamentoTI(models.Model):
         if not self.dod_id:
             return
 
-        if self.dod.natureza_objeto != DocumentoOficializacaoDemanda.NATUREZA_TI:
-            # Fora de TI, os 3 papéis fixos não são exigidos pela Res. CNMP
+        if not self.dod.exige_equipe_ti:
+            # Fora de TIC, os 3 papéis fixos não são exigidos pela Res. CNMP
             # 283/2024 — nenhuma validação adicional aqui.
             return
 
